@@ -1,0 +1,398 @@
+
+/* =========================================
+   OLIVERA HOME DEVELOPERS
+   ADMIN PANEL - SHARED STYLESHEET
+   Modern, subtle and responsive design
+========================================= */
+
+/* 1. GLOBAL RESET */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --admin-navy: #17243a;
+    --admin-navy-light: #263954;
+    --admin-blue: #315fbd;
+    --admin-blue-hover: #244b99;
+    --admin-background: #f5f7fb;
+    --admin-white: #ffffff;
+    --admin-text: #263247;
+    --admin-muted: #64748b;
+    --admin-border: #e5eaf2;
+    --admin-radius: 12px;
+    --admin-shadow: 0 3px 12px rgba(20, 35, 60, 0.045);
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--admin-background);
+    color: var(--admin-text);
+    line-height: 1.5;
+}
+
+/* 2. MAIN LAYOUT */
+
+.dashboard-container,
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0;
+    padding: 30px;
+}
+
+/* 3. SIDEBAR */
+
+.sidebar {
+    width: 250px;
+    min-width: 250px;
+    min-height: 100vh;
+    background: var(--admin-navy);
+    color: var(--admin-white);
+    padding: 25px 16px;
+}
+
+.sidebar h2 {
+    color: var(--admin-white);
+    text-align: center;
+    font-size: 20px;
+    margin-bottom: 25px;
+}
+
+.sidebar-brand {
+    color: var(--admin-white);
+    font-size: 20px;
+    font-weight: 700;
+    padding: 0 12px 25px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    margin-bottom: 20px;
+}
+
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.sidebar a,
+.sidebar-menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #cbd5e1;
+    text-decoration: none;
+    padding: 11px 13px;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar a:hover,
+.sidebar-menu a:hover {
+    background: var(--admin-navy-light);
+    color: var(--admin-white);
+}
+
+.sidebar a.active,
+.sidebar-menu a.active {
+    background: var(--admin-blue);
+    color: var(--admin-white);
+    font-weight: 600;
+}
+
+.sidebar-section {
+    color: #8292aa;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 18px 14px 7px;
+    text-transform: uppercase;
+}
+
+/* 4. PAGE HEADERS */
+
+.top-header {
+    background: var(--admin-white);
+    padding: 20px 24px;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    box-shadow: var(--admin-shadow);
+}
+
+.top-header h1 {
+    font-size: 24px;
+    color: #1d2b43;
+}
+
+.user-info {
+    color: var(--admin-muted);
+    font-size: 14px;
+}
+
+/* 5. DASHBOARD HEADINGS */
+
+.main-content h1 {
+    color: #1d2b43;
+}
+
+.main-content h2 {
+    color: #334155;
+}
+
+/* 6. DASHBOARD CARDS */
+
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 18px;
+    margin-top: 22px;
+    margin-bottom: 25px;
+}
+
+.dashboard-card {
+    min-width: 0;
+    background: var(--admin-white);
+    padding: 24px;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    box-shadow: var(--admin-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 18px rgba(20, 35, 60, 0.075);
+}
+
+.dashboard-card h3 {
+    color: #475569;
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.dashboard-card h1 {
+    color: var(--admin-blue);
+    font-size: 30px;
+    margin: 10px 0;
+}
+
+.dashboard-card p {
+    color: var(--admin-muted);
+    font-size: 13px;
+}
+
+.dashboard-card a {
+    display: inline-block;
+    margin-top: 10px;
+    color: var(--admin-blue);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.dashboard-card a:hover {
+    color: var(--admin-blue-hover);
+    text-decoration: underline;
+}
+
+/* 7. TABLES */
+
+.dashboard-card table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--admin-white);
+    font-size: 13px;
+}
+
+.dashboard-card table th {
+    background: #f0f4fb;
+    color: #334b73;
+    text-align: left;
+    padding: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dashboard-card table td {
+    padding: 13px;
+    color: #334155;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.dashboard-card table th,
+.dashboard-card table td {
+    border: 1px solid var(--admin-border);
+}
+
+.dashboard-card table tr:hover {
+    background: #f8fafc;
+}
+
+/* 8. BUTTONS */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 17px;
+    background: var(--admin-blue);
+    color: var(--admin-white);
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.btn:hover {
+    background: var(--admin-blue-hover);
+}
+
+.btn-primary {
+    background: var(--admin-blue);
+    color: var(--admin-white);
+}
+
+.btn-primary:hover {
+    background: var(--admin-blue-hover);
+}
+
+.btn-secondary {
+    background: #edf1f7;
+    color: #35445a;
+    border-color: #e1e7ef;
+}
+
+.btn-secondary:hover {
+    background: #dfe6f0;
+}
+
+.logout-btn {
+    background: #dc2626;
+    color: var(--admin-white);
+}
+
+.logout-btn:hover {
+    background: #b91c1c;
+}
+
+/* 9. FORMS */
+
+input,
+select,
+textarea,
+button {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid rgba(49, 95, 189, 0.25);
+    outline-offset: 1px;
+}
+
+input,
+select,
+textarea {
+    max-width: 100%;
+}
+
+/* 10. HORIZONTAL LINES */
+
+.main-content hr {
+    border: 0;
+    border-top: 1px solid var(--admin-border);
+    margin: 25px 0;
+}
+
+/* 11. ACCESSIBILITY */
+
+.sidebar a:focus-visible,
+.btn:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid #9cc5f1;
+    outline-offset: 3px;
+}
+
+/* 12. RESPONSIVE DESIGN */
+
+@media (max-width: 850px) {
+
+    .dashboard-container,
+    .admin-layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        min-width: 0;
+        min-height: auto;
+    }
+
+    .sidebar-menu {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sidebar-section {
+        grid-column: 1 / -1;
+    }
+
+    .main-content {
+        width: 100%;
+        padding: 20px;
+    }
+
+    .top-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .sidebar-menu {
+        grid-template-columns: 1fr;
+    }
+
+    .main-content {
+        padding: 15px;
+        overflow-x: auto;
+    }
+
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-card {
+        overflow-x: auto;
+        padding: 18px;
+    }
+
+    .top-header {
+        padding: 17px;
+    }
+
+    .top-header h1 {
+        font-size: 21px;
+    }
+}

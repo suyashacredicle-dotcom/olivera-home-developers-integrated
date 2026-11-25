@@ -1,0 +1,18 @@
+/* Shared fallback styles for location/project pages whose dedicated CSS was not included in the supplied front-end archive. */
+:root{--page-navy:#04132c;--page-blue:#071d42;--page-gold:#d49b27;--page-cream:#f8f5ee}
+body{overflow-x:hidden}
+section{scroll-margin-top:105px}
+.location-hero,.project-hero,.city-hero,.destination-hero,.projects-hero{position:relative;min-height:360px;display:flex;align-items:center;justify-content:center;text-align:center;padding:125px 22px 70px;background:linear-gradient(135deg,#04132c,#102c4e);color:#fff}
+.location-hero h1,.project-hero h1,.city-hero h1,.destination-hero h1,.projects-hero h1{font-size:clamp(36px,5vw,58px);color:#fff}
+.location-hero p,.project-hero p,.city-hero p,.destination-hero p,.projects-hero p{max-width:760px;margin:12px auto;color:#e2e8f0}
+.project-container,.location-container,.destination-container,.project-details-container,.city-content,.location-content{width:min(1160px,92%);margin:0 auto;padding:55px 0}
+.project-grid,.location-grid,.destination-grid,.project-gallery,.gallery-grid,.projects-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px}
+.project-card,.location-card,.destination-card,.project-info-card{overflow:hidden;background:#fff;border:1px solid #e8e2d6;border-radius:12px;box-shadow:0 8px 25px rgba(4,19,44,.08);color:#263247}
+.project-card img,.location-card img,.destination-card img,.project-gallery img{width:100%;height:230px;object-fit:cover;display:block}
+.project-card-content,.location-card-content,.destination-card-content{padding:18px}
+.project-card h2,.location-card h2,.destination-card h2,.project-card h3{color:#071d42}
+.project-card p,.location-card p,.destination-card p{color:#64748b;line-height:1.7}
+.project-card a,.location-card a,.destination-card a,.project-button,.location-button{display:inline-block;margin-top:12px;padding:11px 18px;border-radius:6px;background:linear-gradient(135deg,#f8d365,#d49b27);color:#08152b;text-decoration:none;font-weight:700}
+.location-details,.project-details,.destination-details,.project-highlights,.location-highlights{width:min(1160px,92%);margin:0 auto;padding:50px 0;color:#334155;line-height:1.8}
+.location-details h2,.project-details h2,.destination-details h2,.project-highlights h2{color:#071d42}
+@media(max-width:700px){.location-hero,.project-hero,.city-hero,.destination-hero,.projects-hero{min-height:280px;padding-top:110px}.project-card img,.location-card img,.destination-card img{height:205px}}

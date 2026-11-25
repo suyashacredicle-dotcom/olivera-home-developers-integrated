@@ -1,0 +1,40 @@
+﻿@'
+# Environment and secrets
+.env
+.env.*
+!.env.example
+config/database.php
+
+# Database backups
+*.sql
+*.sql.zip
+*.bak
+
+# Logs and temporary files
+*.log
+*.tmp
+*.cache
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+
+# Dependencies
+vendor/
+node_modules/
+
+# Uploads: include only approved public assets and protection files
+uploads/*
+!uploads/.htaccess
+!uploads/83ea7dbef723826df8366d94c54a1edc.jpg
+!uploads/gallery/
+uploads/gallery/*
+!uploads/gallery/.htaccess
+'@ | Set-Content -Encoding UTF8 .gitignore
+# Mail and SMTP configuration
+config/mail.php
