@@ -1,6 +1,29 @@
 
 <?php
 
+// --------------------------------------------------
+// DATABASE CONNECTION
+// --------------------------------------------------
+
+require_once __DIR__ . "/config/database.php";
+
+// --------------------------------------------------
+// HELPER
+// --------------------------------------------------
+
+function projectPageEscape($value): string
+{
+    return htmlspecialchars(
+        (string)$value,
+        ENT_QUOTES | ENT_SUBSTITUTE,
+        "UTF-8"
+    );
+}
+
+// --------------------------------------------------
+// EXISTING PROJECTS
+// --------------------------------------------------
+
 $projects = [
 
     [
@@ -55,7 +78,7 @@ $projects = [
     [
         'name' => 'Garhmukteshwar',
         'description' => 'Discover opportunities in a growing destination.',
-        'image' => 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80',
+        'image' => 'https://images.unsplash.com/photo-1506744038136-46273834e3fb?auto=format&fit=crop&w=900&q=80',
         'location' => 'garhmukteshwar'
     ],
 
@@ -89,7 +112,10 @@ $projects = [
 
 ];
 
-// Project page links
+// --------------------------------------------------
+// EXISTING DEDICATED PROJECT PAGE LINKS
+// --------------------------------------------------
+
 $projectPages = [
     'noida' => 'noida.php',
     'greater-noida' => 'greaternoida.php',
@@ -102,8 +128,59 @@ $projectPages = [
     'dehradun' => 'dehradun.php',
     'rishikesh' => 'rishikesh.php',
     'dubai' => 'dubai.php',
-    'goa' => 'goa.php',
+    'goa' => 'goa.php'
 ];
+
+// --------------------------------------------------
+// FETCH ADMIN-MANAGED PROJECTS
+// --------------------------------------------------
+
+try {
+
+    // Keep track of existing project locations.
+    $existingLocations = array_column($projects, 'location');
+
+    $stmt = $pdo->query("
+        SELECT
+            title,
+            slug,
+            short_description,
+            card_image
+        FROM projects
+        WHERE status = 'published'
+        ORDER BY sort_order ASC, created_at DESC, id DESC
+    ");
+
+    $databaseProjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($databaseProjects as $databaseProject) {
+
+        $slug = trim((string)$databaseProject['slug']);
+
+        // Skip invalid slugs and existing project locations.
+        if (
+            $slug === '' ||
+            in_array($slug, $existingLocations, true)
+        ) {
+            continue;
+        }
+
+        $projects[] = [
+            'name' => $databaseProject['title'],
+            'description' => $databaseProject['short_description'],
+            'image' => $databaseProject['card_image'],
+            'location' => $slug
+        ];
+
+        $existingLocations[] = $slug;
+    }
+
+} catch (Throwable $e) {
+
+    // Existing project cards remain visible if database loading fails.
+    error_log("Our Projects Database Error: " . $e->getMessage());
+
+}
 
 ?>
 
@@ -120,14 +197,18 @@ $projectPages = [
     <link rel="stylesheet" href="CSS/style.css">
     <link rel="stylesheet" href="CSS/ourprojects.css">
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap"
-          rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
 
 </head>
 
@@ -140,13 +221,12 @@ $projectPages = [
 <!-- OUR PROJECTS HERO -->
 <section class="projects-hero">
 
-    <!-- Background Video -->
-    <div class="projects-bg-video" style="background:linear-gradient(135deg,rgba(4,19,44,.82),rgba(7,29,66,.62)),url('assets/noida75.jpg') center/cover no-repeat" aria-hidden="true"></div>
+    <div
+        class="projects-bg-video"
+        style="background:linear-gradient(135deg,rgba(4,19,44,.82),rgba(7,29,66,.62)),url('assets/noida75.jpg') center/cover no-repeat"
+        aria-hidden="true"
+    ></div>
 
-    <!-- Dark Overlay -->
- 
-
-    <!-- Hero Content -->
     <div class="projects-hero-content">
 
         <h1>Our Projects</h1>
@@ -169,43 +249,58 @@ $projectPages = [
         <?php foreach ($projects as $project): ?>
 
             <?php
+
                 $location = $project['location'];
 
-                // Dedicated pages for Noida and Greater Noida
+                // Existing projects retain their dedicated pages.
+                // New admin-created projects use the common detail page.
+
                 if (isset($projectPages[$location])) {
+
                     $projectUrl = $projectPages[$location];
+
                 } else {
-                    $projectUrl = 'project-details.php?location=' . urlencode($location);
+
+                    $projectUrl = 'project-details.php?location=' . rawurlencode($location);
+
                 }
+
             ?>
 
             <div class="project-card">
 
                 <!-- PROJECT IMAGE -->
-                <a class="project-image-link"
-                   href="<?php echo htmlspecialchars($projectUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                <a
+                    class="project-image-link"
+                    href="<?php echo projectPageEscape($projectUrl); ?>"
+                >
 
                     <img
-                        src="<?php echo htmlspecialchars($project['image'], ENT_QUOTES, 'UTF-8'); ?>"
-                        alt="<?php echo htmlspecialchars($project['name'], ENT_QUOTES, 'UTF-8'); ?>"
-                        loading="lazy">
+                        src="<?php echo projectPageEscape($project['image']); ?>"
+                        alt="<?php echo projectPageEscape($project['name']); ?>"
+                        loading="lazy"
+                    >
 
                 </a>
+
 
                 <!-- PROJECT DETAILS -->
                 <div class="project-card-content">
 
                     <h2>
-                        <?php echo htmlspecialchars($project['name']); ?>
+                        <?php echo projectPageEscape($project['name']); ?>
                     </h2>
 
                     <p>
-                        <?php echo htmlspecialchars($project['description']); ?>
+                        <?php echo projectPageEscape($project['description']); ?>
                     </p>
 
+
                     <!-- VIEW PROJECT BUTTON -->
-                    <a class="view-project-btn"
-                       href="<?php echo htmlspecialchars($projectUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                    <a
+                        class="view-project-btn"
+                        href="<?php echo projectPageEscape($projectUrl); ?>"
+                    >
 
                         View Project
                         <i class="fa-solid fa-arrow-right"></i>

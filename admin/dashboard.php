@@ -1,4 +1,4 @@
-```php
+
 <?php
 
 require_once "../includes/permissions.php";
@@ -103,6 +103,7 @@ $isSalesEmployee = hasPermission("view_assigned_leads");
 $canManageAdmins = hasPermission("manage_admins");
 $canManageUsers = hasPermission("manage_users");
 $canManageContent = hasPermission("manage_content");
+$canManageProjects = hasPermission("manage_projects");
 $canManageFollowups = hasPermission("manage_followups");
 $canManageVisits = hasPermission("manage_site_visits");
 
@@ -163,6 +164,27 @@ if ($canManageContent) {
     $totalContent = (int) $pdo->query("
         SELECT COUNT(*) FROM content
     ")->fetchColumn();
+}
+
+// --------------------------------------------------
+// PROJECT STATISTICS
+// --------------------------------------------------
+
+$totalProjects = 0;
+
+if ($canManageProjects) {
+
+    try {
+
+        $totalProjects = (int) $pdo->query("
+            SELECT COUNT(*) FROM projects
+        ")->fetchColumn();
+
+    } catch (Throwable $e) {
+
+        error_log("Dashboard Project Count Error: " . $e->getMessage());
+
+    }
 }
 
 // --------------------------------------------------
@@ -482,10 +504,6 @@ $visitTotal = array_sum($siteVisitChart);
 
     <style>
 
-        /* --------------------------------------------------
-           OLIVERA BRAND DESIGN
-        -------------------------------------------------- */
-
         * {
             box-sizing: border-box;
         }
@@ -513,9 +531,7 @@ $visitTotal = array_sum($siteVisitChart);
             color: var(--olivera-text);
         }
 
-        /* --------------------------------------------------
-           SIDEBAR
-        -------------------------------------------------- */
+        /* SIDEBAR */
 
         .sidebar {
             width: 255px;
@@ -646,9 +662,7 @@ $visitTotal = array_sum($siteVisitChart);
             color: var(--olivera-navy);
         }
 
-        /* --------------------------------------------------
-           MAIN CONTENT
-        -------------------------------------------------- */
+        /* MAIN CONTENT */
 
         .main-content {
             margin-left: 255px;
@@ -702,9 +716,7 @@ $visitTotal = array_sum($siteVisitChart);
             color: var(--olivera-navy);
         }
 
-        /* --------------------------------------------------
-           SECTION HEADINGS
-        -------------------------------------------------- */
+        /* SECTION HEADINGS */
 
         .section-heading {
             margin: 30px 0 17px;
@@ -734,9 +746,7 @@ $visitTotal = array_sum($siteVisitChart);
             line-height: 1.6;
         }
 
-        /* --------------------------------------------------
-           STATISTIC CARDS
-        -------------------------------------------------- */
+        /* STATISTIC CARDS */
 
         .dashboard-cards {
             display: grid;
@@ -817,9 +827,7 @@ $visitTotal = array_sum($siteVisitChart);
             border-top-color: var(--olivera-red);
         }
 
-        /* --------------------------------------------------
-           TODAY'S WORK
-        -------------------------------------------------- */
+        /* TODAY'S WORK */
 
         .today-card {
             border-left: 3px solid var(--olivera-gold);
@@ -852,9 +860,7 @@ $visitTotal = array_sum($siteVisitChart);
             margin-bottom: 15px;
         }
 
-        /* --------------------------------------------------
-           CHARTS
-        -------------------------------------------------- */
+        /* CHARTS */
 
         .charts-grid {
             display: grid;
@@ -977,18 +983,7 @@ $visitTotal = array_sum($siteVisitChart);
             font-size: 13px;
         }
 
-        /* --------------------------------------------------
-           PROPERTY ENQUIRY DASHBOARD INTEGRATION
-        -------------------------------------------------- */
-
-        .dashboard-cards .dashboard-card h2,
-        .dashboard-cards .dashboard-card h4 {
-            color: var(--olivera-navy);
-        }
-
-        /* --------------------------------------------------
-           FOOTER
-        -------------------------------------------------- */
+        /* FOOTER */
 
         .page-footer {
             text-align: center;
@@ -999,9 +994,7 @@ $visitTotal = array_sum($siteVisitChart);
             margin-top: 25px;
         }
 
-        /* --------------------------------------------------
-           ACCESSIBILITY
-        -------------------------------------------------- */
+        /* ACCESSIBILITY */
 
         .sidebar-menu a:focus-visible,
         .dashboard-card a:focus-visible,
@@ -1010,9 +1003,7 @@ $visitTotal = array_sum($siteVisitChart);
             outline-offset: 3px;
         }
 
-        /* --------------------------------------------------
-           RESPONSIVE
-        -------------------------------------------------- */
+        /* RESPONSIVE */
 
         @media (max-width: 1100px) {
 
@@ -1161,6 +1152,17 @@ $visitTotal = array_sum($siteVisitChart);
             <a href="manage_content.php">
                 <span class="menu-icon">▤</span>
                 Manage Content
+            </a>
+
+        <?php endif; ?>
+
+        <!-- MANAGE PROJECTS -->
+
+        <?php if ($canManageProjects): ?>
+
+            <a href="manage_projects.php">
+                <span class="menu-icon">⌂</span>
+                Manage Projects
             </a>
 
         <?php endif; ?>
@@ -1393,6 +1395,24 @@ $visitTotal = array_sum($siteVisitChart);
                 <p>Total website content entries</p>
 
                 <a href="manage_content.php">Manage Content →</a>
+
+            </div>
+
+        <?php endif; ?>
+
+        <!-- PROJECT MANAGEMENT CARD -->
+
+        <?php if ($canManageProjects): ?>
+
+            <div class="dashboard-card stat-card">
+
+                <h3>Total Projects</h3>
+
+                <h1><?php echo (int) $totalProjects; ?></h1>
+
+                <p>Manage your property projects and listings.</p>
+
+                <a href="manage_projects.php">Manage Projects →</a>
 
             </div>
 
@@ -1743,4 +1763,3 @@ $visitTotal = array_sum($siteVisitChart);
 
 </body>
 </html>
-```

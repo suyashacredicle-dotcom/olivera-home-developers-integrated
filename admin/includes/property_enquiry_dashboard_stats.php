@@ -1,4 +1,5 @@
 
+
 <?php
 
 // --------------------------------------------------
@@ -9,8 +10,16 @@ if (empty($canManageUsers)) {
     return;
 }
 
+// --------------------------------------------------
+// INITIALIZE STATISTICS
+// --------------------------------------------------
+
 $totalPropertyEnquiries = 0;
 $newPropertyEnquiries = 0;
+
+// --------------------------------------------------
+// FETCH PROPERTY ENQUIRY STATISTICS
+// --------------------------------------------------
 
 try {
 
@@ -41,21 +50,23 @@ try {
 } catch (Throwable $e) {
 
     error_log(
-        "Property enquiry dashboard card error: " . $e->getMessage()
+        "Property Enquiry Dashboard Card Error: " . $e->getMessage()
     );
 
 }
 
 ?>
 
+<!-- PROPERTY ENQUIRIES DASHBOARD CARD -->
+
 <div class="dashboard-card stat-card green">
 
     <h3>Property Enquiries</h3>
 
-    <h1><?php echo $totalPropertyEnquiries; ?></h1>
+    <h1><?php echo (int)$totalPropertyEnquiries; ?></h1>
 
     <p>
-        <?php echo $newPropertyEnquiries; ?> new enquiries
+        <?php echo (int)$newPropertyEnquiries; ?> new enquiries
     </p>
 
     <a href="property_enquiries.php">

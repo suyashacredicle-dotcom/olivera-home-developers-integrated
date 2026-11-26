@@ -17,6 +17,7 @@ $permissions = [
     "super_admin" => [
         "manage_admins",
         "manage_content",
+        "manage_projects",
         "manage_users",
         "manage_settings",
         "manage_leads",
@@ -31,6 +32,7 @@ $permissions = [
     // ADMIN
     "admin" => [
         "manage_content",
+        "manage_projects",
         "manage_users",
         "manage_leads",
         "assign_leads",
@@ -65,11 +67,8 @@ if (
     !is_string($currentRole) ||
     !isset($permissions[$currentRole])
 ) {
-
     http_response_code(403);
-
     exit("Access Denied! Invalid admin role.");
-
 }
 
 // --------------------------------------------------
@@ -102,13 +101,11 @@ function hasPermission($permission)
 function requirePermission($permission)
 {
     if (!hasPermission($permission)) {
-
         http_response_code(403);
 
         exit(
             "Access Denied! You do not have permission to access this page."
         );
-
     }
 }
 
