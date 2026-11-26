@@ -1,8 +1,27 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+// --------------------------------------------------
+// SECURITY HEADERS
+// --------------------------------------------------
+
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("Referrer-Policy: no-referrer");
+
+// --------------------------------------------------
+// REQUIRED FILES
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
+
+// --------------------------------------------------
+// PERMISSIONS
+// --------------------------------------------------
 
 requirePermission("manage_site_visits");
 
@@ -235,109 +254,162 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
 
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Site Visit Performance Analytics</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Site Visit Performance Analytics | Olivera Home Developers</title>
 
     <style>
 
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
+            --surface: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f9;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--ivory);
             margin: 0;
-            padding: 20px;
-            color: #333;
+            padding: 30px;
+            color: var(--text);
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1450px;
             margin: auto;
         }
 
         h1, h2 {
-            color: #222;
+            color: var(--navy);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin: 0 0 9px;
+        }
+
+        h2 {
+            font-size: 19px;
+            margin: 0 0 20px;
+        }
+
+        .page-description {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 23px;
         }
 
         .navigation {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 9px;
             margin-bottom: 25px;
         }
 
         .navigation a {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             padding: 10px 14px;
-            background: #34495e;
-            color: white;
+            background: var(--surface);
+            color: var(--navy);
             text-decoration: none;
-            border-radius: 5px;
-            font-size: 14px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.2s ease, border-color 0.2s ease;
         }
 
         .navigation a:hover {
-            background: #22313f;
+            background: #f0e7d1;
+            border-color: var(--gold);
         }
 
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
+            gap: 16px;
+            margin-bottom: 28px;
         }
 
         .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            background: var(--surface);
+            padding: 22px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            border-top: 4px solid var(--gold);
+            box-shadow: 0 3px 12px rgba(7, 27, 56, 0.04);
         }
 
         .stat-card h3 {
-            margin: 0 0 12px;
-            font-size: 14px;
-            color: #666;
+            margin: 0 0 13px;
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 600;
         }
 
         .stat-number {
             font-size: 30px;
             font-weight: bold;
+            color: var(--navy);
         }
 
         .total {
-            color: #34495e;
+            color: var(--navy);
         }
 
         .scheduled {
-            color: #2980b9;
+            color: #24649a;
         }
 
         .completed {
-            color: #27ae60;
+            color: #27804a;
         }
 
         .cancelled {
-            color: #c0392b;
+            color: #bd4545;
         }
 
         .rescheduled {
-            color: #8e44ad;
+            color: #8a681b;
         }
 
         .rate {
-            color: #16a085;
+            color: var(--navy);
         }
 
         .section {
-            background: white;
-            padding: 20px;
+            background: var(--surface);
+            padding: 24px;
             margin-bottom: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(7, 27, 56, 0.04);
+        }
+
+        .section-description {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-top: -8px;
+            margin-bottom: 18px;
         }
 
         .table-wrapper {
+            width: 100%;
             overflow-x: auto;
         }
 
@@ -348,56 +420,91 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         th, td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
+            padding: 13px;
+            border-bottom: 1px solid #f0ede6;
             text-align: left;
-            font-size: 14px;
+            vertical-align: middle;
+            font-size: 13px;
         }
 
         th {
-            background: #34495e;
-            color: white;
+            background: var(--navy);
+            color: #ffffff;
+            font-size: 11px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            white-space: nowrap;
         }
 
-        tr:hover {
-            background: #f8f9fa;
+        tbody tr:hover {
+            background: #fcfaf5;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .employee-name {
+            color: var(--navy);
+            font-weight: 700;
         }
 
         .empty-message {
-            padding: 20px;
+            padding: 25px;
             text-align: center;
-            color: #666;
-            background: #f8f9fa;
-            border-radius: 5px;
+            color: var(--muted);
+            background: var(--ivory);
+            border: 1px solid var(--border);
+            border-radius: 7px;
         }
 
         .rate-bar {
             width: 100%;
             max-width: 150px;
             height: 10px;
-            background: #e9ecef;
+            background: #eee9dd;
             border-radius: 10px;
             overflow: hidden;
-            margin-top: 5px;
+            margin-top: 7px;
         }
 
         .rate-fill {
             height: 100%;
-            background: #27ae60;
+            background: var(--gold);
+            border-radius: 10px;
         }
 
-        @media (max-width: 600px) {
+        .stat-card p {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+            margin: 12px 0 0;
+        }
+
+        @media (max-width: 700px) {
 
             body {
-                padding: 10px;
+                padding: 15px;
+            }
+
+            .section {
+                padding: 16px;
             }
 
             .stat-card {
-                padding: 15px;
+                padding: 17px;
             }
 
             .stat-number {
                 font-size: 25px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .navigation a {
+                padding: 9px 11px;
             }
 
         }
@@ -410,16 +517,18 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
 <div class="container">
 
-    <h1>Site Visit Performance Analytics</h1>
+    <header>
 
-    <p>
-        Overall site visit statistics, employee performance
-        and monthly visit analysis.
-    </p>
+        <h1>Site Visit Performance Analytics</h1>
 
-    <!-- NAVIGATION -->
+        <p class="page-description">
+            Overall site visit statistics, employee performance
+            and monthly visit analysis.
+        </p>
 
-    <div class="navigation">
+    </header>
+
+    <nav class="navigation">
 
         <a href="dashboard.php">Dashboard</a>
 
@@ -437,9 +546,7 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
         <a href="manage_leads.php">Manage Leads</a>
 
-    </div>
-
-    <!-- OVERALL STATISTICS -->
+    </nav>
 
     <h2>Overall Site Visit Summary</h2>
 
@@ -497,8 +604,6 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
     </div>
 
-    <!-- PERFORMANCE RATES -->
-
     <h2>Performance Rates</h2>
 
     <div class="stats-grid">
@@ -515,7 +620,7 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
                 <div
                     class="rate-fill"
-                    style="width: <?php echo $completionRate; ?>%;"
+                    style="width: <?php echo min(100, max(0, $completionRate)); ?>%;"
                 ></div>
 
             </div>
@@ -548,9 +653,7 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
     </div>
 
-    <!-- EMPLOYEE PERFORMANCE -->
-
-    <div class="section">
+    <section class="section">
 
         <h2>Employee-wise Site Visit Performance</h2>
 
@@ -595,7 +698,7 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
                             <tr>
 
-                                <td>
+                                <td class="employee-name">
                                     <?php echo e($employee["employee_name"]); ?>
                                 </td>
 
@@ -641,17 +744,15 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
         <?php endif; ?>
 
-    </div>
+    </section>
 
-    <!-- MONTHLY PERFORMANCE -->
-
-    <div class="section">
+    <section class="section">
 
         <h2>Month-wise Site Visit Statistics</h2>
 
-        <p>
-            Statistics are based on the original scheduled date
-            of each site visit and cover the last six months.
+        <p class="section-description">
+            Statistics are based on the scheduled date of each site visit
+            and cover the last six months.
         </p>
 
         <?php if (count($monthlyPerformance) > 0): ?>
@@ -679,8 +780,9 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
                             <tr>
 
-                                <td>
+                                <td class="employee-name">
                                     <?php
+
                                     $monthDate = DateTime::createFromFormat(
                                         "!Y-m",
                                         $month["visit_month"]
@@ -691,6 +793,7 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
                                             ? $monthDate->format("F Y")
                                             : $month["visit_month"]
                                     );
+
                                     ?>
                                 </td>
 
@@ -732,7 +835,7 @@ $monthlyPerformance = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
 
         <?php endif; ?>
 
-    </div>
+    </section>
 
 </div>
 

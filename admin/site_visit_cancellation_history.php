@@ -1,16 +1,56 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+// --------------------------------------------------
+// SECURITY HEADERS
+// --------------------------------------------------
+
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("Referrer-Policy: no-referrer");
+
+// --------------------------------------------------
+// INCLUDES
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
 
 requirePermission("manage_site_visits");
 
 $adminId = (int) ($_SESSION["admin_id"] ?? 0);
 $currentRole = $_SESSION["admin_role"] ?? "";
 
-function e($value) {
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
+header("X-Robots-Tag: noindex, nofollow");
+
+// --------------------------------------------------
+// HELPERS
+// --------------------------------------------------
+
+function e($value): string
+{
+    return htmlspecialchars(
+        (string) $value,
+        ENT_QUOTES,
+        "UTF-8"
+    );
+}
+
+function formatHistoryDate($value): string
+{
+    if (empty($value)) {
+        return "—";
+    }
+
+    try {
+        $date = new DateTime((string) $value);
+        return $date->format("d M Y, h:i A");
+    } catch (Exception $exception) {
+        return "—";
+    }
 }
 
 // --------------------------------------------------
@@ -116,32 +156,64 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
 
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Site Visit Cancellation History</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Site Visit Cancellation History | Olivera Home Developers</title>
 
     <style>
 
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
+            --surface: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
-            background: #f4f6f9;
+            background: var(--ivory);
             margin: 0;
-            padding: 20px;
-            color: #333;
+            padding: 24px;
+            color: var(--text);
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: auto;
         }
 
-        h1, h2 {
-            color: #222;
+        h1 {
+            color: var(--navy);
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        h2 {
+            color: var(--navy);
+            margin-top: 28px;
+            margin-bottom: 15px;
+            font-size: 21px;
+        }
+
+        .page-description {
+            color: var(--muted);
+            margin-bottom: 22px;
+            line-height: 1.6;
         }
 
         .navigation {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
@@ -149,38 +221,48 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
 
         .navigation a {
             display: inline-block;
-            padding: 10px 14px;
-            background: #34495e;
-            color: white;
+            padding: 11px 15px;
+            background: var(--navy);
+            color: #ffffff;
             text-decoration: none;
-            border-radius: 5px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            transition: 0.2s ease;
         }
 
         .navigation a:hover {
-            background: #22313f;
+            background: var(--gold);
+            color: var(--navy);
         }
 
         .summary-card {
-            background: white;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            background: var(--surface);
+            padding: 24px;
+            margin-bottom: 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            border-top: 4px solid var(--gold);
+            box-shadow: 0 3px 12px rgba(7, 27, 56, 0.06);
+        }
+
+        .summary-card h2 {
+            margin: 0 0 12px;
         }
 
         .total-number {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: bold;
-            color: #c0392b;
+            color: var(--navy);
         }
 
         .table-wrapper {
             overflow-x: auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
+            background: var(--surface);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            box-shadow: 0 3px 12px rgba(7, 27, 56, 0.05);
+            margin-bottom: 28px;
         }
 
         table {
@@ -189,50 +271,79 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
             min-width: 1000px;
         }
 
-        th, td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
+        th,
+        td {
+            padding: 13px 14px;
+            border-bottom: 1px solid var(--border);
             text-align: left;
             vertical-align: top;
-            font-size: 14px;
+            font-size: 13px;
+            line-height: 1.5;
         }
 
         th {
-            background: #34495e;
-            color: white;
+            background: var(--navy);
+            color: #ffffff;
+            font-weight: bold;
+            white-space: nowrap;
         }
 
-        tr:hover {
-            background: #f8f9fa;
+        tbody tr:hover {
+            background: #fbf8ef;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
         }
 
         .cancelled-badge {
             display: inline-block;
-            padding: 5px 9px;
-            background: #f8d7da;
-            color: #721c24;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 5px 10px;
+            background: #f8e9e5;
+            color: #923b2c;
+            border: 1px solid #e9c5ba;
+            border-radius: 20px;
+            font-size: 11px;
             font-weight: bold;
         }
 
         .reason {
-            max-width: 250px;
+            max-width: 280px;
             white-space: normal;
             overflow-wrap: anywhere;
         }
 
-        .empty-message {
-            padding: 25px;
-            text-align: center;
-            background: white;
-            border-radius: 8px;
-            color: #666;
-        }
-
         .employee-count {
             font-weight: bold;
-            color: #c0392b;
+            color: var(--navy);
+        }
+
+        .empty-message {
+            padding: 28px;
+            text-align: center;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 14px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .navigation a {
+                padding: 10px 12px;
+                font-size: 12px;
+            }
+
+            .summary-card {
+                padding: 18px;
+            }
         }
 
     </style>
@@ -245,7 +356,7 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
 
     <h1>Site Visit Cancellation History Report</h1>
 
-    <p>
+    <p class="page-description">
         View cancelled site visits, cancellation reasons and
         employee-wise cancellation totals.
     </p>
@@ -284,19 +395,17 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
 
     <h2>Employee-wise Cancellation Summary</h2>
 
-    <?php if (count($employeeSummary) > 0): ?>
+    <?php if (!empty($employeeSummary)): ?>
 
         <div class="table-wrapper">
 
             <table>
 
                 <thead>
-
                     <tr>
                         <th>Sales Employee</th>
                         <th>Total Cancelled Visits</th>
                     </tr>
-
                 </thead>
 
                 <tbody>
@@ -335,7 +444,7 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
 
     <h2>Cancellation History</h2>
 
-    <?php if (count($cancellations) > 0): ?>
+    <?php if (!empty($cancellations)): ?>
 
         <div class="table-wrapper">
 
@@ -350,10 +459,10 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
                         <th>Property Type</th>
                         <th>Interested Location</th>
                         <th>Assigned Employee</th>
-                        <th>Original Scheduled Date & Time</th>
+                        <th>Original Scheduled Date &amp; Time</th>
                         <th>Cancellation Reason</th>
                         <th>Cancelled By</th>
-                        <th>Cancellation Date & Time</th>
+                        <th>Cancellation Date &amp; Time</th>
                         <th>Status</th>
                     </tr>
 
@@ -395,14 +504,7 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
                             </td>
 
                             <td>
-                                <?php
-                                echo e(
-                                    date(
-                                        "d M Y, h:i A",
-                                        strtotime($visit["scheduled_at"])
-                                    )
-                                );
-                                ?>
+                                <?php echo e(formatHistoryDate($visit["scheduled_at"])); ?>
                             </td>
 
                             <td class="reason">
@@ -426,14 +528,7 @@ $employeeSummary = $summaryStmt->fetchAll(PDO::FETCH_ASSOC);
                             </td>
 
                             <td>
-                                <?php
-                                echo e(
-                                    date(
-                                        "d M Y, h:i A",
-                                        strtotime($visit["cancelled_at"])
-                                    )
-                                );
-                                ?>
+                                <?php echo e(formatHistoryDate($visit["cancelled_at"])); ?>
                             </td>
 
                             <td>

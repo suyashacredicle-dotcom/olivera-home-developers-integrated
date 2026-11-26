@@ -1,19 +1,59 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+// --------------------------------------------------
+// SECURITY HEADERS
+// --------------------------------------------------
+
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("Referrer-Policy: no-referrer");
+
+// --------------------------------------------------
+// REQUIRED FILES
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
+
+// --------------------------------------------------
+// PERMISSIONS
+// --------------------------------------------------
 
 requirePermission("manage_site_visits");
 
-$adminId = (int) $_SESSION["admin_id"];
+$adminId = (int) ($_SESSION["admin_id"] ?? 0);
 $canViewAll = hasPermission("view_all_leads");
+
+// --------------------------------------------------
+// HELPER FUNCTIONS
+// --------------------------------------------------
 
 function e($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
 }
 
-// Get rescheduling history.
+function formatHistoryDate($value, $format = "d-m-Y h:i A") {
+
+    if (!is_string($value) || trim($value) === "") {
+        return "Not available";
+    }
+
+    try {
+        $date = new DateTime($value);
+        return $date->format($format);
+    } catch (Throwable $exception) {
+        return "Not available";
+    }
+}
+
+// --------------------------------------------------
+// FETCH RESCHEDULING HISTORY
+// --------------------------------------------------
+
 if ($canViewAll) {
 
     $historyQuery = $pdo->query("
@@ -82,67 +122,125 @@ $totalReschedules = count($history);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Site Visit Rescheduling History</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Site Visit Rescheduling History | Olivera Home Developers</title>
 
     <style>
 
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
+            --surface: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f9;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--ivory);
             margin: 0;
-            padding: 25px;
-            color: #333;
+            padding: 30px;
+            color: var(--text);
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1450px;
             margin: auto;
         }
 
-        h1, h2 {
-            color: #222;
+        .page-header {
+            margin-bottom: 24px;
         }
 
-        .card {
-            background: white;
-            padding: 22px;
-            margin-bottom: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        h1, h2 {
+            color: var(--navy);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin: 0 0 9px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0;
         }
 
         .nav-links {
-            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+            margin-bottom: 22px;
         }
 
         .nav-links a {
-            display: inline-block;
-            margin-right: 15px;
-            margin-bottom: 8px;
-            color: #1769aa;
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--navy);
             text-decoration: none;
-            font-weight: bold;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.2s ease, border-color 0.2s ease;
         }
 
         .nav-links a:hover {
-            text-decoration: underline;
+            background: #f0e7d1;
+            border-color: var(--gold);
+        }
+
+        .card {
+            background: var(--surface);
+            padding: 24px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(7, 27, 56, 0.04);
+        }
+
+        h2 {
+            font-size: 19px;
+            margin: 0 0 20px;
         }
 
         .summary {
-            background: #eef6ff;
-            padding: 18px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+            background: var(--navy);
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 5px solid var(--gold);
+        }
+
+        .summary-label {
+            font-size: 13px;
+            color: var(--gold-light);
+            font-weight: 600;
         }
 
         .summary strong {
             display: block;
-            font-size: 28px;
-            color: #1769aa;
-            margin-top: 5px;
+            font-size: 30px;
+            color: #ffffff;
+            margin-top: 7px;
         }
 
         .table-wrapper {
+            width: 100%;
             overflow-x: auto;
         }
 
@@ -153,27 +251,42 @@ $totalReschedules = count($history);
         }
 
         th, td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
+            padding: 13px;
+            border-bottom: 1px solid #f0ede6;
             text-align: left;
             vertical-align: top;
+            font-size: 12px;
         }
 
         th {
-            background: #f0f2f5;
+            background: var(--ivory);
+            color: var(--navy);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+        }
+
+        tbody tr:hover {
+            background: #fcfaf5;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
         }
 
         .property-details {
-            line-height: 1.6;
+            line-height: 1.7;
         }
 
         .property-details strong {
             display: block;
+            color: var(--navy);
         }
 
         .date-value {
             font-weight: bold;
-            color: #333;
+            color: var(--text);
         }
 
         .new-date {
@@ -183,25 +296,39 @@ $totalReschedules = count($history);
 
         .old-date {
             color: #80540b;
+            font-weight: bold;
         }
 
         .description {
             max-width: 300px;
-            line-height: 1.5;
+            line-height: 1.6;
+            color: var(--muted);
         }
 
         .empty {
-            color: #777;
+            color: var(--muted);
+            text-align: center;
+            padding: 30px 15px;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 700px) {
+
             body {
-                padding: 12px;
+                padding: 15px;
             }
 
             .card {
-                padding: 14px;
+                padding: 16px;
             }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .nav-links a {
+                padding: 9px 11px;
+            }
+
         }
 
     </style>
@@ -212,13 +339,17 @@ $totalReschedules = count($history);
 
 <div class="container">
 
-    <h1>Site Visit Rescheduling History</h1>
+    <header class="page-header">
 
-    <p>
-        View the previous and updated schedules of rescheduled site visits.
-    </p>
+        <h1>Site Visit Rescheduling History</h1>
 
-    <div class="nav-links">
+        <p>
+            View the previous and updated schedules of rescheduled site visits.
+        </p>
+
+    </header>
+
+    <nav class="nav-links">
 
         <a href="dashboard.php">Dashboard</a>
 
@@ -230,15 +361,19 @@ $totalReschedules = count($history);
 
         <a href="manage_leads.php">Manage Leads</a>
 
-    </div>
+    </nav>
 
-    <div class="card">
+    <section class="card">
 
         <div class="summary">
 
-            Total Rescheduling Records
+            <div class="summary-label">
+                Total Rescheduling Records
+            </div>
 
-            <strong><?php echo $totalReschedules; ?></strong>
+            <strong>
+                <?php echo (int) $totalReschedules; ?>
+            </strong>
 
         </div>
 
@@ -273,7 +408,7 @@ $totalReschedules = count($history);
                             <tr>
 
                                 <td>
-                                    <?php echo (int) $record["activity_id"]; ?>
+                                    #<?php echo (int) $record["activity_id"]; ?>
                                 </td>
 
                                 <td>
@@ -315,49 +450,19 @@ $totalReschedules = count($history);
                                 </td>
 
                                 <td class="old-date">
-
                                     <?php
-
-                                    if (!empty($record["old_value"])) {
-
-                                        echo e(
-                                            date(
-                                                "d-m-Y h:i A",
-                                                strtotime($record["old_value"])
-                                            )
-                                        );
-
-                                    } else {
-
-                                        echo "Not available";
-
-                                    }
-
+                                    echo e(
+                                        formatHistoryDate($record["old_value"] ?? null)
+                                    );
                                     ?>
-
                                 </td>
 
                                 <td class="new-date">
-
                                     <?php
-
-                                    if (!empty($record["new_value"])) {
-
-                                        echo e(
-                                            date(
-                                                "d-m-Y h:i A",
-                                                strtotime($record["new_value"])
-                                            )
-                                        );
-
-                                    } else {
-
-                                        echo "Not available";
-
-                                    }
-
+                                    echo e(
+                                        formatHistoryDate($record["new_value"] ?? null)
+                                    );
                                     ?>
-
                                 </td>
 
                                 <td>
@@ -370,26 +475,17 @@ $totalReschedules = count($history);
                                 </td>
 
                                 <td>
-
                                     <?php
-
                                     echo e(
-                                        date(
-                                            "d-m-Y h:i A",
-                                            strtotime($record["created_at"])
-                                        )
+                                        formatHistoryDate($record["created_at"] ?? null)
                                     );
-
                                     ?>
-
                                 </td>
 
                                 <td class="description">
-
                                     <?php
                                     echo e($record["description"]);
                                     ?>
-
                                 </td>
 
                             </tr>
@@ -410,10 +506,9 @@ $totalReschedules = count($history);
 
         <?php endif; ?>
 
-    </div>
+    </section>
 
 </div>
 
 </body>
-
 </html>
