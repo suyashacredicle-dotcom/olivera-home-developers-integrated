@@ -5,24 +5,20 @@
 // PROPERTY ENQUIRIES MANAGEMENT
 // --------------------------------------------------
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
 
 requirePermission("manage_users");
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
 // --------------------------------------------------
-// ESCAPE OUTPUT
+// OUTPUT ESCAPING
 // --------------------------------------------------
 
-function propertyEnquiryAdminEscape($value)
+function propertyEnquiryAdminEscape($value): string
 {
     return htmlspecialchars(
         (string)$value,
-        ENT_QUOTES,
+        ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8"
     );
 }
@@ -70,15 +66,18 @@ $totalEnquiries = (int)$pdo->query("
 ")->fetchColumn();
 
 $newEnquiries = (int)$pdo->query("
-    SELECT COUNT(*) FROM property_enquiries WHERE status = 'new'
+    SELECT COUNT(*) FROM property_enquiries
+    WHERE status = 'new'
 ")->fetchColumn();
 
 $convertedEnquiries = (int)$pdo->query("
-    SELECT COUNT(*) FROM property_enquiries WHERE status = 'converted'
+    SELECT COUNT(*) FROM property_enquiries
+    WHERE status = 'converted'
 ")->fetchColumn();
 
 $lostEnquiries = (int)$pdo->query("
-    SELECT COUNT(*) FROM property_enquiries WHERE status = 'lost'
+    SELECT COUNT(*) FROM property_enquiries
+    WHERE status = 'lost'
 ")->fetchColumn();
 
 // --------------------------------------------------
@@ -185,33 +184,36 @@ $trackingLabels = [
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Property Enquiries | Admin Panel</title>
+    <title>Property Enquiries | Olivera Admin</title>
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
 
         :root {
-            --primary: #315fbd;
-            --primary-dark: #244b9b;
-            --navy: #17243a;
-            --text: #263449;
-            --muted: #718096;
-            --border: #e5eaf1;
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
             --surface: #ffffff;
-            --background: #f5f7fb;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
             margin: 0;
             padding: 28px;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: var(--background);
+            background: var(--ivory);
             color: var(--text);
+            font-family: "Segoe UI", Arial, sans-serif;
         }
 
         button,
@@ -234,10 +236,15 @@ $trackingLabels = [
             align-items: center;
             gap: 20px;
             margin-bottom: 25px;
-            padding: 24px 26px;
-            background: linear-gradient(120deg, #ffffff, #f0f5ff);
-            border: 1px solid var(--border);
+            padding: 25px 28px;
+            background: linear-gradient(
+                120deg,
+                var(--navy),
+                var(--navy-light)
+            );
+            border: 1px solid var(--navy-light);
             border-radius: 14px;
+            color: white;
         }
 
         .heading-content {
@@ -253,34 +260,35 @@ $trackingLabels = [
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            border: 1px solid rgba(237, 202, 118, .4);
             border-radius: 13px;
-            background: #e8efff;
-            color: var(--primary);
+            background: rgba(214, 166, 59, .15);
+            color: var(--gold-light);
             font-size: 25px;
         }
 
         .page-heading h1 {
-            margin: 0 0 6px;
-            color: var(--navy);
+            margin: 0 0 7px;
+            color: #fff;
             font-size: 25px;
             font-weight: 700;
         }
 
         .page-heading p {
             margin: 0;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.5;
+            color: #d7dfeb;
+            font-size: 13px;
+            line-height: 1.6;
         }
 
         .record-count {
-            padding: 9px 14px;
-            border: 1px solid #dce6fa;
-            border-radius: 9px;
-            background: #f5f8ff;
-            color: var(--primary-dark);
-            font-size: 13px;
-            font-weight: 600;
+            padding: 10px 15px;
+            border: 1px solid rgba(237, 202, 118, .45);
+            border-radius: 8px;
+            background: rgba(214, 166, 59, .12);
+            color: var(--gold-light);
+            font-size: 12px;
+            font-weight: 700;
             white-space: nowrap;
         }
 
@@ -300,62 +308,62 @@ $trackingLabels = [
             padding: 21px 22px;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 13px;
-            box-shadow: 0 3px 12px rgba(26, 45, 75, 0.035);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(7, 27, 56, .035);
+            transition: transform .2s, box-shadow .2s;
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 7px 18px rgba(26, 45, 75, 0.07);
+            box-shadow: 0 7px 18px rgba(7, 27, 56, .07);
         }
 
         .stat-card::after {
             content: "";
             position: absolute;
-            right: -20px;
             top: -28px;
+            right: -20px;
             width: 90px;
             height: 90px;
             border-radius: 50%;
-            background: var(--card-tint, #eef3ff);
-            opacity: 0.8;
+            background: var(--card-tint);
+            opacity: .8;
         }
 
         .stat-card.total {
-            --card-tint: #e9efff;
+            --card-tint: #e9edf3;
         }
 
         .stat-card.new {
-            --card-tint: #fff3df;
+            --card-tint: #fcf1d9;
         }
 
         .stat-card.converted {
-            --card-tint: #e3f6ec;
+            --card-tint: #e8f2e9;
         }
 
         .stat-card.lost {
-            --card-tint: #ffebeb;
+            --card-tint: #f6e9e4;
         }
 
         .stat-label {
+            position: relative;
+            z-index: 1;
             display: block;
             margin-bottom: 12px;
             color: var(--muted);
             font-size: 13px;
             font-weight: 600;
-            position: relative;
-            z-index: 1;
         }
 
         .stat-value {
+            position: relative;
+            z-index: 1;
             display: block;
             color: var(--navy);
             font-size: 29px;
-            font-weight: 700;
+            font-weight: 750;
             line-height: 1.2;
-            position: relative;
-            z-index: 1;
         }
 
         /* MAIN CONTENT */
@@ -365,7 +373,7 @@ $trackingLabels = [
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 14px;
-            box-shadow: 0 3px 14px rgba(26, 45, 75, 0.035);
+            box-shadow: 0 3px 14px rgba(7, 27, 56, .035);
         }
 
         .content-header {
@@ -380,7 +388,7 @@ $trackingLabels = [
             margin: 0;
             color: var(--navy);
             font-size: 17px;
-            font-weight: 700;
+            font-weight: 750;
         }
 
         .content-header p {
@@ -408,60 +416,63 @@ $trackingLabels = [
             width: 100%;
             min-height: 44px;
             padding: 11px 14px 11px 40px;
-            border: 1px solid #dce3ed;
-            border-radius: 9px;
-            background: #fbfcfe;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
             color: var(--text);
             font-size: 13px;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color .2s, box-shadow .2s;
         }
 
         .search-input-wrap input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(49, 95, 189, 0.10);
-            background: #fff;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(214, 166, 59, .12);
         }
 
         .search-icon {
             position: absolute;
-            left: 14px;
             top: 50%;
+            left: 14px;
             transform: translateY(-50%);
-            color: #8b98aa;
+            color: var(--muted);
             font-size: 16px;
             pointer-events: none;
         }
 
         .search-form button,
         .search-form a {
-            min-height: 44px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            min-height: 44px;
             padding: 0 19px;
             border: 0;
-            border-radius: 9px;
-            background: var(--primary);
-            color: #fff;
+            border-radius: 8px;
             text-decoration: none;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: .2s;
+        }
+
+        .search-form button {
+            background: var(--gold);
+            color: var(--navy);
         }
 
         .search-form button:hover {
-            background: var(--primary-dark);
+            background: var(--gold-light);
         }
 
         .search-form a {
-            background: #eef1f6;
-            color: #526176;
+            border: 1px solid var(--border);
+            background: var(--ivory);
+            color: var(--text);
         }
 
         .search-form a:hover {
-            background: #e2e7ef;
+            background: #eee9dc;
         }
 
         /* TABLE */
@@ -491,18 +502,18 @@ $trackingLabels = [
         }
 
         th {
-            background: #f6f8fc;
-            color: #536176;
+            background: #f3f0e8;
+            color: var(--navy);
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 750;
             text-transform: uppercase;
-            letter-spacing: 0.45px;
+            letter-spacing: .4px;
             white-space: nowrap;
         }
 
         td {
-            color: #526176;
             background: #fff;
+            color: #526176;
         }
 
         tbody tr:last-child td {
@@ -510,11 +521,11 @@ $trackingLabels = [
         }
 
         tbody tr:hover td {
-            background: #fafcff;
+            background: #fcfaf5;
         }
 
         .serial-number {
-            color: #8995a7;
+            color: var(--muted);
             font-weight: 600;
         }
 
@@ -522,18 +533,18 @@ $trackingLabels = [
             margin-bottom: 5px;
             color: var(--navy);
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 750;
         }
 
         .customer-contact {
             display: block;
             margin-top: 3px;
-            color: #748197;
+            color: var(--muted);
             overflow-wrap: anywhere;
         }
 
         .data-value {
-            color: #34445c;
+            color: var(--text);
             font-weight: 600;
         }
 
@@ -541,7 +552,7 @@ $trackingLabels = [
             min-width: 160px;
             max-width: 230px;
             overflow-wrap: anywhere;
-            color: #64748b;
+            color: var(--muted);
         }
 
         /* ADVERTISEMENT DETAILS */
@@ -549,11 +560,12 @@ $trackingLabels = [
         .source-badge {
             display: inline-block;
             padding: 5px 9px;
+            border: 1px solid #ead9b4;
             border-radius: 6px;
-            background: #edf3ff;
-            color: #315fbd;
+            background: #fcf6e9;
+            color: #80601e;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 750;
         }
 
         .campaign-details {
@@ -583,15 +595,15 @@ $trackingLabels = [
             display: block;
             color: #8995a7;
             font-size: 10px;
-            font-weight: 700;
+            font-weight: 750;
             text-transform: uppercase;
-            letter-spacing: 0.4px;
+            letter-spacing: .4px;
         }
 
         .tracking-value {
             display: block;
             margin-top: 3px;
-            color: #34445c;
+            color: var(--text);
             font-size: 12px;
         }
 
@@ -611,17 +623,17 @@ $trackingLabels = [
             width: 100%;
             min-height: 38px;
             padding: 8px 10px;
-            border: 1px solid #dce3ed;
+            border: 1px solid var(--border);
             border-radius: 7px;
-            background: #fbfcfe;
-            color: #34445c;
+            background: #fff;
+            color: var(--text);
             font-size: 12px;
             outline: none;
         }
 
         .status-form select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(49, 95, 189, 0.09);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(214, 166, 59, .12);
         }
 
         .status-form button {
@@ -629,18 +641,18 @@ $trackingLabels = [
             min-height: 35px;
             margin-top: 8px;
             padding: 7px 10px;
-            border: none;
+            border: 0;
             border-radius: 7px;
-            background: #315fbd;
+            background: var(--navy);
             color: #fff;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 750;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: background .2s;
         }
 
         .status-form button:hover {
-            background: #244b9b;
+            background: var(--navy-light);
         }
 
         /* CRM LINK */
@@ -650,20 +662,20 @@ $trackingLabels = [
             align-items: center;
             justify-content: center;
             padding: 8px 11px;
-            border: 1px solid #dce7fb;
+            border: 1px solid #ead9b4;
             border-radius: 7px;
-            background: #f0f5ff;
-            color: #315fbd;
+            background: #fcf6e9;
+            color: #80601e;
             text-decoration: none;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 750;
             white-space: nowrap;
-            transition: background 0.2s, border-color 0.2s;
+            transition: .2s;
         }
 
         .crm-link:hover {
-            background: #e2ecff;
-            border-color: #c5d7fa;
+            border-color: var(--gold);
+            background: #f8edcf;
         }
 
         .no-lead {
@@ -674,7 +686,7 @@ $trackingLabels = [
 
         .submitted-date {
             min-width: 130px;
-            color: #64748b;
+            color: var(--muted);
             white-space: nowrap;
         }
 
@@ -690,12 +702,14 @@ $trackingLabels = [
         .empty-icon {
             display: block;
             margin-bottom: 10px;
+            color: var(--gold);
             font-size: 27px;
         }
 
         /* RESPONSIVE */
 
         @media (max-width: 1050px) {
+
             body {
                 padding: 20px;
             }
@@ -703,9 +717,11 @@ $trackingLabels = [
             .stats-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
         }
 
         @media (max-width: 650px) {
+
             body {
                 padding: 12px;
             }
@@ -775,14 +791,19 @@ $trackingLabels = [
             td {
                 padding: 12px 10px;
             }
+
         }
 
         @media (max-width: 380px) {
+
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+
         }
+
     </style>
+
 </head>
 
 <body>
@@ -947,7 +968,9 @@ $trackingLabels = [
                             <td>
 
                                 <?php
-                                $platform = strtolower((string)($enquiry["source_platform"] ?? "website"));
+                                $platform = strtolower(
+                                    (string)($enquiry["source_platform"] ?? "website")
+                                );
                                 ?>
 
                                 <span class="source-badge">

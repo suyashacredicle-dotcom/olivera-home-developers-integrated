@@ -18,17 +18,23 @@ requirePermission("manage_admins");
 // --------------------------------------------------
 
 if ($_SERVER["REQUEST_METHOD"] !== "GET") {
+    header("Allow: GET");
     http_response_code(405);
-    exit("Method not allowed.");
+    exit("Method Not Allowed");
 }
 
 // --------------------------------------------------
 // VALIDATE PHOTO ID
 // --------------------------------------------------
 
-$id = filter_input(INPUT_GET, "id", FILTER_VALIDATE_INT);
+$id = filter_input(
+    INPUT_GET,
+    "id",
+    FILTER_VALIDATE_INT,
+    ["options" => ["min_range" => 1]]
+);
 
-if (!$id || $id <= 0) {
+if ($id === false || $id === null) {
     http_response_code(400);
     exit("Invalid gallery photo ID.");
 }
@@ -38,19 +44,26 @@ if (!$id || $id <= 0) {
 // --------------------------------------------------
 
 try {
+
     $stmt = $pdo->prepare("
         SELECT image_filename
         FROM gallery_photos
-        WHERE id = ?
+        WHERE id = :id
         LIMIT 1
     ");
 
-    $stmt->execute([$id]);
+    $stmt->execute([
+        "id" => $id
+    ]);
+
     $photo = $stmt->fetch(PDO::FETCH_ASSOC);
 
-} catch (PDOException $e) {
+} catch (Throwable $e) {
 
-    error_log("Gallery preview database error: " . $e->getMessage());
+    error_log(
+        "Gallery preview database error: " .
+        $e->getMessage()
+    );
 
     http_response_code(500);
     exit("Unable to load image.");
@@ -69,10 +82,15 @@ $filename = $photo["image_filename"] ?? "";
 
 if (
     !is_string($filename) ||
-    !preg_match('/\A[a-f0-9]{40}\.(jpg|jpeg|png|webp)\z/i', $filename)
+    $filename === "" ||
+    basename($filename) !== $filename ||
+    !preg_match(
+        '/\A[a-f0-9]{40}\.(jpg|jpeg|png|webp)\z/i',
+        $filename
+    )
 ) {
-    http_response_code(400);
-    exit("Invalid image filename.");
+    http_response_code(404);
+    exit("Image not found.");
 }
 
 // --------------------------------------------------
@@ -101,8 +119,9 @@ $imagePath = realpath(
 
 if (
     $imagePath === false ||
+    dirname($imagePath) !== $galleryDirectory ||
     !is_file($imagePath) ||
-    dirname($imagePath) !== $galleryDirectory
+    !is_readable($imagePath)
 ) {
     http_response_code(404);
     exit("Image file not found.");
@@ -116,7 +135,7 @@ $fileSize = filesize($imagePath);
 
 if (
     $fileSize === false ||
-    $fileSize <= 0 ||
+    $fileSize < 1 ||
     $fileSize > 5 * 1024 * 1024
 ) {
     http_response_code(400);
@@ -132,8 +151,25 @@ if (!class_exists("finfo")) {
     exit("File information service is unavailable.");
 }
 
-$finfo = new finfo(FILEINFO_MIME_TYPE);
-$mimeType = $finfo->file($imagePath);
+try {
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo->file($imagePath);
+
+} catch (Throwable $e) {
+
+    error_log(
+        "Gallery preview MIME validation error: " .
+        $e->getMessage()
+    );
+
+    http_response_code(500);
+    exit("Unable to validate image.");
+}
+
+// --------------------------------------------------
+// CHECK EXTENSION AND MIME TYPE
+// --------------------------------------------------
 
 $allowedTypes = [
     "jpg"  => "image/jpeg",
@@ -152,6 +188,21 @@ if (
 ) {
     http_response_code(415);
     exit("Unsupported image format.");
+}
+
+// --------------------------------------------------
+// VERIFY IMAGE DECODABILITY
+// --------------------------------------------------
+
+$imageInfo = @getimagesize($imagePath);
+
+if (
+    $imageInfo === false ||
+    !isset($imageInfo["mime"]) ||
+    $imageInfo["mime"] !== $mimeType
+) {
+    http_response_code(415);
+    exit("Invalid image content.");
 }
 
 // --------------------------------------------------
@@ -180,3 +231,5 @@ header(
 
 readfile($imagePath);
 exit;
+
+?>

@@ -9,7 +9,6 @@ require_once __DIR__ . "/../../includes/permissions.php";
 require_once __DIR__ . "/../../config/database.php";
 require_once __DIR__ . "/../../includes/activity_logger.php";
 
-// Only Super Admin can delete gallery photos.
 requirePermission("manage_admins");
 
 // --------------------------------------------------
@@ -52,29 +51,43 @@ if ($id === false || $id === null || $id <= 0) {
 }
 
 // --------------------------------------------------
-// GENERATE NEW CSRF TOKEN BEFORE DELETION
+// GENERATE NEW CSRF TOKEN
 // --------------------------------------------------
 
 try {
     $newCsrfToken = bin2hex(random_bytes(32));
 } catch (Throwable $e) {
-    error_log("Gallery deletion CSRF generation failed: " . $e->getMessage());
+    error_log(
+        "Gallery deletion CSRF generation failed: " .
+        $e->getMessage()
+    );
 
     http_response_code(500);
     exit("Unable to process the deletion request.");
 }
 
 // --------------------------------------------------
-// FETCH PHOTO RECORD
+// DELETE GALLERY PHOTO
 // --------------------------------------------------
 
 try {
 
+    $pdo->beginTransaction();
+
+    // --------------------------------------------------
+    // LOCK AND FETCH PHOTO RECORD
+    // --------------------------------------------------
+
     $stmt = $pdo->prepare("
-        SELECT id, image_filename, title
+        SELECT
+            id,
+            image_filename,
+            title,
+            location
         FROM gallery_photos
         WHERE id = :id
         LIMIT 1
+        FOR UPDATE
     ");
 
     $stmt->execute([
@@ -84,8 +97,7 @@ try {
     $photo = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$photo) {
-        http_response_code(404);
-        exit("Gallery photo not found.");
+        throw new RuntimeException("Gallery photo not found.");
     }
 
     // --------------------------------------------------
@@ -96,15 +108,15 @@ try {
 
     if (
         !is_string($filename) ||
+        basename($filename) !== $filename ||
         !preg_match(
             '/\A[a-f0-9]{40}\.(jpg|jpeg|png|webp)\z/i',
             $filename
         )
     ) {
-        error_log("Unsafe gallery filename for photo ID: " . $id);
-
-        http_response_code(500);
-        exit("Unable to safely delete this gallery photo.");
+        throw new RuntimeException(
+            "Unsafe gallery filename for photo ID: " . $id
+        );
     }
 
     // --------------------------------------------------
@@ -119,10 +131,9 @@ try {
         $galleryDirectory === false ||
         !is_dir($galleryDirectory)
     ) {
-        error_log("Gallery upload directory not found.");
-
-        http_response_code(500);
-        exit("Gallery upload directory is unavailable.");
+        throw new RuntimeException(
+            "Gallery upload directory not found."
+        );
     }
 
     // --------------------------------------------------
@@ -145,18 +156,15 @@ try {
             !is_file($realImagePath) ||
             !is_writable($realImagePath)
         ) {
-            error_log("Gallery image path validation failed for photo ID: " . $id);
-
-            http_response_code(500);
-            exit("Unable to safely delete the gallery image.");
+            throw new RuntimeException(
+                "Gallery image path validation failed for photo ID: " . $id
+            );
         }
     }
 
     // --------------------------------------------------
     // DELETE DATABASE RECORD
     // --------------------------------------------------
-
-    $pdo->beginTransaction();
 
     $delete = $pdo->prepare("
         DELETE FROM gallery_photos
@@ -169,8 +177,14 @@ try {
     ]);
 
     if ($delete->rowCount() !== 1) {
-        throw new RuntimeException("Gallery photo could not be deleted.");
+        throw new RuntimeException(
+            "Gallery photo could not be deleted."
+        );
     }
+
+    // --------------------------------------------------
+    // COMMIT DATABASE TRANSACTION
+    // --------------------------------------------------
 
     $pdo->commit();
 
@@ -203,6 +217,10 @@ try {
             "GALLERY_PHOTO_DELETED",
             "Deleted gallery photo ID: " .
             $id .
+            " | Title: " .
+            (string)($photo["title"] ?? "") .
+            " | Location: " .
+            (string)($photo["location"] ?? "") .
             " | Filename: " .
             $filename
         );
@@ -247,6 +265,11 @@ try {
     }
 
     error_log("Gallery deletion error: " . $e->getMessage());
+
+    if ($e->getMessage() === "Gallery photo not found.") {
+        http_response_code(404);
+        exit("Gallery photo not found.");
+    }
 
     http_response_code(500);
     exit("Unable to delete gallery photo. Please try again.");

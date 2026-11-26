@@ -12,8 +12,8 @@ require_once __DIR__ . "/config/database.php";
 // --------------------------------------------------
 
 if ($_SERVER["REQUEST_METHOD"] !== "GET") {
-    http_response_code(405);
     header("Allow: GET");
+    http_response_code(405);
     exit("Method Not Allowed");
 }
 
@@ -42,24 +42,26 @@ try {
     $stmt = $pdo->prepare("
         SELECT image_filename
         FROM gallery_photos
-        WHERE id = ?
-        AND visibility = 'public'
+        WHERE id = :id
+          AND visibility = 'public'
         LIMIT 1
     ");
 
-    $stmt->execute([$photoId]);
+    $stmt->execute([
+        "id" => $photoId
+    ]);
 
     $photo = $stmt->fetch(PDO::FETCH_ASSOC);
 
 } catch (Throwable $e) {
 
     error_log(
-        "Public gallery image error: " . $e->getMessage()
+        "Public gallery image error: " .
+        $e->getMessage()
     );
 
     http_response_code(500);
     exit("Unable to load image.");
-
 }
 
 if (!$photo) {
@@ -82,14 +84,12 @@ if (
         $filename
     )
 ) {
-
     http_response_code(404);
     exit("Image not found.");
-
 }
 
 // --------------------------------------------------
-// RESOLVE IMAGE DIRECTORY
+// RESOLVE GALLERY DIRECTORY
 // --------------------------------------------------
 
 $galleryDirectory = realpath(
@@ -100,12 +100,12 @@ if (
     $galleryDirectory === false ||
     !is_dir($galleryDirectory)
 ) {
-
-    error_log("Public gallery image directory unavailable.");
+    error_log(
+        "Public gallery image directory unavailable."
+    );
 
     http_response_code(404);
     exit("Image not found.");
-
 }
 
 // --------------------------------------------------
@@ -116,20 +116,14 @@ $imagePath = realpath(
     $galleryDirectory . DIRECTORY_SEPARATOR . $filename
 );
 
-// --------------------------------------------------
-// VALIDATE IMAGE PATH
-// --------------------------------------------------
-
 if (
     $imagePath === false ||
     dirname($imagePath) !== $galleryDirectory ||
     !is_file($imagePath) ||
     !is_readable($imagePath)
 ) {
-
     http_response_code(404);
     exit("Image not found.");
-
 }
 
 // --------------------------------------------------
@@ -143,10 +137,8 @@ if (
     $fileSize < 1 ||
     $fileSize > 5 * 1024 * 1024
 ) {
-
     http_response_code(404);
     exit("Image not found.");
-
 }
 
 // --------------------------------------------------
@@ -154,15 +146,25 @@ if (
 // --------------------------------------------------
 
 if (!class_exists("finfo")) {
-
     http_response_code(500);
     exit("Image validation unavailable.");
-
 }
 
-$finfo = new finfo(FILEINFO_MIME_TYPE);
+try {
 
-$mimeType = $finfo->file($imagePath);
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo->file($imagePath);
+
+} catch (Throwable $e) {
+
+    error_log(
+        "Public gallery MIME validation error: " .
+        $e->getMessage()
+    );
+
+    http_response_code(500);
+    exit("Unable to validate image.");
+}
 
 // --------------------------------------------------
 // ALLOWED IMAGE TYPES
@@ -183,10 +185,23 @@ if (
     !isset($allowedTypes[$extension]) ||
     $mimeType !== $allowedTypes[$extension]
 ) {
-
     http_response_code(415);
     exit("Unsupported image file.");
+}
 
+// --------------------------------------------------
+// VERIFY IMAGE DECODABILITY
+// --------------------------------------------------
+
+$imageInfo = @getimagesize($imagePath);
+
+if (
+    $imageInfo === false ||
+    !isset($imageInfo["mime"]) ||
+    $imageInfo["mime"] !== $mimeType
+) {
+    http_response_code(415);
+    exit("Invalid image content.");
 }
 
 // --------------------------------------------------
@@ -196,6 +211,7 @@ if (
 header("Content-Type: " . $mimeType);
 header("Content-Length: " . $fileSize);
 header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: SAMEORIGIN");
 
 header(
     'Content-Disposition: inline; filename="gallery-image.' .
@@ -203,14 +219,12 @@ header(
 );
 
 header("Cache-Control: public, max-age=3600");
-header("X-Frame-Options: SAMEORIGIN");
 
 // --------------------------------------------------
 // DISPLAY IMAGE
 // --------------------------------------------------
 
 readfile($imagePath);
-
 exit;
 
 ?>

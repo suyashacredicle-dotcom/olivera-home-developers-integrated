@@ -1,9 +1,13 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
-require_once "../includes/activity_logger.php";
+// --------------------------------------------------
+// MANAGE ADMIN ACCOUNTS
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../includes/activity_logger.php";
 
 requirePermission("manage_admins");
 
@@ -67,46 +71,69 @@ if (
     ) {
         $_SESSION["admin_message"] = "Invalid input provided.";
         $_SESSION["admin_message_type"] = "error";
+
     } else {
+
         $name = trim($name);
         $email = strtolower(trim($email));
 
         if ($name === "") {
+
             $_SESSION["admin_message"] = "Please enter the full name.";
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (strlen($name) > 100) {
+
             $_SESSION["admin_message"] = "Name cannot exceed 100 characters.";
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (
             $email === "" ||
             strlen($email) > 254 ||
             !filter_var($email, FILTER_VALIDATE_EMAIL)
         ) {
+
             $_SESSION["admin_message"] = "Please enter a valid email address.";
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (
             strlen($password) < 12 ||
             strlen($password) > 4096
         ) {
+
             $_SESSION["admin_message"] =
                 "Password must contain between 12 and 4096 characters.";
+
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (!preg_match('/[A-Z]/', $password)) {
+
             $_SESSION["admin_message"] =
                 "Password must contain at least one uppercase letter.";
+
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (!preg_match('/[a-z]/', $password)) {
+
             $_SESSION["admin_message"] =
                 "Password must contain at least one lowercase letter.";
+
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (!preg_match('/[0-9]/', $password)) {
+
             $_SESSION["admin_message"] =
                 "Password must contain at least one number.";
+
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (!preg_match('/[^a-zA-Z0-9]/', $password)) {
+
             $_SESSION["admin_message"] =
                 "Password must contain at least one special character.";
+
             $_SESSION["admin_message_type"] = "error";
+
         } elseif (
             !in_array(
                 $role,
@@ -114,10 +141,14 @@ if (
                 true
             )
         ) {
+
             $_SESSION["admin_message"] = "Please select a valid role.";
             $_SESSION["admin_message_type"] = "error";
+
         } else {
+
             try {
+
                 $hashedPassword = password_hash(
                     $password,
                     PASSWORD_DEFAULT
@@ -152,21 +183,28 @@ if (
                     "New account created successfully!";
 
                 $_SESSION["admin_message_type"] = "success";
+
                 $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
 
             } catch (PDOException $e) {
+
                 if ($e->getCode() === "23000") {
+
                     $_SESSION["admin_message"] =
                         "This email address is already registered.";
+
                 } else {
+
                     error_log($e->getMessage());
+
                     $_SESSION["admin_message"] =
                         "Something went wrong. Please try again.";
                 }
 
                 $_SESSION["admin_message_type"] = "error";
 
-            } catch (RuntimeException $e) {
+            } catch (Throwable $e) {
+
                 error_log($e->getMessage());
 
                 $_SESSION["admin_message"] =
@@ -185,10 +223,11 @@ if (
 // ESCAPE OUTPUT
 // --------------------------------------------------
 
-function e($value) {
+function manageAdminsEscape($value): string
+{
     return htmlspecialchars(
-        (string) $value,
-        ENT_QUOTES,
+        (string)$value,
+        ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8"
     );
 }
@@ -203,11 +242,23 @@ function e($value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Manage Admin Accounts | Admin Panel</title>
+    <title>Manage Admin Accounts | Olivera Admin</title>
 
     <link rel="stylesheet" href="../assets/css/admin.css">
 
     <style>
+
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
+            --surface: #ffffff;
+        }
 
         * {
             box-sizing: border-box;
@@ -215,17 +266,23 @@ function e($value) {
 
         body {
             margin: 0;
-            background: #f3f6fb;
-            color: #263247;
-            font-family: Arial, Helvetica, sans-serif;
+            background: var(--ivory);
+            color: var(--text);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
         }
 
         .main-content {
             width: 100%;
             max-width: 1500px;
+            min-height: 100vh;
             margin: 0 auto;
             padding: 32px;
-            min-height: 100vh;
         }
 
         /* PAGE HEADER */
@@ -237,56 +294,65 @@ function e($value) {
             flex-wrap: wrap;
             gap: 16px;
             margin-bottom: 28px;
+            padding: 25px 28px;
+            background: linear-gradient(
+                120deg,
+                var(--navy),
+                var(--navy-light)
+            );
+            border: 1px solid var(--navy-light);
+            border-radius: 13px;
+            color: white;
         }
 
         .page-header h1 {
             margin: 0 0 8px;
-            font-size: 27px;
-            font-weight: 700;
-            color: #1d2b43;
+            color: white;
+            font-size: 26px;
+            font-weight: 750;
         }
 
         .page-header p {
             margin: 0;
-            color: #718096;
-            font-size: 14px;
-            line-height: 1.5;
+            color: #d7dfeb;
+            font-size: 13px;
+            line-height: 1.6;
         }
 
         .welcome-text {
             padding: 11px 16px;
-            background: #ffffff;
-            color: #64748b;
-            border: 1px solid #e5eaf1;
-            border-radius: 9px;
+            border: 1px solid rgba(237, 202, 118, .4);
+            border-radius: 8px;
+            background: rgba(214, 166, 59, .12);
+            color: #e8e9eb;
             font-size: 13px;
         }
 
         .welcome-text strong {
-            color: #263247;
+            color: var(--gold-light);
         }
 
         /* CONTENT CARD */
 
         .content-card {
-            background: #ffffff;
-            border: 1px solid #e5eaf1;
-            border-radius: 12px;
-            padding: 27px;
             margin-bottom: 24px;
-            box-shadow: 0 3px 12px rgba(15, 23, 42, 0.035);
+            padding: 27px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(7, 27, 56, .035);
         }
 
         .section-heading {
             margin: 0 0 7px;
-            color: #1d2b43;
+            color: var(--navy);
             font-size: 20px;
-            font-weight: 700;
+            font-weight: 750;
         }
 
         .section-description {
             margin: 0 0 24px;
-            color: #8290a3;
+            color: var(--muted);
             font-size: 13px;
             line-height: 1.6;
         }
@@ -310,9 +376,9 @@ function e($value) {
         .form-group label {
             display: block;
             margin-bottom: 9px;
-            color: #35445a;
+            color: var(--text);
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
         }
 
         .form-group input,
@@ -320,10 +386,10 @@ function e($value) {
             width: 100%;
             height: 46px;
             padding: 0 14px;
-            border: 1px solid #dce3ed;
+            border: 1px solid var(--border);
             border-radius: 8px;
-            background: #ffffff;
-            color: #26364a;
+            background: white;
+            color: var(--text);
             font-family: inherit;
             font-size: 14px;
             transition: border-color .2s, box-shadow .2s;
@@ -332,8 +398,8 @@ function e($value) {
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #3976df;
-            box-shadow: 0 0 0 3px rgba(57, 118, 223, 0.10);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(214, 166, 59, .12);
         }
 
         .form-group input::placeholder {
@@ -353,35 +419,35 @@ function e($value) {
 
         .toggle-password {
             position: absolute;
-            right: 10px;
             top: 50%;
+            right: 10px;
             transform: translateY(-50%);
-            border: none;
-            background: transparent;
-            color: #315fbd;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
             padding: 7px;
+            border: 0;
+            background: transparent;
+            color: #94701e;
+            font-size: 12px;
+            font-weight: 750;
+            cursor: pointer;
         }
 
         .toggle-password:hover {
-            color: #244b99;
+            color: var(--navy);
         }
 
         .password-help {
             margin-top: 11px;
             padding: 14px 16px;
-            background: #f7f9fc;
-            border: 1px solid #e8edf4;
+            border: 1px solid var(--border);
             border-radius: 8px;
-            color: #718096;
+            background: #faf8f2;
+            color: var(--muted);
             font-size: 12px;
             line-height: 1.8;
         }
 
         .password-help strong {
-            color: #34445b;
+            color: var(--navy);
         }
 
         .password-help ul {
@@ -401,42 +467,46 @@ function e($value) {
             justify-content: center;
             min-height: 44px;
             padding: 0 21px;
-            border: 1px solid #315fbd;
+            border: 1px solid var(--gold);
             border-radius: 8px;
-            background: #315fbd;
-            color: #ffffff;
+            background: linear-gradient(
+                120deg,
+                var(--gold-light),
+                var(--gold)
+            );
+            color: var(--navy);
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 750;
             text-decoration: none;
             cursor: pointer;
-            transition: background .2s, border-color .2s;
+            transition: filter .2s, transform .2s;
         }
 
         .primary-button:hover {
-            background: #244b99;
-            border-color: #244b99;
+            filter: brightness(.96);
+            transform: translateY(-1px);
         }
 
         /* MESSAGES */
 
         .message {
-            padding: 14px 17px;
             margin-bottom: 22px;
+            padding: 14px 17px;
             border-radius: 8px;
             font-size: 13px;
             line-height: 1.5;
         }
 
         .message-success {
-            background: #eaf8ef;
-            border: 1px solid #c9ecd5;
-            color: #187444;
+            border: 1px solid #c9e5cf;
+            background: #edf7ee;
+            color: #27653a;
         }
 
         .message-error {
-            background: #fff0ef;
-            border: 1px solid #f4cfcb;
-            color: #b42318;
+            border: 1px solid #efcfca;
+            background: #fbefed;
+            color: #a33128;
         }
 
         /* ALL ACCOUNTS */
@@ -448,21 +518,21 @@ function e($value) {
             flex-wrap: wrap;
             gap: 20px;
             padding: 23px;
-            background: #f8fafd;
-            border: 1px solid #e6ebf2;
+            border: 1px solid var(--border);
             border-radius: 10px;
+            background: #faf8f2;
         }
 
         .all-accounts-card h2 {
             margin: 0 0 7px;
-            color: #1d2b43;
+            color: var(--navy);
             font-size: 18px;
         }
 
         .all-accounts-card p {
-            margin: 0;
             max-width: 650px;
-            color: #718096;
+            margin: 0;
+            color: var(--muted);
             font-size: 13px;
             line-height: 1.6;
         }
@@ -472,13 +542,14 @@ function e($value) {
         .bottom-link {
             display: inline-block;
             margin-top: 4px;
-            color: #315fbd;
+            color: var(--navy);
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             text-decoration: none;
         }
 
         .bottom-link:hover {
+            color: #94701e;
             text-decoration: underline;
         }
 
@@ -506,8 +577,12 @@ function e($value) {
                 padding: 15px;
             }
 
+            .page-header {
+                padding: 20px;
+            }
+
             .page-header h1 {
-                font-size: 23px;
+                font-size: 22px;
             }
 
             .content-card {
@@ -555,7 +630,7 @@ function e($value) {
 
             Welcome,
             <strong>
-                <?php echo e($_SESSION["admin_name"] ?? "Admin"); ?>
+                <?php echo manageAdminsEscape($_SESSION["admin_name"] ?? "Admin"); ?>
             </strong>
 
         </div>
@@ -570,7 +645,7 @@ function e($value) {
             class="message <?php echo $messageType === "error" ? "message-error" : "message-success"; ?>"
             role="alert"
         >
-            <?php echo e($message); ?>
+            <?php echo manageAdminsEscape($message); ?>
         </div>
 
     <?php endif; ?>
@@ -592,7 +667,7 @@ function e($value) {
             <input
                 type="hidden"
                 name="csrf_token"
-                value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                value="<?php echo manageAdminsEscape($_SESSION["csrf_token"]); ?>"
             >
 
             <div class="form-grid">

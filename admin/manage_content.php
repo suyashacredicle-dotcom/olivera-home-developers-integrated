@@ -1,22 +1,33 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
-require_once "../includes/activity_logger.php";
+// --------------------------------------------------
+// MANAGE WEBSITE CONTENT
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../includes/activity_logger.php";
 
 requirePermission("manage_content");
 
-// Escape output safely
-function e($value) {
+// --------------------------------------------------
+// ESCAPE OUTPUT
+// --------------------------------------------------
+
+function manageContentEscape($value): string
+{
     return htmlspecialchars(
-        (string) $value,
-        ENT_QUOTES,
+        (string)$value,
+        ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8"
     );
 }
 
-// Create CSRF token if it does not exist
+// --------------------------------------------------
+// CSRF TOKEN
+// --------------------------------------------------
+
 if (
     empty($_SESSION["csrf_token"]) ||
     !is_string($_SESSION["csrf_token"])
@@ -24,97 +35,130 @@ if (
     $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
 }
 
+// --------------------------------------------------
+// FLASH MESSAGES
+// --------------------------------------------------
+
 $message = "";
 $messageType = "";
 
-// Display messages from previous actions
 if (isset($_SESSION["content_message"])) {
 
     $message = $_SESSION["content_message"];
-
-    $messageType =
-        $_SESSION["content_message_type"] ?? "success";
+    $messageType = $_SESSION["content_message_type"] ?? "success";
 
     unset($_SESSION["content_message"]);
     unset($_SESSION["content_message_type"]);
 }
 
-// Create new content
+// --------------------------------------------------
+// CREATE CONTENT
+// --------------------------------------------------
+
 if (
     $_SERVER["REQUEST_METHOD"] === "POST" &&
     isset($_POST["create_content"])
 ) {
 
+    $submittedToken = $_POST["csrf_token"] ?? "";
+
     if (
-        !isset($_POST["csrf_token"]) ||
-        !is_string($_POST["csrf_token"]) ||
-        !hash_equals(
-            $_SESSION["csrf_token"],
-            $_POST["csrf_token"]
-        )
+        !is_string($submittedToken) ||
+        !hash_equals($_SESSION["csrf_token"], $submittedToken)
     ) {
         http_response_code(403);
-        die("Invalid CSRF token.");
+        exit("Invalid request. Please reload the page.");
     }
 
-    $title = trim($_POST["title"] ?? "");
-    $body = trim($_POST["body"] ?? "");
+    $title = $_POST["title"] ?? "";
+    $body = $_POST["body"] ?? "";
     $status = $_POST["status"] ?? "draft";
 
-    if ($title === "" || $body === "") {
-
-        $_SESSION["content_message"] =
-            "Please fill in all fields.";
-
-        $_SESSION["content_message_type"] = "error";
-
-    } elseif (
-        !in_array($status, ["draft", "published"], true)
+    if (
+        !is_string($title) ||
+        !is_string($body) ||
+        !is_string($status)
     ) {
 
-        $_SESSION["content_message"] =
-            "Invalid content status.";
-
+        $_SESSION["content_message"] = "Invalid input provided.";
         $_SESSION["content_message_type"] = "error";
 
     } else {
 
-        try {
+        $title = trim($title);
+        $body = trim($body);
 
-            $stmt = $pdo->prepare(
-                "INSERT INTO content
-                    (title, body, status, created_by)
-                 VALUES (?, ?, ?, ?)"
-            );
-
-            $stmt->execute([
-                $title,
-                $body,
-                $status,
-                $_SESSION["admin_id"]
-            ]);
-
-            logActivity(
-                $pdo,
-                "CONTENT_CREATED",
-                "Created content: " . $title
-            );
+        if ($title === "" || $body === "") {
 
             $_SESSION["content_message"] =
-                "Content created successfully!";
-
-            $_SESSION["content_message_type"] = "success";
-
-        } catch (PDOException $e) {
-
-            error_log(
-                "Content creation failed: " . $e->getMessage()
-            );
-
-            $_SESSION["content_message"] =
-                "Unable to create content. Please try again.";
+                "Please fill in all fields.";
 
             $_SESSION["content_message_type"] = "error";
+
+        } elseif (strlen($title) > 255) {
+
+            $_SESSION["content_message"] =
+                "Content title cannot exceed 255 characters.";
+
+            $_SESSION["content_message_type"] = "error";
+
+        } elseif (!in_array($status, ["draft", "published"], true)) {
+
+            $_SESSION["content_message"] =
+                "Invalid content status.";
+
+            $_SESSION["content_message_type"] = "error";
+
+        } else {
+
+            try {
+
+                $adminId = filter_var(
+                    $_SESSION["admin_id"] ?? null,
+                    FILTER_VALIDATE_INT
+                );
+
+                if (!$adminId || $adminId < 1) {
+                    throw new RuntimeException("Invalid admin session.");
+                }
+
+                $stmt = $pdo->prepare("
+                    INSERT INTO content
+                    (title, body, status, created_by)
+                    VALUES (?, ?, ?, ?)
+                ");
+
+                $stmt->execute([
+                    $title,
+                    $body,
+                    $status,
+                    $adminId
+                ]);
+
+                logActivity(
+                    $pdo,
+                    "CONTENT_CREATED",
+                    "Created content: " . $title
+                );
+
+                $_SESSION["content_message"] =
+                    "Content created successfully!";
+
+                $_SESSION["content_message_type"] = "success";
+
+                $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
+
+            } catch (Throwable $e) {
+
+                error_log(
+                    "Content creation failed: " . $e->getMessage()
+                );
+
+                $_SESSION["content_message"] =
+                    "Unable to create content. Please try again.";
+
+                $_SESSION["content_message_type"] = "error";
+            }
         }
     }
 
@@ -122,27 +166,55 @@ if (
     exit;
 }
 
-// Search content
-$search = trim($_GET["search"] ?? "");
+// --------------------------------------------------
+// SEARCH CONTENT
+// --------------------------------------------------
 
-if ($search !== "") {
+$search = $_GET["search"] ?? "";
 
-    $stmt = $pdo->prepare(
-        "SELECT * FROM content
-         WHERE title LIKE ?
-         ORDER BY id DESC"
-    );
-
-    $stmt->execute(["%" . $search . "%"]);
-
-} else {
-
-    $stmt = $pdo->query(
-        "SELECT * FROM content ORDER BY id DESC"
-    );
+if (!is_string($search)) {
+    $search = "";
 }
 
-$contents = $stmt->fetchAll();
+$search = trim($search);
+
+try {
+
+    if ($search !== "") {
+
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM content
+            WHERE title LIKE ?
+            ORDER BY id DESC
+        ");
+
+        $stmt->execute(["%" . $search . "%"]);
+
+    } else {
+
+        $stmt = $pdo->query("
+            SELECT *
+            FROM content
+            ORDER BY id DESC
+        ");
+    }
+
+    $contents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (Throwable $e) {
+
+    error_log(
+        "Content listing failed: " . $e->getMessage()
+    );
+
+    $contents = [];
+
+    if ($message === "") {
+        $message = "Unable to load content records.";
+        $messageType = "error";
+    }
+}
 
 $totalContents = count($contents);
 
@@ -156,22 +228,111 @@ $totalContents = count($contents);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Manage Content | Admin Panel</title>
+    <title>Manage Content | Olivera Admin</title>
 
     <link rel="stylesheet" href="../assets/css/admin.css">
 
     <style>
 
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
+            --surface: #ffffff;
+        }
+
         * {
             box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--ivory);
+            color: var(--text);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        /* MAIN LAYOUT */
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 245px;
+            min-width: 245px;
+            min-height: 100vh;
+            padding: 25px 16px;
+            background: var(--navy);
+            color: white;
+        }
+
+        .sidebar h2 {
+            margin: 0 0 28px;
+            padding: 0 10px 19px;
+            border-bottom: 1px solid rgba(255,255,255,.13);
+            color: var(--gold-light);
+            font-size: 20px;
+        }
+
+        .sidebar > a {
+            display: block;
+            margin-bottom: 6px;
+            padding: 12px 13px;
+            border-radius: 7px;
+            color: #e2e8f0;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background .2s, color .2s;
+        }
+
+        .sidebar > a:hover,
+        .sidebar > a.active {
+            background: rgba(214,166,59,.16);
+            color: var(--gold-light);
+        }
+
+        .sidebar form {
+            margin-top: 22px;
+            padding: 0 5px;
+        }
+
+        .sidebar form button {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(237,202,118,.5);
+            border-radius: 7px;
+            background: transparent;
+            color: var(--gold-light);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .sidebar form button:hover {
+            background: rgba(214,166,59,.15);
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            padding: 28px;
         }
 
         .content-page {
             width: 100%;
             max-width: 1450px;
             margin: 0 auto;
-            padding: 12px 8px 40px;
-            color: #1e293b;
+            padding: 0 0 35px;
+            color: var(--text);
         }
 
         /* PAGE HEADER */
@@ -184,43 +345,48 @@ $totalContents = count($contents);
             gap: 18px;
             margin-bottom: 25px;
             padding: 26px 28px;
-            background: linear-gradient(120deg, #ffffff, #f1f6ff);
-            border: 1px solid #e2e8f0;
-            border-radius: 15px;
+            background: linear-gradient(
+                120deg,
+                var(--navy),
+                var(--navy-light)
+            );
+            border: 1px solid var(--navy-light);
+            border-radius: 13px;
+            color: white;
         }
 
         .content-header h1 {
-            color: #172554;
+            margin: 0 0 7px;
+            color: white;
             font-size: 27px;
             font-weight: 750;
-            letter-spacing: -0.5px;
-            margin: 0 0 7px;
         }
 
         .content-header p {
-            color: #64748b;
-            font-size: 13px;
             margin: 0;
+            color: #d7dfeb;
+            font-size: 13px;
             line-height: 1.6;
-        }
-
-        .content-header-icon {
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            background: #e8efff;
-            color: #2454b8;
-            border-radius: 12px;
-            font-size: 23px;
         }
 
         .content-heading {
             display: flex;
             align-items: center;
             gap: 15px;
+        }
+
+        .content-header-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            border: 1px solid rgba(237,202,118,.4);
+            border-radius: 12px;
+            background: rgba(214,166,59,.15);
+            color: var(--gold-light);
+            font-size: 23px;
         }
 
         /* SUMMARY */
@@ -234,33 +400,33 @@ $totalContents = count($contents);
 
         .content-summary-card {
             position: relative;
-            background: #ffffff;
-            padding: 22px 23px;
-            border: 1px solid #e2e8f0;
-            border-radius: 13px;
-            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.035);
             overflow: hidden;
+            padding: 22px 23px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            box-shadow: 0 3px 12px rgba(7,27,56,.035);
         }
 
         .content-summary-card::before {
-            content: "";
             position: absolute;
-            left: 0;
             top: 0;
             bottom: 0;
+            left: 0;
             width: 4px;
-            background: #4776d0;
+            background: var(--gold);
+            content: "";
         }
 
         .content-summary-label {
-            color: #64748b;
+            margin-bottom: 10px;
+            color: var(--muted);
             font-size: 12px;
             font-weight: 650;
-            margin-bottom: 10px;
         }
 
         .content-summary-number {
-            color: #172554;
+            color: var(--navy);
             font-size: 31px;
             font-weight: 750;
             line-height: 1.2;
@@ -269,12 +435,12 @@ $totalContents = count($contents);
         /* PANELS */
 
         .content-panel {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            margin-bottom: 24px;
-            box-shadow: 0 5px 18px rgba(15, 23, 42, 0.035);
             overflow: hidden;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: var(--surface);
+            box-shadow: 0 4px 15px rgba(7,27,56,.035);
         }
 
         .content-panel-header {
@@ -282,34 +448,34 @@ $totalContents = count($contents);
             align-items: center;
             gap: 13px;
             padding: 21px 25px;
-            background: #fbfcfe;
-            border-bottom: 1px solid #edf0f5;
+            border-bottom: 1px solid var(--border);
+            background: #faf8f2;
         }
 
         .content-panel-icon {
-            width: 39px;
-            height: 39px;
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 39px;
+            height: 39px;
             flex-shrink: 0;
-            color: #2454b8;
-            background: #eaf0ff;
             border-radius: 10px;
+            background: rgba(214,166,59,.16);
+            color: #94701e;
             font-size: 18px;
         }
 
         .content-panel-header h2 {
-            color: #172554;
+            margin: 0 0 5px;
+            color: var(--navy);
             font-size: 16px;
             font-weight: 750;
-            margin: 0 0 5px;
         }
 
         .content-panel-header p {
-            color: #8290a3;
-            font-size: 12px;
             margin: 0;
+            color: var(--muted);
+            font-size: 12px;
             line-height: 1.5;
         }
 
@@ -320,23 +486,23 @@ $totalContents = count($contents);
         /* ALERTS */
 
         .content-alert {
-            padding: 15px 18px;
             margin-bottom: 22px;
-            border-radius: 10px;
+            padding: 15px 18px;
+            border-radius: 9px;
             font-size: 13px;
             font-weight: 650;
         }
 
         .content-alert.success {
-            background: #ecfdf3;
-            color: #166534;
-            border: 1px solid #bbf7d0;
+            border: 1px solid #c9e5cf;
+            background: #edf7ee;
+            color: #27653a;
         }
 
         .content-alert.error {
-            background: #fff1f2;
-            color: #9f1239;
-            border: 1px solid #fecdd3;
+            border: 1px solid #efcfca;
+            background: #fbefed;
+            color: #a33128;
         }
 
         /* FORM */
@@ -358,10 +524,10 @@ $totalContents = count($contents);
 
         .content-form-group label {
             display: block;
-            color: #334155;
+            margin-bottom: 8px;
+            color: var(--text);
             font-size: 13px;
             font-weight: 700;
-            margin-bottom: 8px;
         }
 
         .content-form-group input,
@@ -370,14 +536,14 @@ $totalContents = count($contents);
             display: block;
             width: 100%;
             padding: 12px 14px;
-            border: 1px solid #d8e0eb;
-            border-radius: 9px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            background: white;
+            color: var(--text);
             font-family: inherit;
             font-size: 13px;
-            color: #334155;
-            background: #ffffff;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color .2s, box-shadow .2s;
         }
 
         .content-form-group input,
@@ -394,20 +560,20 @@ $totalContents = count($contents);
         .content-form-group input:focus,
         .content-form-group select:focus,
         .content-form-group textarea:focus {
-            border-color: #4776d0;
-            box-shadow: 0 0 0 3px rgba(59, 111, 205, 0.10);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(214,166,59,.13);
         }
 
         .content-form-group input::placeholder,
         .content-form-group textarea::placeholder {
-            color: #a0acbc;
+            color: #a0aaba;
         }
 
         .content-form-help {
             display: block;
-            color: #8794a7;
-            font-size: 11px;
             margin-top: 7px;
+            color: var(--muted);
+            font-size: 11px;
         }
 
         /* BUTTONS */
@@ -418,20 +584,22 @@ $totalContents = count($contents);
             justify-content: center;
             gap: 8px;
             padding: 12px 21px;
-            background: #2454b8;
-            color: #ffffff;
-            border: 1px solid #2454b8;
-            border-radius: 9px;
+            border: 1px solid var(--gold);
+            border-radius: 8px;
+            background: linear-gradient(
+                120deg,
+                var(--gold-light),
+                var(--gold)
+            );
+            color: var(--navy);
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 750;
             cursor: pointer;
-            transition: 0.2s ease;
+            transition: .2s ease;
         }
 
         .content-primary-btn:hover {
-            background: #1d4295;
-            border-color: #1d4295;
-            box-shadow: 0 4px 12px rgba(36, 84, 184, 0.18);
+            filter: brightness(.96);
             transform: translateY(-1px);
         }
 
@@ -439,14 +607,14 @@ $totalContents = count($contents);
 
         .content-search-area {
             padding: 20px 25px;
-            border-bottom: 1px solid #edf0f5;
+            border-bottom: 1px solid var(--border);
         }
 
         .content-search-form {
             display: flex;
+            align-items: center;
             flex-wrap: wrap;
             gap: 10px;
-            align-items: center;
         }
 
         .content-search-form input {
@@ -454,34 +622,33 @@ $totalContents = count($contents);
             min-width: 220px;
             min-height: 43px;
             padding: 11px 14px;
-            border: 1px solid #d8e0eb;
-            border-radius: 9px;
-            font-size: 13px;
-            color: #334155;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             outline: none;
-            transition: 0.2s;
+            color: var(--text);
+            font-size: 13px;
         }
 
         .content-search-form input:focus {
-            border-color: #4776d0;
-            box-shadow: 0 0 0 3px rgba(59, 111, 205, 0.10);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(214,166,59,.13);
         }
 
         .content-search-btn {
             min-height: 43px;
             padding: 10px 19px;
-            background: #2454b8;
-            color: #ffffff;
-            border: 1px solid #2454b8;
-            border-radius: 9px;
+            border: 1px solid var(--navy);
+            border-radius: 8px;
+            background: var(--navy);
+            color: white;
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
-            transition: 0.2s;
+            transition: .2s;
         }
 
         .content-search-btn:hover {
-            background: #1d4295;
+            background: var(--navy-light);
         }
 
         .content-clear-btn {
@@ -490,19 +657,19 @@ $totalContents = count($contents);
             justify-content: center;
             min-height: 43px;
             padding: 10px 16px;
-            background: #f1f5f9;
-            color: #475569;
-            border: 1px solid #e2e8f0;
-            text-decoration: none;
-            border-radius: 9px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #faf8f2;
+            color: var(--text);
             font-size: 12px;
             font-weight: 650;
-            transition: 0.2s;
+            text-decoration: none;
+            transition: .2s;
         }
 
         .content-clear-btn:hover {
-            background: #e8edf4;
-            color: #1e293b;
+            border-color: var(--gold);
+            background: #f5f0e4;
         }
 
         /* TABLE */
@@ -519,31 +686,31 @@ $totalContents = count($contents);
         }
 
         .content-table th {
-            background: #f8faff;
-            color: #64748b;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.55px;
-            text-align: left;
             padding: 16px 19px;
-            border-bottom: 1px solid #e7ecf3;
+            border-bottom: 1px solid var(--border);
+            background: #faf8f2;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: .55px;
+            text-align: left;
+            text-transform: uppercase;
             white-space: nowrap;
         }
 
         .content-table td {
             padding: 16px 19px;
-            border-bottom: 1px solid #f0f2f6;
+            border-bottom: 1px solid #f0ede6;
             color: #475569;
             font-size: 13px;
             vertical-align: middle;
         }
 
         .content-table tbody tr {
-            transition: background 0.15s ease;
+            transition: background .15s ease;
         }
 
         .content-table tbody tr:hover {
-            background: #f8faff;
+            background: #fcfaf5;
         }
 
         .content-table tbody tr:last-child td {
@@ -551,15 +718,15 @@ $totalContents = count($contents);
         }
 
         .content-id {
-            color: #8290a3 !important;
+            color: var(--muted) !important;
             font-weight: 700;
             white-space: nowrap;
         }
 
         .content-title {
-            color: #172554 !important;
-            font-weight: 650;
             max-width: 320px;
+            color: var(--navy) !important;
+            font-weight: 650;
         }
 
         .content-status {
@@ -575,17 +742,17 @@ $totalContents = count($contents);
         }
 
         .content-status.published {
-            background: #ecfdf3;
-            color: #167044;
+            background: #edf7ee;
+            color: #27653a;
         }
 
         .content-status.draft {
-            background: #fff7e6;
-            color: #a16207;
+            background: #fbf3df;
+            color: #896319;
         }
 
         .content-date {
-            color: #8290a3 !important;
+            color: var(--muted) !important;
             font-size: 12px !important;
             white-space: nowrap;
         }
@@ -595,8 +762,8 @@ $totalContents = count($contents);
         .content-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
             flex-wrap: wrap;
+            gap: 8px;
         }
 
         .content-actions form {
@@ -615,52 +782,79 @@ $totalContents = count($contents);
             font-weight: 700;
             text-decoration: none;
             cursor: pointer;
-            transition: 0.2s;
+            transition: .2s;
         }
 
         .content-edit-btn {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border: 1px solid #dbeafe;
+            border: 1px solid #e5d5a9;
+            background: #faf5e8;
+            color: #80601b;
         }
 
         .content-edit-btn:hover {
-            background: #dbeafe;
+            background: #f2e8ce;
         }
 
         .content-delete-btn {
-            background: #fff1f2;
-            color: #be123c;
-            border: 1px solid #ffe4e6;
+            border: 1px solid #efcfca;
+            background: #fbefed;
+            color: #a33128;
         }
 
         .content-delete-btn:hover {
-            background: #ffe4e6;
+            background: #f7e2df;
         }
 
         /* EMPTY STATE */
 
         .content-empty {
-            text-align: center;
             padding: 48px 20px !important;
-            color: #8290a3 !important;
+            color: var(--muted) !important;
             line-height: 1.7;
+            text-align: center;
         }
 
         .content-empty strong {
             display: block;
-            color: #334155;
-            font-size: 15px;
             margin-bottom: 6px;
+            color: var(--navy);
+            font-size: 15px;
         }
 
         /* RESPONSIVE */
 
-        @media (max-width: 760px) {
+        @media (max-width: 900px) {
 
-            .content-page {
-                padding: 8px 2px 25px;
+            .dashboard-container {
+                display: block;
             }
+
+            .sidebar {
+                width: 100%;
+                min-width: 0;
+                min-height: auto;
+            }
+
+            .sidebar h2 {
+                margin-bottom: 15px;
+            }
+
+            .sidebar > a {
+                display: inline-block;
+                margin: 3px;
+            }
+
+            .sidebar form {
+                max-width: 180px;
+                margin-top: 12px;
+            }
+
+            .main-content {
+                padding: 22px;
+            }
+        }
+
+        @media (max-width: 760px) {
 
             .content-header {
                 padding: 20px;
@@ -690,10 +884,13 @@ $totalContents = count($contents);
             .content-search-area {
                 padding: 17px;
             }
-
         }
 
         @media (max-width: 480px) {
+
+            .main-content {
+                padding: 15px;
+            }
 
             .content-heading {
                 gap: 10px;
@@ -719,7 +916,6 @@ $totalContents = count($contents);
             .content-primary-btn {
                 width: 100%;
             }
-
         }
 
     </style>
@@ -738,9 +934,7 @@ $totalContents = count($contents);
 
         <a href="dashboard.php">Dashboard</a>
 
-        <?php
-        require __DIR__ . "/includes/gallery_sidebar_link.php";
-        ?>
+        <a href="manage_gallery.php">Manage Gallery</a>
 
         <a href="manage_admins.php">Manage Admins</a>
 
@@ -748,7 +942,7 @@ $totalContents = count($contents);
 
         <a href="manage_customers.php">Manage Customers</a>
 
-        <a href="manage_content.php">Manage Content</a>
+        <a href="manage_content.php" class="active">Manage Content</a>
 
         <a href="manage_settings.php">Website Settings</a>
 
@@ -763,7 +957,7 @@ $totalContents = count($contents);
             <input
                 type="hidden"
                 name="csrf_token"
-                value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                value="<?php echo manageContentEscape($_SESSION["csrf_token"]); ?>"
             >
 
             <button type="submit">Logout</button>
@@ -808,9 +1002,9 @@ $totalContents = count($contents);
                     echo $messageType === "success"
                         ? "success"
                         : "error";
-                ?>">
+                ?>" role="alert">
 
-                    <?php echo e($message); ?>
+                    <?php echo manageContentEscape($message); ?>
 
                 </div>
 
@@ -827,7 +1021,7 @@ $totalContents = count($contents);
                     </div>
 
                     <div class="content-summary-number">
-                        <?php echo $totalContents; ?>
+                        <?php echo (int)$totalContents; ?>
                     </div>
 
                 </div>
@@ -856,12 +1050,12 @@ $totalContents = count($contents);
 
                 <div class="content-panel-body">
 
-                    <form method="POST">
+                    <form method="POST" action="manage_content.php">
 
                         <input
                             type="hidden"
                             name="csrf_token"
-                            value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                            value="<?php echo manageContentEscape($_SESSION["csrf_token"]); ?>"
                         >
 
                         <div class="content-form-grid">
@@ -957,13 +1151,13 @@ $totalContents = count($contents);
 
                 <div class="content-search-area">
 
-                    <form method="GET" class="content-search-form">
+                    <form method="GET" action="manage_content.php" class="content-search-form">
 
                         <input
                             type="text"
                             name="search"
                             placeholder="Search content by title..."
-                            value="<?php echo e($search); ?>"
+                            value="<?php echo manageContentEscape($search); ?>"
                         >
 
                         <button
@@ -1011,11 +1205,11 @@ $totalContents = count($contents);
                                     <tr>
 
                                         <td class="content-id">
-                                            #<?php echo (int) $content["id"]; ?>
+                                            #<?php echo (int)$content["id"]; ?>
                                         </td>
 
                                         <td class="content-title">
-                                            <?php echo e($content["title"]); ?>
+                                            <?php echo manageContentEscape($content["title"]); ?>
                                         </td>
 
                                         <td>
@@ -1026,14 +1220,14 @@ $totalContents = count($contents);
                                                     : "draft";
                                             ?>">
 
-                                                <?php echo e($content["status"]); ?>
+                                                <?php echo manageContentEscape($content["status"]); ?>
 
                                             </span>
 
                                         </td>
 
                                         <td class="content-date">
-                                            <?php echo e($content["created_at"]); ?>
+                                            <?php echo manageContentEscape($content["created_at"]); ?>
                                         </td>
 
                                         <td>
@@ -1041,9 +1235,7 @@ $totalContents = count($contents);
                                             <div class="content-actions">
 
                                                 <a
-                                                    href="actions/edit_content.php?id=<?php
-                                                        echo (int) $content["id"];
-                                                    ?>"
+                                                    href="actions/edit_content.php?id=<?php echo (int)$content["id"]; ?>"
                                                     class="content-edit-btn"
                                                 >
                                                     Edit
@@ -1058,17 +1250,13 @@ $totalContents = count($contents);
                                                     <input
                                                         type="hidden"
                                                         name="csrf_token"
-                                                        value="<?php
-                                                            echo e($_SESSION["csrf_token"]);
-                                                        ?>"
+                                                        value="<?php echo manageContentEscape($_SESSION["csrf_token"]); ?>"
                                                     >
 
                                                     <input
                                                         type="hidden"
                                                         name="id"
-                                                        value="<?php
-                                                            echo (int) $content["id"];
-                                                        ?>"
+                                                        value="<?php echo (int)$content["id"]; ?>"
                                                     >
 
                                                     <button

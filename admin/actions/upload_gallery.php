@@ -9,7 +9,18 @@ require_once __DIR__ . "/../../includes/permissions.php";
 require_once __DIR__ . "/../../config/database.php";
 require_once __DIR__ . "/../../includes/activity_logger.php";
 
-// Only Super Admin has manage_admins permission.
+// --------------------------------------------------
+// VALIDATION EXCEPTION
+// --------------------------------------------------
+
+class GalleryUploadValidationException extends RuntimeException
+{
+}
+
+// --------------------------------------------------
+// SUPER ADMIN PERMISSION
+// --------------------------------------------------
+
 requirePermission("manage_admins");
 
 // --------------------------------------------------
@@ -17,9 +28,9 @@ requirePermission("manage_admins");
 // --------------------------------------------------
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
-    header("Allow: POST");
     http_response_code(405);
-    exit("Method not allowed.");
+    header("Allow: POST");
+    exit("Method Not Allowed");
 }
 
 // --------------------------------------------------
@@ -54,6 +65,31 @@ if ($adminId === false || $adminId === null || $adminId <= 0) {
 }
 
 // --------------------------------------------------
+// ALLOWED GALLERY LOCATIONS
+// --------------------------------------------------
+
+$allowedLocations = [
+    "Delhi",
+    "Noida",
+    "Gurugram",
+    "Jewar",
+    "Vrindavan",
+    "Uttarakhand",
+    "Goa",
+    "Dubai"
+];
+
+$location = $_POST["location"] ?? "";
+
+if (
+    !is_string($location) ||
+    !in_array($location, $allowedLocations, true)
+) {
+    http_response_code(400);
+    exit("Please select a valid gallery location.");
+}
+
+// --------------------------------------------------
 // VALIDATE VISIBILITY
 // --------------------------------------------------
 
@@ -68,7 +104,7 @@ if (
 }
 
 // --------------------------------------------------
-// VALIDATE PHOTO DETAILS
+// VALIDATE TITLE AND DESCRIPTION
 // --------------------------------------------------
 
 $titleInput = $_POST["title"] ?? "";
@@ -100,148 +136,124 @@ if ($titleLength > 150) {
 
 if ($descriptionLength > 5000) {
     http_response_code(400);
-    exit("Photo description is too long.");
+    exit("Photo description must not exceed 5000 characters.");
 }
 
 $title = ($title === "") ? null : $title;
 $description = ($description === "") ? null : $description;
 
 // --------------------------------------------------
-// CHECK UPLOADED FILE STRUCTURE
+// SUPPORT MULTIPLE AND SINGLE PHOTO UPLOADS
 // --------------------------------------------------
+
+$uploadedFiles = [];
+
+// Multiple photo upload: photos[]
 
 if (
-    !isset($_FILES["photo"]) ||
-    !is_array($_FILES["photo"])
+    isset($_FILES["photos"]) &&
+    is_array($_FILES["photos"]) &&
+    isset($_FILES["photos"]["name"]) &&
+    is_array($_FILES["photos"]["name"])
 ) {
-    http_response_code(400);
-    exit("Please select a photo.");
-}
 
-$file = $_FILES["photo"];
+    $multiple = $_FILES["photos"];
+    $count = count($multiple["name"]);
 
-if (
-    !isset(
-        $file["error"],
-        $file["tmp_name"],
-        $file["size"],
-        $file["name"]
-    ) ||
-    !is_int($file["error"]) ||
-    !is_string($file["tmp_name"]) ||
-    !is_int($file["size"]) ||
-    !is_string($file["name"])
+    if (
+        !isset(
+            $multiple["error"],
+            $multiple["tmp_name"],
+            $multiple["size"]
+        ) ||
+        !is_array($multiple["error"]) ||
+        !is_array($multiple["tmp_name"]) ||
+        !is_array($multiple["size"]) ||
+        count($multiple["error"]) !== $count ||
+        count($multiple["tmp_name"]) !== $count ||
+        count($multiple["size"]) !== $count
+    ) {
+        http_response_code(400);
+        exit("Invalid multiple-photo upload.");
+    }
+
+    for ($i = 0; $i < $count; $i++) {
+
+        if (
+            !is_string($multiple["name"][$i]) ||
+            !is_string($multiple["tmp_name"][$i]) ||
+            !is_int($multiple["error"][$i]) ||
+            !is_int($multiple["size"][$i])
+        ) {
+            http_response_code(400);
+            exit("Invalid uploaded photo information.");
+        }
+
+        if ($multiple["error"][$i] === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+
+        $uploadedFiles[] = [
+            "name" => $multiple["name"][$i],
+            "tmp_name" => $multiple["tmp_name"][$i],
+            "error" => $multiple["error"][$i],
+            "size" => $multiple["size"][$i]
+        ];
+    }
+
+// Legacy single photo upload: photo
+
+} elseif (
+    isset($_FILES["photo"]) &&
+    is_array($_FILES["photo"])
 ) {
-    http_response_code(400);
-    exit("Invalid upload.");
-}
 
-// --------------------------------------------------
-// SAVE ORIGINAL DESKTOP FILENAME
-// --------------------------------------------------
+    $file = $_FILES["photo"];
 
-$submittedFilename = str_replace(
-    "\\",
-    "/",
-    $file["name"]
-);
+    if (
+        !isset(
+            $file["error"],
+            $file["tmp_name"],
+            $file["size"],
+            $file["name"]
+        ) ||
+        !is_int($file["error"]) ||
+        !is_string($file["tmp_name"]) ||
+        !is_int($file["size"]) ||
+        !is_string($file["name"])
+    ) {
+        http_response_code(400);
+        exit("Invalid upload.");
+    }
 
-$originalFilename = basename($submittedFilename);
-
-// Remove control characters.
-$originalFilename = preg_replace(
-    '/[\x00-\x1F\x7F]/',
-    '',
-    $originalFilename
-);
-
-if (
-    !is_string($originalFilename) ||
-    $originalFilename === "" ||
-    $originalFilename === "." ||
-    $originalFilename === ".."
-) {
-    http_response_code(400);
-    exit("Invalid original photo filename.");
-}
-
-$originalFilenameLength = function_exists("mb_strlen")
-    ? mb_strlen($originalFilename, "UTF-8")
-    : strlen($originalFilename);
-
-if ($originalFilenameLength > 255) {
-    http_response_code(400);
-    exit("Original photo filename is too long.");
-}
-
-// --------------------------------------------------
-// CHECK UPLOAD ERROR
-// --------------------------------------------------
-
-if ($file["error"] !== UPLOAD_ERR_OK) {
-
-    http_response_code(400);
-
-    switch ($file["error"]) {
-
-        case UPLOAD_ERR_INI_SIZE:
-        case UPLOAD_ERR_FORM_SIZE:
-            exit("Photo exceeds the allowed upload size.");
-
-        case UPLOAD_ERR_PARTIAL:
-            exit("Photo upload was incomplete.");
-
-        case UPLOAD_ERR_NO_FILE:
-            exit("Please select a photo.");
-
-        case UPLOAD_ERR_NO_TMP_DIR:
-        case UPLOAD_ERR_CANT_WRITE:
-            error_log("Gallery upload failed due to a server storage error.");
-            exit("Server could not store the uploaded photo.");
-
-        default:
-            exit("Photo upload failed. Please try again.");
+    if ($file["error"] !== UPLOAD_ERR_NO_FILE) {
+        $uploadedFiles[] = $file;
     }
 }
 
 // --------------------------------------------------
-// VERIFY UPLOADED TEMPORARY FILE
+// CHECK UPLOAD COUNT
 // --------------------------------------------------
 
-if (
-    $file["tmp_name"] === "" ||
-    !is_uploaded_file($file["tmp_name"])
-) {
+if (count($uploadedFiles) === 0) {
     http_response_code(400);
-    exit("Invalid uploaded file.");
+    exit("Please select at least one photo.");
+}
+
+if (count($uploadedFiles) > 30) {
+    http_response_code(400);
+    exit("You can upload a maximum of 30 photos at a time.");
 }
 
 // --------------------------------------------------
-// VALIDATE FILE SIZE
-// --------------------------------------------------
-
-$maxFileSize = 5 * 1024 * 1024;
-
-$actualFileSize = filesize($file["tmp_name"]);
-
-if (
-    $actualFileSize === false ||
-    $actualFileSize <= 0 ||
-    $actualFileSize > $maxFileSize ||
-    $file["size"] !== $actualFileSize
-) {
-    http_response_code(400);
-    exit("Photo size must be between 1 byte and 5 MB.");
-}
-
-// --------------------------------------------------
-// VERIFY IMAGE VALIDATION EXTENSIONS
+// CHECK IMAGE VALIDATION SUPPORT
 // --------------------------------------------------
 
 if (
     !extension_loaded("fileinfo") ||
     !function_exists("finfo_open") ||
-    !function_exists("getimagesize")
+    !function_exists("getimagesize") ||
+    !function_exists("imagecreatefromstring")
 ) {
     error_log("Required image validation functions are unavailable.");
 
@@ -250,102 +262,7 @@ if (
 }
 
 // --------------------------------------------------
-// DETECT ACTUAL MIME TYPE
-// --------------------------------------------------
-
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-
-if ($finfo === false) {
-    http_response_code(500);
-    exit("Unable to validate the uploaded image.");
-}
-
-$mimeType = finfo_file(
-    $finfo,
-    $file["tmp_name"]
-);
-
-finfo_close($finfo);
-
-// --------------------------------------------------
-// INSPECT IMAGE CONTENT AND DIMENSIONS
-// --------------------------------------------------
-
-$imageInfo = getimagesize($file["tmp_name"]);
-
-if ($imageInfo === false) {
-    http_response_code(400);
-    exit("The uploaded file is not a valid image.");
-}
-
-$allowedTypes = [
-    "image/jpeg" => "jpg",
-    "image/png"  => "png",
-    "image/webp" => "webp"
-];
-
-if (
-    !is_string($mimeType) ||
-    !isset($allowedTypes[$mimeType]) ||
-    !isset($imageInfo["mime"]) ||
-    $imageInfo["mime"] !== $mimeType
-) {
-    http_response_code(415);
-    exit("Only JPG, PNG and WEBP images are allowed.");
-}
-
-// --------------------------------------------------
-// VALIDATE IMAGE DIMENSIONS
-// --------------------------------------------------
-
-$imageWidth = $imageInfo[0] ?? 0;
-$imageHeight = $imageInfo[1] ?? 0;
-
-$maxDimension = 10000;
-$maxPixels = 40000000;
-
-if (
-    !is_int($imageWidth) ||
-    !is_int($imageHeight) ||
-    $imageWidth <= 0 ||
-    $imageHeight <= 0 ||
-    $imageWidth > $maxDimension ||
-    $imageHeight > $maxDimension ||
-    ($imageWidth * $imageHeight) > $maxPixels
-) {
-    http_response_code(400);
-    exit("Image dimensions are too large.");
-}
-
-// --------------------------------------------------
-// VERIFY IMAGE CAN BE DECODED
-// --------------------------------------------------
-
-if (!function_exists("imagecreatefromstring")) {
-    http_response_code(500);
-    exit("Image processing is currently unavailable.");
-}
-
-$imageContents = file_get_contents($file["tmp_name"]);
-
-if ($imageContents === false) {
-    http_response_code(400);
-    exit("Unable to read the uploaded image.");
-}
-
-$decodedImage = @imagecreatefromstring($imageContents);
-
-unset($imageContents);
-
-if ($decodedImage === false) {
-    http_response_code(400);
-    exit("The uploaded image could not be decoded.");
-}
-
-imagedestroy($decodedImage);
-
-// --------------------------------------------------
-// PREPARE SECURE STORAGE LOCATION
+// PREPARE GALLERY STORAGE DIRECTORY
 // --------------------------------------------------
 
 $uploadDirectory = __DIR__ . "/../../uploads/gallery";
@@ -364,94 +281,410 @@ if (
 }
 
 // --------------------------------------------------
-// GENERATE RANDOM STORAGE FILENAME AND CSRF TOKEN
+// IMAGE VALIDATION SETTINGS
+// --------------------------------------------------
+
+$maxFileSize = 5 * 1024 * 1024;
+$maxDimension = 10000;
+$maxPixels = 40000000;
+
+$allowedTypes = [
+    "image/jpeg" => "jpg",
+    "image/png"  => "png",
+    "image/webp" => "webp"
+];
+
+// --------------------------------------------------
+// INITIALIZE UPLOAD DATA
+// --------------------------------------------------
+
+$savedFiles = [];
+$photoRecords = [];
+$photoIds = [];
+
+// --------------------------------------------------
+// VALIDATE, SAVE AND INSERT PHOTOS
 // --------------------------------------------------
 
 try {
 
-    $randomName = bin2hex(random_bytes(20));
-    $newCsrfToken = bin2hex(random_bytes(32));
+    // --------------------------------------------------
+    // VALIDATE AND SAVE EACH PHOTO
+    // --------------------------------------------------
 
-} catch (Throwable $e) {
+    foreach ($uploadedFiles as $index => $file) {
 
-    error_log("Gallery security token generation failed: " . $e->getMessage());
+        $photoNumber = $index + 1;
 
-    http_response_code(500);
-    exit("Unable to prepare the photo upload.");
-}
+        // Check PHP upload error.
 
-$extension = $allowedTypes[$mimeType];
+        if ($file["error"] !== UPLOAD_ERR_OK) {
 
-$filename = $randomName . "." . $extension;
+            switch ($file["error"]) {
 
-$destination = $realUploadDirectory .
-    DIRECTORY_SEPARATOR .
-    $filename;
+                case UPLOAD_ERR_INI_SIZE:
+                case UPLOAD_ERR_FORM_SIZE:
 
-// --------------------------------------------------
-// PREVENT DESTINATION OVERWRITE
-// --------------------------------------------------
+                    throw new GalleryUploadValidationException(
+                        "Photo " . $photoNumber . " exceeds the allowed upload size."
+                    );
 
-if (file_exists($destination)) {
-    http_response_code(500);
-    exit("Unable to prepare the photo upload.");
-}
+                case UPLOAD_ERR_PARTIAL:
 
-// --------------------------------------------------
-// MOVE PHOTO INTO PROTECTED GALLERY FOLDER
-// --------------------------------------------------
+                    throw new GalleryUploadValidationException(
+                        "Photo " . $photoNumber . " upload was incomplete."
+                    );
 
-if (!move_uploaded_file($file["tmp_name"], $destination)) {
+                case UPLOAD_ERR_NO_TMP_DIR:
+                case UPLOAD_ERR_CANT_WRITE:
 
-    error_log("Gallery upload failed: Unable to move uploaded file.");
+                    throw new RuntimeException(
+                        "Server could not store photo " . $photoNumber . "."
+                    );
 
-    http_response_code(500);
-    exit("Unable to save the uploaded photo.");
-}
+                default:
 
-// --------------------------------------------------
-// SAVE PHOTO DETAILS IN DATABASE
-// --------------------------------------------------
+                    throw new GalleryUploadValidationException(
+                        "Photo " . $photoNumber . " upload failed."
+                    );
+            }
+        }
 
-try {
+        // Verify genuine uploaded file.
 
-    $stmt = $pdo->prepare("
-        INSERT INTO gallery_photos
-            (
-                title,
-                description,
-                image_filename,
-                original_filename,
-                visibility,
-                uploaded_by
-            )
-        VALUES
-            (?, ?, ?, ?, ?, ?)
+        if (
+            $file["tmp_name"] === "" ||
+            !is_uploaded_file($file["tmp_name"])
+        ) {
+            throw new GalleryUploadValidationException(
+                "Invalid uploaded file at position " . $photoNumber . "."
+            );
+        }
+
+        // Validate actual file size.
+
+        $actualFileSize = filesize($file["tmp_name"]);
+
+        if (
+            $actualFileSize === false ||
+            $actualFileSize <= 0 ||
+            $actualFileSize > $maxFileSize ||
+            $file["size"] !== $actualFileSize
+        ) {
+            throw new GalleryUploadValidationException(
+                "Each photo must be between 1 byte and 5 MB."
+            );
+        }
+
+        // Clean original filename.
+
+        $submittedFilename = str_replace(
+            "\\",
+            "/",
+            $file["name"]
+        );
+
+        $originalFilename = basename($submittedFilename);
+
+        $originalFilename = preg_replace(
+            '/[\x00-\x1F\x7F]/',
+            '',
+            $originalFilename
+        );
+
+        if (
+            !is_string($originalFilename) ||
+            $originalFilename === "" ||
+            $originalFilename === "." ||
+            $originalFilename === ".."
+        ) {
+            throw new GalleryUploadValidationException(
+                "Invalid original filename for photo " . $photoNumber . "."
+            );
+        }
+
+        $originalFilenameLength = function_exists("mb_strlen")
+            ? mb_strlen($originalFilename, "UTF-8")
+            : strlen($originalFilename);
+
+        if ($originalFilenameLength > 255) {
+            throw new GalleryUploadValidationException(
+                "Original filename is too long."
+            );
+        }
+
+        // Detect actual MIME type.
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+        if ($finfo === false) {
+            throw new RuntimeException(
+                "Unable to validate uploaded images."
+            );
+        }
+
+        $mimeType = finfo_file(
+            $finfo,
+            $file["tmp_name"]
+        );
+
+        finfo_close($finfo);
+
+        // Inspect actual image.
+
+        $imageInfo = @getimagesize($file["tmp_name"]);
+
+        if ($imageInfo === false) {
+            throw new GalleryUploadValidationException(
+                "Photo " . $photoNumber . " is not a valid image."
+            );
+        }
+
+        if (
+            !is_string($mimeType) ||
+            !isset($allowedTypes[$mimeType]) ||
+            !isset($imageInfo["mime"]) ||
+            $imageInfo["mime"] !== $mimeType
+        ) {
+            throw new GalleryUploadValidationException(
+                "Only JPG, PNG and WEBP images are allowed."
+            );
+        }
+
+        // Validate image dimensions.
+
+        $imageWidth = $imageInfo[0] ?? 0;
+        $imageHeight = $imageInfo[1] ?? 0;
+
+        if (
+            !is_int($imageWidth) ||
+            !is_int($imageHeight) ||
+            $imageWidth <= 0 ||
+            $imageHeight <= 0 ||
+            $imageWidth > $maxDimension ||
+            $imageHeight > $maxDimension ||
+            ($imageWidth * $imageHeight) > $maxPixels
+        ) {
+            throw new GalleryUploadValidationException(
+                "Photo " . $photoNumber . " has excessive dimensions."
+            );
+        }
+
+        // Verify image can actually be decoded.
+
+        $imageContents = file_get_contents($file["tmp_name"]);
+
+        if ($imageContents === false) {
+            throw new RuntimeException(
+                "Unable to read photo " . $photoNumber . "."
+            );
+        }
+
+        $decodedImage = @imagecreatefromstring($imageContents);
+
+        unset($imageContents);
+
+        if ($decodedImage === false) {
+            throw new GalleryUploadValidationException(
+                "Photo " . $photoNumber . " could not be decoded."
+            );
+        }
+
+        imagedestroy($decodedImage);
+
+        // Generate unpredictable filename.
+
+        $randomName = bin2hex(random_bytes(20));
+
+        $extension = $allowedTypes[$mimeType];
+
+        $filename = $randomName . "." . $extension;
+
+        $destination = $realUploadDirectory .
+            DIRECTORY_SEPARATOR .
+            $filename;
+
+        if (file_exists($destination)) {
+            throw new RuntimeException(
+                "Unable to prepare photo storage."
+            );
+        }
+
+        // Move uploaded image into gallery directory.
+
+        if (!move_uploaded_file($file["tmp_name"], $destination)) {
+            throw new RuntimeException(
+                "Unable to save photo " . $photoNumber . "."
+            );
+        }
+
+        $savedFiles[] = $destination;
+
+        // Store validated photo information for database insertion.
+
+        $photoRecords[] = [
+            "description" => $description,
+            "location" => $location,
+            "image_filename" => $filename,
+            "original_filename" => $originalFilename,
+            "visibility" => $visibility
+        ];
+    }
+
+    // --------------------------------------------------
+    // START DATABASE TRANSACTION
+    // --------------------------------------------------
+
+    $pdo->beginTransaction();
+
+    // Lock existing photos in this location.
+
+    $existingStmt = $pdo->prepare("
+        SELECT title, sort_order
+        FROM gallery_photos
+        WHERE location = ?
+        ORDER BY id
+        FOR UPDATE
     ");
 
-    $stmt->execute([
-        $title,
-        $description,
-        $filename,
-        $originalFilename,
-        $visibility,
-        $adminId
-    ]);
+    $existingStmt->execute([$location]);
 
-    $photoId = $pdo->lastInsertId();
+    $existingPhotos = $existingStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // --------------------------------------------------
+    // DETERMINE TITLE PREFIX AND NEXT NUMBER
+    // --------------------------------------------------
+
+    $titlePrefix = ($title !== null) ? $title : $location;
+
+    $nextPhotoNumber = 1;
+
+    $sortOrder = 0;
+
+    foreach ($existingPhotos as $existingPhoto) {
+
+        // Find the next available number for this title prefix.
+
+        $existingTitle = trim(
+            (string)($existingPhoto["title"] ?? "")
+        );
+
+        if (
+            preg_match(
+                '/^' . preg_quote($titlePrefix, '/') . '\s+(\d+)$/i',
+                $existingTitle,
+                $matches
+            )
+        ) {
+            $nextPhotoNumber = max(
+                $nextPhotoNumber,
+                ((int)$matches[1]) + 1
+            );
+        }
+
+        // Find the highest existing display order.
+
+        $sortOrder = max(
+            $sortOrder,
+            (int)($existingPhoto["sort_order"] ?? 0)
+        );
+    }
+
+    // --------------------------------------------------
+    // PREPARE INSERT STATEMENT
+    // --------------------------------------------------
+
+    $insertStmt = $pdo->prepare("
+        INSERT INTO gallery_photos
+        (
+            title,
+            description,
+            location,
+            image_filename,
+            original_filename,
+            visibility,
+            sort_order,
+            is_featured,
+            uploaded_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+    ");
+
+    // --------------------------------------------------
+    // INSERT EACH PHOTO ONCE
+    // --------------------------------------------------
+
+    foreach ($photoRecords as $record) {
+
+        $photoTitle = $titlePrefix . " " . $nextPhotoNumber;
+
+        $generatedTitleLength = function_exists("mb_strlen")
+            ? mb_strlen($photoTitle, "UTF-8")
+            : strlen($photoTitle);
+
+        if ($generatedTitleLength > 150) {
+            throw new GalleryUploadValidationException(
+                "The generated photo title exceeds 150 characters. Please use a shorter title."
+            );
+        }
+
+        $sortOrder++;
+        $nextPhotoNumber++;
+
+        $insertStmt->execute([
+            $photoTitle,
+            $record["description"],
+            $record["location"],
+            $record["image_filename"],
+            $record["original_filename"],
+            $record["visibility"],
+            $sortOrder,
+            $adminId
+        ]);
+
+        $photoIds[] = (int)$pdo->lastInsertId();
+    }
+
+    // --------------------------------------------------
+    // COMMIT ONCE
+    // --------------------------------------------------
+
+    $pdo->commit();
 
 } catch (Throwable $e) {
 
-    if (is_file($destination)) {
-        if (!unlink($destination)) {
-            error_log("Gallery cleanup failed for file: " . $filename);
+    // Roll back database changes.
+
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    // Remove uploaded files if the operation failed.
+
+    foreach ($savedFiles as $savedFile) {
+
+        if (is_file($savedFile) && !unlink($savedFile)) {
+            error_log(
+                "Gallery cleanup failed for: " . basename($savedFile)
+            );
         }
     }
 
-    error_log("Gallery database insertion failed: " . $e->getMessage());
+    error_log("Gallery upload failed: " . $e->getMessage());
+
+    if ($e instanceof GalleryUploadValidationException) {
+
+        http_response_code(400);
+
+        exit(
+            "Upload failed: " .
+            htmlspecialchars($e->getMessage(), ENT_QUOTES, "UTF-8")
+        );
+    }
 
     http_response_code(500);
-    exit("The photo could not be saved. Please try again.");
+
+    exit("Gallery upload failed due to a server error. Please try again.");
 }
 
 // --------------------------------------------------
@@ -463,33 +696,58 @@ try {
     logActivity(
         $pdo,
         "GALLERY_PHOTO_UPLOADED",
-        "Gallery photo uploaded. Photo ID: " .
-        $photoId .
-        ". Original filename: " .
-        $originalFilename .
+        count($photoIds) .
+        " gallery photo(s) uploaded to " .
+        $location .
+        ". Photo IDs: " .
+        implode(", ", $photoIds) .
         ". Visibility: " .
         $visibility
     );
 
 } catch (Throwable $e) {
 
-    error_log("Gallery activity logging failed: " . $e->getMessage());
+    error_log(
+        "Gallery activity logging failed: " . $e->getMessage()
+    );
 }
 
 // --------------------------------------------------
 // ROTATE CSRF TOKEN
 // --------------------------------------------------
 
-$_SESSION["csrf_token"] = $newCsrfToken;
+try {
+
+    $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
+
+} catch (Throwable $e) {
+
+    error_log(
+        "Gallery CSRF token rotation failed: " . $e->getMessage()
+    );
+}
 
 // --------------------------------------------------
-// SUCCESS MESSAGE AND REDIRECT
+// SUCCESS MESSAGE
 // --------------------------------------------------
 
-$_SESSION["gallery_message"] = "Photo uploaded successfully.";
+$_SESSION["gallery_message"] =
+    count($photoIds) .
+    " photo(s) uploaded successfully to " .
+    $location .
+    ".";
+
 $_SESSION["gallery_message_type"] = "success";
 
-header("Location: ../manage_gallery.php");
+// --------------------------------------------------
+// REDIRECT TO GALLERY MANAGEMENT
+// --------------------------------------------------
+
+header(
+    "Location: ../manage_gallery.php?location=" .
+    urlencode($location)
+);
+
 exit;
 
 ?>

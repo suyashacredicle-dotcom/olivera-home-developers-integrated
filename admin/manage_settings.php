@@ -1,8 +1,12 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+// --------------------------------------------------
+// WEBSITE SETTINGS
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
 
 requirePermission("manage_settings");
 
@@ -10,21 +14,23 @@ requirePermission("manage_settings");
 // HELPER FUNCTION
 // --------------------------------------------------
 
-function e($value) {
+function manageSettingsEscape($value): string
+{
     return htmlspecialchars(
         (string) $value,
-        ENT_QUOTES,
+        ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8"
     );
 }
 
 // --------------------------------------------------
-// CREATE CSRF TOKEN
+// CSRF TOKEN
 // --------------------------------------------------
 
 if (
-    empty($_SESSION["csrf_token"]) ||
-    !is_string($_SESSION["csrf_token"])
+    !isset($_SESSION["csrf_token"]) ||
+    !is_string($_SESSION["csrf_token"]) ||
+    $_SESSION["csrf_token"] === ""
 ) {
     $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
 }
@@ -76,6 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         ];
 
         $newLogoPath = null;
+        $newLogoAbsolutePath = null;
 
         // --------------------------------------------------
         // VALIDATE TEXT SETTINGS
@@ -113,14 +120,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         // --------------------------------------------------
-        // LOGO UPLOAD VALIDATION
+        // VALIDATE LOGO UPLOAD
         // --------------------------------------------------
 
         if ($message === "") {
 
             if (
                 isset($_FILES["website_logo"]) &&
-                $_FILES["website_logo"]["error"] !== UPLOAD_ERR_NO_FILE
+                is_array($_FILES["website_logo"]) &&
+                ($_FILES["website_logo"]["error"] ?? UPLOAD_ERR_NO_FILE)
+                    !== UPLOAD_ERR_NO_FILE
             ) {
 
                 $file = $_FILES["website_logo"];
@@ -129,8 +138,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     !isset($file["error"]) ||
                     !isset($file["tmp_name"]) ||
                     !isset($file["size"]) ||
-                    !isset($file["name"]) ||
-                    !is_string($file["tmp_name"])
+                    !is_string($file["tmp_name"]) ||
+                    !is_int($file["error"]) ||
+                    !is_int($file["size"])
                 ) {
 
                     $message = "Invalid logo upload.";
@@ -143,7 +153,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     $message = "Invalid uploaded file.";
 
-                } elseif ($file["size"] > 2 * 1024 * 1024) {
+                } elseif ($file["size"] <= 0 || $file["size"] > 2 * 1024 * 1024) {
 
                     $message = "Logo must not be larger than 2 MB.";
 
@@ -162,12 +172,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     if (
                         !$imageInfo ||
+                        !is_string($mimeType) ||
                         !isset($allowedTypes[$mimeType]) ||
-                        $imageInfo["mime"] !== $mimeType
+                        ($imageInfo["mime"] ?? "") !== $mimeType
                     ) {
 
                         $message =
                             "Only JPG, PNG and WebP images are allowed.";
+
+                    } elseif (
+                        ($imageInfo[0] ?? 0) > 5000 ||
+                        ($imageInfo[1] ?? 0) > 5000
+                    ) {
+
+                        $message = "Logo image dimensions are too large.";
 
                     } else {
 
@@ -177,11 +195,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         $uploadDirectory = __DIR__ . "/../uploads/";
 
-                        if (!is_dir($uploadDirectory)) {
+                        $realUploadDirectory = realpath($uploadDirectory);
+
+                        if (
+                            $realUploadDirectory === false ||
+                            !is_dir($realUploadDirectory)
+                        ) {
 
                             $message = "Upload directory does not exist.";
 
-                        } elseif (!is_writable($uploadDirectory)) {
+                        } elseif (!is_writable($realUploadDirectory)) {
 
                             $message = "Upload directory is not writable.";
 
@@ -190,7 +213,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             $fileName = bin2hex(random_bytes(16))
                                 . "." . $allowedTypes[$mimeType];
 
-                            $destination = $uploadDirectory . $fileName;
+                            $destination =
+                                $realUploadDirectory .
+                                DIRECTORY_SEPARATOR .
+                                $fileName;
 
                             if (
                                 move_uploaded_file(
@@ -200,6 +226,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             ) {
 
                                 $newLogoPath = "uploads/" . $fileName;
+                                $newLogoAbsolutePath = $destination;
 
                             } else {
 
@@ -229,7 +256,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     )
                     VALUES (?, ?)
                     ON DUPLICATE KEY UPDATE
-                    setting_value = VALUES(setting_value)
+                        setting_value = VALUES(setting_value)
                 ");
 
                 foreach ($settings as $key => $value) {
@@ -255,21 +282,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $message = "Website settings saved successfully!";
                 $messageType = "success";
 
-            } catch (Throwable $e) {
+            } catch (Throwable $exception) {
 
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
 
-                error_log($e->getMessage());
+                error_log($exception->getMessage());
 
-                if ($newLogoPath !== null) {
-
-                    $newFile = __DIR__ . "/../" . $newLogoPath;
-
-                    if (is_file($newFile)) {
-                        unlink($newFile);
-                    }
+                // Remove newly uploaded logo if database save failed.
+                if (
+                    $newLogoAbsolutePath !== null &&
+                    is_file($newLogoAbsolutePath)
+                ) {
+                    @unlink($newLogoAbsolutePath);
                 }
 
                 $message = "Something went wrong. Please try again.";
@@ -304,17 +330,25 @@ $websitePhone = $savedSettings["website_phone"] ?? "";
 $websiteAddress = $savedSettings["website_address"] ?? "";
 $websiteLogo = $savedSettings["website_logo"] ?? "";
 
+// --------------------------------------------------
+// VALIDATE SAVED LOGO PATH
+// --------------------------------------------------
+
 $validLogo = "";
 
 if (
     is_string($websiteLogo) &&
     preg_match(
-        '/^uploads\/[a-f0-9]{32}\.(jpg|png|webp)$/i',
+        '/\Auploads\/[a-f0-9]{32}\.(jpg|png|webp)\z/i',
         $websiteLogo
-    ) &&
-    is_file(__DIR__ . "/../" . $websiteLogo)
+    )
 ) {
-    $validLogo = $websiteLogo;
+
+    $logoAbsolutePath = __DIR__ . "/../" . $websiteLogo;
+
+    if (is_file($logoAbsolutePath) && is_readable($logoAbsolutePath)) {
+        $validLogo = $websiteLogo;
+    }
 }
 
 ?>
@@ -327,23 +361,137 @@ if (
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Website Settings | Admin Panel</title>
-
-    <link rel="stylesheet" href="../assets/css/admin.css">
+    <title>Website Settings | Olivera Home Developers</title>
 
     <style>
 
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
+            --surface: #ffffff;
+        }
+
         * {
             box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--ivory);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar {
+            width: 250px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: var(--navy);
+            color: white;
+            padding: 25px 15px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-brand {
+            padding: 0 12px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.13);
+            margin-bottom: 23px;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 19px;
+            margin: 0 0 6px;
+            color: white;
+        }
+
+        .sidebar-brand p {
+            margin: 0;
+            font-size: 11px;
+            color: #bdcde0;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 6px;
+        }
+
+        .sidebar-menu a,
+        .sidebar-logout-button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 7px;
+            color: #dbe5f0;
+            text-decoration: none;
+            font-size: 13px;
+            transition: 0.2s ease;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-logout-button:hover {
+            background: var(--navy-light);
+            color: white;
+        }
+
+        .sidebar-menu a.active {
+            background: var(--navy-light);
+            color: var(--gold-light);
+            font-weight: 600;
+            border-left: 3px solid var(--gold);
+            padding-left: 11px;
+        }
+
+        .menu-icon {
+            width: 20px;
+            text-align: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-logout-form {
+            margin: 0;
+        }
+
+        /* MAIN CONTENT */
+
+        .main-content {
+            margin-left: 250px;
+            padding: 30px;
+            min-height: 100vh;
         }
 
         .settings-page {
             width: 100%;
             max-width: 1180px;
             margin: 0 auto;
-            padding: 12px 8px 40px;
-            color: #1e293b;
+            padding: 0 0 40px;
         }
+
+        /* HEADER */
 
         .settings-header {
             display: flex;
@@ -351,11 +499,11 @@ if (
             align-items: center;
             flex-wrap: wrap;
             gap: 18px;
-            margin-bottom: 28px;
-            padding: 26px 28px;
-            background: linear-gradient(120deg, #ffffff, #f1f6ff);
-            border: 1px solid #e2e8f0;
-            border-radius: 15px;
+            margin-bottom: 25px;
+            padding: 25px 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
         }
 
         .settings-heading {
@@ -371,22 +519,22 @@ if (
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            background: #e8efff;
-            color: #2454b8;
-            border-radius: 12px;
+            background: var(--ivory);
+            color: var(--gold);
+            border: 1px solid var(--border);
+            border-radius: 10px;
             font-size: 23px;
         }
 
         .settings-header h1 {
-            color: #172554;
+            color: var(--navy);
             font-size: 26px;
-            font-weight: 750;
             margin: 0 0 7px;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.4px;
         }
 
         .settings-header p {
-            color: #64748b;
+            color: var(--muted);
             font-size: 13px;
             line-height: 1.6;
             margin: 0;
@@ -398,48 +546,50 @@ if (
             justify-content: center;
             gap: 8px;
             padding: 11px 17px;
-            background: #ffffff;
-            color: #334155;
-            border: 1px solid #dbe3ef;
+            background: var(--navy);
+            color: white;
+            border: 1px solid var(--navy);
             text-decoration: none;
-            border-radius: 9px;
+            border-radius: 7px;
             font-size: 13px;
-            font-weight: 650;
+            font-weight: 600;
             transition: 0.2s ease;
         }
 
         .settings-back-btn:hover {
-            background: #eff4ff;
-            border-color: #b8c9ef;
-            color: #1e40af;
+            background: var(--navy-light);
         }
 
+        /* ALERTS */
+
         .settings-alert {
-            padding: 15px 18px;
+            padding: 14px 17px;
             margin-bottom: 22px;
-            border-radius: 10px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 13px;
             font-weight: 600;
         }
 
         .settings-alert.success {
-            background: #ecfdf3;
-            color: #166534;
-            border: 1px solid #bbf7d0;
+            background: #edf7f1;
+            color: #256746;
+            border: 1px solid #d6ecdf;
         }
 
         .settings-alert.error {
-            background: #fff1f2;
-            color: #9f1239;
-            border: 1px solid #fecdd3;
+            background: #fff0ef;
+            color: #a83d3d;
+            border: 1px solid #f2d6d3;
         }
 
+        /* PANELS */
+
         .settings-panel {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            margin-bottom: 23px;
-            box-shadow: 0 5px 18px rgba(15, 23, 42, 0.035);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 18px rgba(7, 27, 56, 0.05);
             overflow: hidden;
         }
 
@@ -448,8 +598,8 @@ if (
             align-items: center;
             gap: 13px;
             padding: 21px 25px;
-            background: #fbfcfe;
-            border-bottom: 1px solid #edf0f5;
+            background: var(--ivory);
+            border-bottom: 1px solid var(--border);
         }
 
         .settings-section-icon {
@@ -459,21 +609,21 @@ if (
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            color: #2454b8;
-            background: #eaf0ff;
-            border-radius: 10px;
+            color: var(--gold);
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 9px;
             font-size: 18px;
         }
 
         .settings-panel-header h2 {
-            color: #172554;
+            color: var(--navy);
             font-size: 16px;
-            font-weight: 750;
             margin: 0 0 5px;
         }
 
         .settings-panel-header p {
-            color: #8290a3;
+            color: var(--muted);
             font-size: 12px;
             margin: 0;
             line-height: 1.5;
@@ -482,6 +632,8 @@ if (
         .settings-panel-body {
             padding: 26px;
         }
+
+        /* FORM */
 
         .settings-form-grid {
             display: grid;
@@ -500,7 +652,7 @@ if (
 
         .settings-form-group label {
             display: block;
-            color: #334155;
+            color: var(--navy);
             font-size: 13px;
             font-weight: 700;
             margin-bottom: 8px;
@@ -511,12 +663,12 @@ if (
             display: block;
             width: 100%;
             padding: 12px 14px;
-            border: 1px solid #d8e0eb;
-            border-radius: 9px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             font-family: inherit;
             font-size: 13px;
-            color: #334155;
-            background: #ffffff;
+            color: var(--text);
+            background: white;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
@@ -533,8 +685,8 @@ if (
 
         .settings-form-group input:focus,
         .settings-form-group textarea:focus {
-            border-color: #4776d0;
-            box-shadow: 0 0 0 3px rgba(59, 111, 205, 0.10);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(214, 166, 59, 0.14);
         }
 
         .settings-form-group input::placeholder,
@@ -544,11 +696,13 @@ if (
 
         .settings-help {
             display: block;
-            color: #8794a7;
+            color: var(--muted);
             font-size: 11px;
             margin-top: 8px;
             line-height: 1.5;
         }
+
+        /* LOGO */
 
         .settings-logo-box {
             display: flex;
@@ -556,9 +710,9 @@ if (
             gap: 24px;
             flex-wrap: wrap;
             padding: 21px;
-            background: #f8faff;
-            border: 1px dashed #cbd7e9;
-            border-radius: 12px;
+            background: var(--ivory);
+            border: 1px dashed #d6c9a9;
+            border-radius: 10px;
             margin-bottom: 25px;
         }
 
@@ -569,10 +723,9 @@ if (
             align-items: center;
             justify-content: center;
             padding: 13px;
-            background: #ffffff;
-            border: 1px solid #e3e9f2;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 9px;
         }
 
         .settings-logo-preview img {
@@ -582,7 +735,7 @@ if (
         }
 
         .settings-logo-empty {
-            color: #9aa7b8;
+            color: var(--muted);
             font-size: 12px;
             text-align: center;
         }
@@ -593,14 +746,13 @@ if (
         }
 
         .settings-logo-info h3 {
-            color: #172554;
+            color: var(--navy);
             font-size: 15px;
-            font-weight: 750;
             margin: 0 0 9px;
         }
 
         .settings-logo-info p {
-            color: #64748b;
+            color: var(--muted);
             font-size: 12px;
             margin: 0;
             line-height: 1.9;
@@ -608,8 +760,8 @@ if (
 
         .settings-file-input {
             padding: 10px !important;
-            background: #f8fafc !important;
-            border: 1px dashed #cbd5e1 !important;
+            background: #fbfaf7 !important;
+            border: 1px dashed #d6c9a9 !important;
         }
 
         .settings-file-input::file-selector-button {
@@ -617,12 +769,14 @@ if (
             margin-right: 12px;
             border: 0;
             border-radius: 6px;
-            background: #e8efff;
-            color: #244fa8;
+            background: var(--navy);
+            color: white;
             font-size: 12px;
-            font-weight: 650;
+            font-weight: 600;
             cursor: pointer;
         }
+
+        /* SAVE BUTTON */
 
         .settings-save-area {
             display: flex;
@@ -630,14 +784,14 @@ if (
             align-items: center;
             gap: 12px;
             padding: 19px 22px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 10px;
         }
 
         .settings-save-note {
             margin-right: auto;
-            color: #8491a3;
+            color: var(--muted);
             font-size: 12px;
         }
 
@@ -647,10 +801,10 @@ if (
             justify-content: center;
             gap: 9px;
             padding: 13px 23px;
-            background: #2454b8;
-            color: #ffffff;
-            border: 1px solid #2454b8;
-            border-radius: 9px;
+            background: var(--navy);
+            color: white;
+            border: 1px solid var(--gold);
+            border-radius: 7px;
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
@@ -658,16 +812,16 @@ if (
         }
 
         .settings-save-btn:hover {
-            background: #1d4295;
-            border-color: #1d4295;
-            box-shadow: 0 4px 12px rgba(36, 84, 184, 0.18);
-            transform: translateY(-1px);
+            background: var(--navy-light);
+            color: var(--gold-light);
         }
+
+        /* RESPONSIVE */
 
         @media (max-width: 760px) {
 
-            .settings-page {
-                padding: 8px 2px 25px;
+            .main-content {
+                padding: 20px;
             }
 
             .settings-header {
@@ -700,10 +854,47 @@ if (
                 width: 100%;
                 max-width: 230px;
             }
-
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 650px) {
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 17px;
+            }
+
+            .sidebar-brand {
+                margin-bottom: 14px;
+                padding-bottom: 14px;
+            }
+
+            .sidebar-menu {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 5px;
+            }
+
+            .sidebar-menu li {
+                margin: 0;
+            }
+
+            .sidebar-menu a,
+            .sidebar-logout-button {
+                padding: 10px 8px;
+                font-size: 11px;
+                gap: 7px;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 17px;
+            }
+
+            .settings-page {
+                padding-bottom: 25px;
+            }
 
             .settings-heading {
                 gap: 10px;
@@ -713,10 +904,6 @@ if (
                 width: 40px;
                 height: 40px;
                 font-size: 19px;
-            }
-
-            .settings-header {
-                align-items: flex-start;
             }
 
             .settings-back-btn {
@@ -739,7 +926,6 @@ if (
             .settings-save-btn {
                 width: 100%;
             }
-
         }
 
     </style>
@@ -748,324 +934,381 @@ if (
 
 <body>
 
-<div class="dashboard-container">
+<!-- SIDEBAR -->
 
-    <!-- SIDEBAR -->
+<aside class="sidebar">
 
-    <aside class="sidebar">
+    <div class="sidebar-brand">
+        <h2>Olivera Home Developers</h2>
+        <p>Admin Control Panel</p>
+    </div>
 
-        <h2>Admin Panel</h2>
+    <ul class="sidebar-menu">
 
-        <a href="dashboard.php">Dashboard</a>
+        <li>
+            <a href="dashboard.php">
+                <span class="menu-icon">▦</span>
+                Dashboard
+            </a>
+        </li>
 
-        <?php
-        require __DIR__ . "/includes/gallery_sidebar_link.php";
-        ?>
+        <li>
+            <a href="manage_gallery.php">
+                <span class="menu-icon">▧</span>
+                Manage Gallery
+            </a>
+        </li>
 
-        <a href="manage_admins.php">Manage Admins</a>
+        <li>
+            <a href="manage_admins.php">
+                <span class="menu-icon">♙</span>
+                Manage Admins
+            </a>
+        </li>
 
-        <a href="manage_users.php">Manage Users</a>
+        <li>
+            <a href="manage_users.php">
+                <span class="menu-icon">♧</span>
+                Manage Users
+            </a>
+        </li>
 
-        <a href="manage_customers.php">Manage Customers</a>
+        <li>
+            <a href="manage_customers.php">
+                <span class="menu-icon">♧</span>
+                Manage Customers
+            </a>
+        </li>
 
-        <a href="manage_content.php">Manage Content</a>
+        <li>
+            <a href="manage_content.php">
+                <span class="menu-icon">▤</span>
+                Manage Content
+            </a>
+        </li>
 
-        <a href="manage_settings.php">Website Settings</a>
+        <li>
+            <a href="manage_settings.php" class="active">
+                <span class="menu-icon">⚙</span>
+                Website Settings
+            </a>
+        </li>
 
-        <a href="activity_logs.php">Activity Logs</a>
+        <li>
+            <a href="activity_logs.php">
+                <span class="menu-icon">◷</span>
+                Activity Logs
+            </a>
+        </li>
 
-        <a href="profile.php">My Profile</a>
+        <li>
+            <a href="profile.php">
+                <span class="menu-icon">♙</span>
+                My Profile
+            </a>
+        </li>
 
-        <a href="change_password.php">Change Password</a>
+        <li>
+            <a href="change_password.php">
+                <span class="menu-icon">🔒</span>
+                Change Password
+            </a>
+        </li>
 
-        <form action="logout.php" method="POST">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo e($_SESSION["csrf_token"]); ?>"
-            >
-
-            <button type="submit">Logout</button>
-
-        </form>
-
-    </aside>
-
-    <!-- MAIN CONTENT -->
-
-    <main class="main-content">
-
-        <div class="settings-page">
-
-            <!-- PAGE HEADER -->
-
-            <div class="settings-header">
-
-                <div class="settings-heading">
-
-                    <div class="settings-heading-icon">⚙</div>
-
-                    <div>
-                        <h1>Website Settings</h1>
-
-                        <p>
-                            Welcome,
-                            <?php echo e($_SESSION["admin_name"] ?? "Admin"); ?>.
-                            Manage your website information and branding.
-                        </p>
-                    </div>
-
-                </div>
-
-                <a href="dashboard.php" class="settings-back-btn">
-                    ← Back to Dashboard
-                </a>
-
-            </div>
-
-            <!-- SUCCESS / ERROR MESSAGE -->
-
-            <?php if ($message !== ""): ?>
-
-                <div class="settings-alert <?php
-                    echo $messageType === "success"
-                        ? "success"
-                        : "error";
-                ?>">
-
-                    <?php echo e($message); ?>
-
-                </div>
-
-            <?php endif; ?>
-
-            <!-- SETTINGS FORM -->
-
-            <form
-                method="POST"
-                enctype="multipart/form-data"
-            >
+        <li>
+            <form action="logout.php" method="POST" class="sidebar-logout-form">
 
                 <input
                     type="hidden"
                     name="csrf_token"
-                    value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                    value="<?php echo manageSettingsEscape($_SESSION["csrf_token"]); ?>"
                 >
 
-                <!-- GENERAL INFORMATION -->
+                <button type="submit" class="sidebar-logout-button">
+                    <span class="menu-icon">↪</span>
+                    Logout
+                </button>
 
-                <section class="settings-panel">
+            </form>
+        </li>
 
-                    <div class="settings-panel-header">
+    </ul>
 
-                        <div class="settings-section-icon">▤</div>
+</aside>
 
-                        <div>
-                            <h2>General Website Information</h2>
+<!-- MAIN CONTENT -->
 
-                            <p>
-                                Update your website's basic contact information.
-                            </p>
-                        </div>
+<main class="main-content">
 
-                    </div>
+    <div class="settings-page">
 
-                    <div class="settings-panel-body">
+        <!-- PAGE HEADER -->
 
-                        <div class="settings-form-grid">
+        <div class="settings-header">
 
-                            <div class="settings-form-group">
+            <div class="settings-heading">
 
-                                <label for="website_name">
-                                    Website Name
-                                </label>
+                <div class="settings-heading-icon">⚙</div>
 
-                                <input
-                                    type="text"
-                                    id="website_name"
-                                    name="website_name"
-                                    value="<?php echo e($websiteName); ?>"
-                                    maxlength="150"
-                                    placeholder="Enter website name"
-                                    required
-                                >
+                <div>
 
-                            </div>
+                    <h1>Website Settings</h1>
 
-                            <div class="settings-form-group">
+                    <p>
+                        Welcome,
+                        <?php echo manageSettingsEscape($_SESSION["admin_name"] ?? "Admin"); ?>.
+                        Manage your website information and branding.
+                    </p>
 
-                                <label for="website_email">
-                                    Website Email
-                                </label>
+                </div>
 
-                                <input
-                                    type="email"
-                                    id="website_email"
-                                    name="website_email"
-                                    value="<?php echo e($websiteEmail); ?>"
-                                    maxlength="254"
-                                    placeholder="Enter website email"
-                                >
+            </div>
 
-                            </div>
+            <a href="dashboard.php" class="settings-back-btn">
+                ← Back to Dashboard
+            </a>
 
-                            <div class="settings-form-group">
+        </div>
 
-                                <label for="website_phone">
-                                    Contact Number
-                                </label>
+        <!-- SUCCESS / ERROR MESSAGE -->
 
-                                <input
-                                    type="text"
-                                    id="website_phone"
-                                    name="website_phone"
-                                    value="<?php echo e($websitePhone); ?>"
-                                    maxlength="30"
-                                    placeholder="Enter contact number"
-                                >
+        <?php if ($message !== ""): ?>
 
-                            </div>
+            <div class="settings-alert <?php echo manageSettingsEscape($messageType === "success" ? "success" : "error"); ?>">
 
-                            <div class="settings-form-group full-width">
+                <?php echo manageSettingsEscape($message); ?>
 
-                                <label for="website_address">
-                                    Website Address
-                                </label>
+            </div>
 
-                                <textarea
-                                    id="website_address"
-                                    name="website_address"
-                                    rows="4"
-                                    maxlength="2000"
-                                    placeholder="Enter your website address"
-                                ><?php echo e($websiteAddress); ?></textarea>
+        <?php endif; ?>
 
-                            </div>
+        <!-- SETTINGS FORM -->
 
-                        </div>
+        <form
+            method="POST"
+            enctype="multipart/form-data"
+        >
+
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="<?php echo manageSettingsEscape($_SESSION["csrf_token"]); ?>"
+            >
+
+            <!-- GENERAL INFORMATION -->
+
+            <section class="settings-panel">
+
+                <div class="settings-panel-header">
+
+                    <div class="settings-section-icon">▤</div>
+
+                    <div>
+
+                        <h2>General Website Information</h2>
+
+                        <p>
+                            Update your website's basic contact information.
+                        </p>
 
                     </div>
 
-                </section>
+                </div>
 
-                <!-- WEBSITE LOGO -->
+                <div class="settings-panel-body">
 
-                <section class="settings-panel">
+                    <div class="settings-form-grid">
 
-                    <div class="settings-panel-header">
+                        <div class="settings-form-group">
 
-                        <div class="settings-section-icon">▧</div>
+                            <label for="website_name">
+                                Website Name
+                            </label>
 
-                        <div>
-                            <h2>Website Logo</h2>
-
-                            <p>
-                                Manage the logo displayed on your website.
-                            </p>
-                        </div>
-
-                    </div>
-
-                    <div class="settings-panel-body">
-
-                        <div class="settings-logo-box">
-
-                            <div class="settings-logo-preview">
-
-                                <?php if ($validLogo !== ""): ?>
-
-                                    <img
-                                        src="../<?php echo e($validLogo); ?>"
-                                        alt="Current Website Logo"
-                                    >
-
-                                <?php else: ?>
-
-                                    <div class="settings-logo-empty">
-                                        No logo uploaded yet
-                                    </div>
-
-                                <?php endif; ?>
-
-                            </div>
-
-                            <div class="settings-logo-info">
-
-                                <h3>Current Website Logo</h3>
-
-                                <p>
-
-                                    <?php if ($validLogo !== ""): ?>
-
-                                        Your website logo is currently saved.
-
-                                    <?php else: ?>
-
-                                        Upload a logo to display your website branding.
-
-                                    <?php endif; ?>
-
-                                    <br>
-                                    Supported formats: JPG, PNG and WebP.
-                                    <br>
-                                    Maximum file size: 2 MB.
-
-                                </p>
-
-                            </div>
+                            <input
+                                type="text"
+                                id="website_name"
+                                name="website_name"
+                                value="<?php echo manageSettingsEscape($websiteName); ?>"
+                                maxlength="150"
+                                placeholder="Enter website name"
+                                required
+                            >
 
                         </div>
 
                         <div class="settings-form-group">
 
-                            <label for="website_logo">
-                                Upload New Website Logo
+                            <label for="website_email">
+                                Website Email
                             </label>
 
                             <input
-                                type="file"
-                                id="website_logo"
-                                name="website_logo"
-                                class="settings-file-input"
-                                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                type="email"
+                                id="website_email"
+                                name="website_email"
+                                value="<?php echo manageSettingsEscape($websiteEmail); ?>"
+                                maxlength="254"
+                                placeholder="Enter website email"
                             >
 
-                            <span class="settings-help">
-                                Leave this field empty to keep your current logo.
-                            </span>
+                        </div>
+
+                        <div class="settings-form-group">
+
+                            <label for="website_phone">
+                                Contact Number
+                            </label>
+
+                            <input
+                                type="text"
+                                id="website_phone"
+                                name="website_phone"
+                                value="<?php echo manageSettingsEscape($websitePhone); ?>"
+                                maxlength="30"
+                                placeholder="Enter contact number"
+                            >
+
+                        </div>
+
+                        <div class="settings-form-group full-width">
+
+                            <label for="website_address">
+                                Website Address
+                            </label>
+
+                            <textarea
+                                id="website_address"
+                                name="website_address"
+                                rows="4"
+                                maxlength="2000"
+                                placeholder="Enter your website address"
+                            ><?php echo manageSettingsEscape($websiteAddress); ?></textarea>
 
                         </div>
 
                     </div>
 
-                </section>
+                </div>
 
-                <!-- SAVE BUTTON -->
+            </section>
 
-                <div class="settings-save-area">
+            <!-- WEBSITE LOGO -->
 
-                    <span class="settings-save-note">
-                        Save your changes when you're finished.
-                    </span>
+            <section class="settings-panel">
 
-                    <button
-                        type="submit"
-                        class="settings-save-btn"
-                    >
-                        ✓ Save Website Settings
-                    </button>
+                <div class="settings-panel-header">
+
+                    <div class="settings-section-icon">▧</div>
+
+                    <div>
+
+                        <h2>Website Logo</h2>
+
+                        <p>
+                            Manage the logo displayed on your website.
+                        </p>
+
+                    </div>
 
                 </div>
 
-            </form>
+                <div class="settings-panel-body">
 
-        </div>
+                    <div class="settings-logo-box">
 
-    </main>
+                        <div class="settings-logo-preview">
 
-</div>
+                            <?php if ($validLogo !== ""): ?>
+
+                                <img
+                                    src="../<?php echo manageSettingsEscape($validLogo); ?>"
+                                    alt="Current Website Logo"
+                                >
+
+                            <?php else: ?>
+
+                                <div class="settings-logo-empty">
+                                    No logo uploaded yet
+                                </div>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                        <div class="settings-logo-info">
+
+                            <h3>Current Website Logo</h3>
+
+                            <p>
+
+                                <?php if ($validLogo !== ""): ?>
+
+                                    Your website logo is currently saved.
+
+                                <?php else: ?>
+
+                                    Upload a logo to display your website branding.
+
+                                <?php endif; ?>
+
+                                <br>
+                                Supported formats: JPG, PNG and WebP.
+                                <br>
+                                Maximum file size: 2 MB.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div class="settings-form-group">
+
+                        <label for="website_logo">
+                            Upload New Website Logo
+                        </label>
+
+                        <input
+                            type="file"
+                            id="website_logo"
+                            name="website_logo"
+                            class="settings-file-input"
+                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        >
+
+                        <span class="settings-help">
+                            Leave this field empty to keep your current logo.
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- SAVE BUTTON -->
+
+            <div class="settings-save-area">
+
+                <span class="settings-save-note">
+                    Save your changes when you're finished.
+                </span>
+
+                <button
+                    type="submit"
+                    class="settings-save-btn"
+                >
+                    ✓ Save Website Settings
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</main>
 
 </body>
-
 </html>
