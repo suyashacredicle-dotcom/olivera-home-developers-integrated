@@ -1,4 +1,4 @@
-
+```php
 <?php
 
 // --------------------------------------------------
@@ -178,6 +178,17 @@ $trackingLabels = [
     "ttclid" => "TikTok Click ID"
 ];
 
+// --------------------------------------------------
+// SIDEBAR PERMISSIONS
+// --------------------------------------------------
+
+$canManageAdmins = hasPermission("manage_admins");
+$canManageLeads = hasPermission("manage_leads");
+$canManagePartnerships = hasPermission("manage_partnerships");
+$canManageFollowups = hasPermission("manage_followups");
+$canManageVisits = hasPermission("manage_site_visits");
+$canViewCRMReports = hasPermission("view_crm_reports");
+
 ?>
 
 <!DOCTYPE html>
@@ -202,6 +213,7 @@ $trackingLabels = [
             --muted: #68768a;
             --border: #e9e2d4;
             --surface: #ffffff;
+            --sidebar-width: 265px;
         }
 
         * {
@@ -210,7 +222,6 @@ $trackingLabels = [
 
         body {
             margin: 0;
-            padding: 28px;
             background: var(--ivory);
             color: var(--text);
             font-family: "Segoe UI", Arial, sans-serif;
@@ -222,10 +233,133 @@ $trackingLabels = [
             font: inherit;
         }
 
+        /* SIDEBAR */
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 1000;
+            width: var(--sidebar-width);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: var(--navy);
+            color: #fff;
+            box-shadow: 4px 0 18px rgba(7, 27, 56, .12);
+        }
+
+        .sidebar-brand {
+            padding: 25px 22px 23px;
+            border-bottom: 1px solid rgba(255,255,255,.12);
+        }
+
+        .brand-name {
+            color: #fff;
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: .5px;
+        }
+
+        .brand-name span {
+            color: var(--gold-light);
+        }
+
+        .brand-caption {
+            margin-top: 7px;
+            color: #b9c5d5;
+            font-size: 10px;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-section {
+            padding: 20px 14px 8px;
+            color: #9eacc0;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-nav {
+            padding: 7px 12px 20px;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 45px;
+            margin-bottom: 5px;
+            padding: 10px 13px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: #dce4ef;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: .2s ease;
+        }
+
+        .sidebar-nav a:hover {
+            border-color: rgba(214,166,59,.22);
+            background: rgba(255,255,255,.07);
+            color: var(--gold-light);
+        }
+
+        .sidebar-nav a.active {
+            border-color: rgba(237,202,118,.3);
+            background: linear-gradient(
+                100deg,
+                rgba(214,166,59,.22),
+                rgba(214,166,59,.08)
+            );
+            color: var(--gold-light);
+        }
+
+        .nav-icon {
+            width: 23px;
+            flex-shrink: 0;
+            color: var(--gold-light);
+            text-align: center;
+            font-size: 17px;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 17px 20px;
+            border-top: 1px solid rgba(255,255,255,.12);
+            color: #aebbd0;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .sidebar-footer strong {
+            color: var(--gold-light);
+        }
+
+        /* MAIN AREA */
+
+        .main-content {
+            min-height: 100vh;
+            margin-left: var(--sidebar-width);
+            padding: 28px;
+        }
+
         .page-container {
             width: 100%;
             max-width: 1700px;
             margin: 0 auto;
+        }
+
+        .mobile-topbar {
+            display: none;
+        }
+
+        .sidebar-overlay {
+            display: none;
         }
 
         /* PAGE HEADER */
@@ -260,9 +394,9 @@ $trackingLabels = [
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            border: 1px solid rgba(237, 202, 118, .4);
+            border: 1px solid rgba(237,202,118,.4);
             border-radius: 13px;
-            background: rgba(214, 166, 59, .15);
+            background: rgba(214,166,59,.15);
             color: var(--gold-light);
             font-size: 25px;
         }
@@ -283,9 +417,9 @@ $trackingLabels = [
 
         .record-count {
             padding: 10px 15px;
-            border: 1px solid rgba(237, 202, 118, .45);
+            border: 1px solid rgba(237,202,118,.45);
             border-radius: 8px;
-            background: rgba(214, 166, 59, .12);
+            background: rgba(214,166,59,.12);
             color: var(--gold-light);
             font-size: 12px;
             font-weight: 700;
@@ -309,13 +443,13 @@ $trackingLabels = [
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 12px;
-            box-shadow: 0 3px 12px rgba(7, 27, 56, .035);
+            box-shadow: 0 3px 12px rgba(7,27,56,.035);
             transition: transform .2s, box-shadow .2s;
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 7px 18px rgba(7, 27, 56, .07);
+            box-shadow: 0 7px 18px rgba(7,27,56,.07);
         }
 
         .stat-card::after {
@@ -330,21 +464,10 @@ $trackingLabels = [
             opacity: .8;
         }
 
-        .stat-card.total {
-            --card-tint: #e9edf3;
-        }
-
-        .stat-card.new {
-            --card-tint: #fcf1d9;
-        }
-
-        .stat-card.converted {
-            --card-tint: #e8f2e9;
-        }
-
-        .stat-card.lost {
-            --card-tint: #f6e9e4;
-        }
+        .stat-card.total { --card-tint: #e9edf3; }
+        .stat-card.new { --card-tint: #fcf1d9; }
+        .stat-card.converted { --card-tint: #e8f2e9; }
+        .stat-card.lost { --card-tint: #f6e9e4; }
 
         .stat-label {
             position: relative;
@@ -373,7 +496,7 @@ $trackingLabels = [
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 14px;
-            box-shadow: 0 3px 14px rgba(7, 27, 56, .035);
+            box-shadow: 0 3px 14px rgba(7,27,56,.035);
         }
 
         .content-header {
@@ -427,7 +550,7 @@ $trackingLabels = [
 
         .search-input-wrap input:focus {
             border-color: var(--gold);
-            box-shadow: 0 0 0 3px rgba(214, 166, 59, .12);
+            box-shadow: 0 0 0 3px rgba(214,166,59,.12);
         }
 
         .search-icon {
@@ -633,7 +756,7 @@ $trackingLabels = [
 
         .status-form select:focus {
             border-color: var(--gold);
-            box-shadow: 0 0 0 3px rgba(214, 166, 59, .12);
+            box-shadow: 0 0 0 3px rgba(214,166,59,.12);
         }
 
         .status-form button {
@@ -710,21 +833,77 @@ $trackingLabels = [
 
         @media (max-width: 1050px) {
 
-            body {
+            :root {
+                --sidebar-width: 235px;
+            }
+
+            .main-content {
                 padding: 20px;
             }
 
             .stats-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+        }
 
+        @media (max-width: 760px) {
+
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+                position: fixed;
+                inset: 0;
+                z-index: 999;
+                background: rgba(3,13,29,.55);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 13px;
+            }
+
+            .mobile-topbar {
+                display: flex;
+                align-items: center;
+                gap: 13px;
+                margin-bottom: 16px;
+                padding: 13px 15px;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                background: #fff;
+            }
+
+            .menu-toggle {
+                width: 39px;
+                height: 39px;
+                border: 0;
+                border-radius: 7px;
+                background: var(--navy);
+                color: var(--gold-light);
+                font-size: 21px;
+                cursor: pointer;
+            }
+
+            .mobile-brand {
+                color: var(--navy);
+                font-size: 15px;
+                font-weight: 800;
+            }
+
+            .mobile-brand span {
+                color: #a77a1d;
+            }
         }
 
         @media (max-width: 650px) {
-
-            body {
-                padding: 12px;
-            }
 
             .page-heading {
                 align-items: flex-start;
@@ -791,7 +970,6 @@ $trackingLabels = [
             td {
                 padding: 12px 10px;
             }
-
         }
 
         @media (max-width: 380px) {
@@ -799,7 +977,6 @@ $trackingLabels = [
             .stats-grid {
                 grid-template-columns: 1fr;
             }
-
         }
 
     </style>
@@ -808,351 +985,499 @@ $trackingLabels = [
 
 <body>
 
-<div class="page-container">
+<!-- MOBILE SIDEBAR OVERLAY -->
 
-    <!-- PAGE HEADER -->
+<div
+    class="sidebar-overlay"
+    id="sidebarOverlay"
+    onclick="closeSidebar()"
+></div>
 
-    <div class="page-heading">
+<!-- SIDEBAR -->
 
-        <div class="heading-content">
+<aside class="sidebar" id="adminSidebar">
 
-            <div class="heading-icon">⌂</div>
+    <div class="sidebar-brand">
 
-            <div>
-                <h1>Property Enquiries</h1>
-                <p>Manage customer enquiries, advertisement sources and CRM connections.</p>
-            </div>
-
+        <div class="brand-name">
+            OLIVERA <span>HOME</span>
         </div>
 
-        <div class="record-count">
-            <?php echo count($enquiries); ?> Records Found
-        </div>
-
-    </div>
-
-    <!-- SUMMARY STATISTICS -->
-
-    <div class="stats-grid">
-
-        <div class="stat-card total">
-            <span class="stat-label">Total Enquiries</span>
-            <strong class="stat-value"><?php echo $totalEnquiries; ?></strong>
-        </div>
-
-        <div class="stat-card new">
-            <span class="stat-label">New Enquiries</span>
-            <strong class="stat-value"><?php echo $newEnquiries; ?></strong>
-        </div>
-
-        <div class="stat-card converted">
-            <span class="stat-label">Converted Enquiries</span>
-            <strong class="stat-value"><?php echo $convertedEnquiries; ?></strong>
-        </div>
-
-        <div class="stat-card lost">
-            <span class="stat-label">Lost Enquiries</span>
-            <strong class="stat-value"><?php echo $lostEnquiries; ?></strong>
+        <div class="brand-caption">
+            Developers Admin Panel
         </div>
 
     </div>
 
-    <!-- ENQUIRIES TABLE -->
+    <div class="sidebar-section">
+        Main Navigation
+    </div>
 
-    <div class="content-card">
+    <nav class="sidebar-nav">
 
-        <div class="content-header">
-            <div>
-                <h2>Enquiry Records</h2>
-                <p>Customer information, property preferences and lead status.</p>
-            </div>
+        <a href="property_enquiries.php" class="active">
+            <span class="nav-icon">⌂</span>
+            <span>Property Enquiries</span>
+        </a>
+
+        <?php if ($canManageAdmins): ?>
+
+            <a href="manage_admins.php">
+                <span class="nav-icon">♙</span>
+                <span>Manage Admin</span>
+            </a>
+
+            <a href="activity_logs.php">
+                <span class="nav-icon">◷</span>
+                <span>Activity Log</span>
+            </a>
+
+        <?php endif; ?>
+
+        <?php if ($canManageLeads): ?>
+
+            <a href="manage_leads.php">
+                <span class="nav-icon">▤</span>
+                <span>Manage Leads</span>
+            </a>
+
+        <?php endif; ?>
+
+        <?php if ($canManagePartnerships): ?>
+
+            <a href="manage_partnerships.php">
+                <span class="nav-icon">♧</span>
+                <span>Manage Partnerships</span>
+            </a>
+
+        <?php endif; ?>
+
+        <?php if ($canManageFollowups): ?>
+
+            <a href="lead_followups.php">
+                <span class="nav-icon">☷</span>
+                <span>Lead Follow-ups</span>
+            </a>
+
+            <a href="followup_reminders.php">
+                <span class="nav-icon">♧</span>
+                <span>Follow-up Reminders</span>
+            </a>
+
+        <?php endif; ?>
+
+        <?php if ($canManageVisits): ?>
+
+            <a href="site_visits.php">
+                <span class="nav-icon">⌖</span>
+                <span>Site Visits</span>
+            </a>
+
+        <?php endif; ?>
+
+        <?php if ($canViewCRMReports): ?>
+
+            <a href="crm_reports.php">
+                <span class="nav-icon">▥</span>
+                <span>CRM Reports</span>
+            </a>
+
+        <?php endif; ?>
+
+    </nav>
+
+    <div class="sidebar-footer">
+        <strong>OLIVERA HOME DEVELOPERS</strong><br>
+        Property Management System
+    </div>
+
+</aside>
+
+<!-- MAIN CONTENT -->
+
+<main class="main-content">
+
+    <!-- MOBILE TOPBAR -->
+
+    <div class="mobile-topbar">
+
+        <button
+            type="button"
+            class="menu-toggle"
+            onclick="toggleSidebar()"
+            aria-label="Open navigation"
+        >
+            ☰
+        </button>
+
+        <div class="mobile-brand">
+            OLIVERA <span>HOME</span>
         </div>
 
-        <!-- SEARCH -->
+    </div>
 
-        <form method="GET" class="search-form">
+    <div class="page-container">
 
-            <div class="search-input-wrap">
+        <!-- PAGE HEADER -->
 
-                <span class="search-icon">⌕</span>
+        <div class="page-heading">
 
-                <input
-                    type="text"
-                    name="search"
-                    placeholder="Search customer, location, source, campaign or tracking ID..."
-                    value="<?php echo propertyEnquiryAdminEscape($search); ?>"
-                >
+            <div class="heading-content">
+
+                <div class="heading-icon">⌂</div>
+
+                <div>
+                    <h1>Property Enquiries</h1>
+                    <p>Manage customer enquiries, advertisement sources and CRM connections.</p>
+                </div>
 
             </div>
 
-            <button type="submit">Search</button>
+            <div class="record-count">
+                <?php echo count($enquiries); ?> Records Found
+            </div>
 
-            <a href="property_enquiries.php">Reset</a>
+        </div>
 
-        </form>
+        <!-- SUMMARY STATISTICS -->
 
-        <!-- TABLE -->
+        <div class="stats-grid">
 
-        <div class="table-wrapper">
+            <div class="stat-card total">
+                <span class="stat-label">Total Enquiries</span>
+                <strong class="stat-value"><?php echo $totalEnquiries; ?></strong>
+            </div>
 
-            <table>
+            <div class="stat-card new">
+                <span class="stat-label">New Enquiries</span>
+                <strong class="stat-value"><?php echo $newEnquiries; ?></strong>
+            </div>
 
-                <thead>
-                    <tr>
-                        <th>S. No.</th>
-                        <th>Customer</th>
-                        <th>Budget</th>
-                        <th>Preferred Location</th>
-                        <th>Plot Size</th>
-                        <th>Full Address</th>
-                        <th>Advertisement Source</th>
-                        <th>Advertisement Details</th>
-                        <th>Status Management</th>
-                        <th>CRM Lead</th>
-                        <th>Submitted At</th>
-                    </tr>
-                </thead>
+            <div class="stat-card converted">
+                <span class="stat-label">Converted Enquiries</span>
+                <strong class="stat-value"><?php echo $convertedEnquiries; ?></strong>
+            </div>
 
-                <tbody>
+            <div class="stat-card lost">
+                <span class="stat-label">Lost Enquiries</span>
+                <strong class="stat-value"><?php echo $lostEnquiries; ?></strong>
+            </div>
 
-                <?php if (!empty($enquiries)): ?>
+        </div>
 
-                    <?php $serialNumber = 1; ?>
+        <!-- ENQUIRIES TABLE -->
 
-                    <?php foreach ($enquiries as $enquiry): ?>
+        <div class="content-card">
 
+            <div class="content-header">
+                <div>
+                    <h2>Enquiry Records</h2>
+                    <p>Customer information, property preferences and lead status.</p>
+                </div>
+            </div>
+
+            <!-- SEARCH -->
+
+            <form method="GET" class="search-form">
+
+                <div class="search-input-wrap">
+
+                    <span class="search-icon">⌕</span>
+
+                    <input
+                        type="text"
+                        name="search"
+                        placeholder="Search customer, location, source, campaign or tracking ID..."
+                        value="<?php echo propertyEnquiryAdminEscape($search); ?>"
+                    >
+
+                </div>
+
+                <button type="submit">Search</button>
+
+                <a href="property_enquiries.php">Reset</a>
+
+            </form>
+
+            <!-- TABLE -->
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
                         <tr>
+                            <th>S. No.</th>
+                            <th>Customer</th>
+                            <th>Budget</th>
+                            <th>Preferred Location</th>
+                            <th>Plot Size</th>
+                            <th>Full Address</th>
+                            <th>Advertisement Source</th>
+                            <th>Advertisement Details</th>
+                            <th>Status Management</th>
+                            <th>CRM Lead</th>
+                            <th>Submitted At</th>
+                        </tr>
+                    </thead>
 
-                            <td class="serial-number">
-                                <?php echo $serialNumber++; ?>
-                            </td>
+                    <tbody>
 
-                            <td>
+                    <?php if (!empty($enquiries)): ?>
 
-                                <div class="customer-name">
-                                    <?php echo propertyEnquiryAdminEscape(
-                                        $enquiry["customer_name"] ?? "Customer unavailable"
-                                    ); ?>
-                                </div>
+                        <?php $serialNumber = 1; ?>
 
-                                <span class="customer-contact">
-                                    <?php echo propertyEnquiryAdminEscape($enquiry["customer_email"] ?? ""); ?>
-                                </span>
+                        <?php foreach ($enquiries as $enquiry): ?>
 
-                                <span class="customer-contact">
-                                    <?php echo propertyEnquiryAdminEscape($enquiry["customer_phone"] ?? ""); ?>
-                                </span>
+                            <tr>
 
-                            </td>
+                                <td class="serial-number">
+                                    <?php echo $serialNumber++; ?>
+                                </td>
 
-                            <td class="data-value">
-                                <?php echo propertyEnquiryAdminEscape($enquiry["budget"] ?? ""); ?>
-                            </td>
+                                <td>
 
-                            <td class="data-value">
-                                <?php echo propertyEnquiryAdminEscape($enquiry["preferred_location"] ?? ""); ?>
-                            </td>
-
-                            <td>
-                                <?php echo propertyEnquiryAdminEscape($enquiry["plot_size"] ?? ""); ?>
-                            </td>
-
-                            <td>
-                                <div class="address-value">
-                                    <?php echo nl2br(propertyEnquiryAdminEscape(
-                                        $enquiry["customer_address"] ?? ""
-                                    )); ?>
-                                </div>
-                            </td>
-
-                            <td>
-
-                                <?php
-                                $platform = strtolower(
-                                    (string)($enquiry["source_platform"] ?? "website")
-                                );
-                                ?>
-
-                                <span class="source-badge">
-                                    <?php echo propertyEnquiryAdminEscape(
-                                        $sourceLabels[$platform] ?? "Other"
-                                    ); ?>
-                                </span>
-
-                                <?php if (!empty($enquiry["source_campaign"])): ?>
-
-                                    <span class="campaign-details">
-                                        <span class="tracking-label">Campaign</span>
-
+                                    <div class="customer-name">
                                         <?php echo propertyEnquiryAdminEscape(
-                                            $enquiry["source_campaign"]
+                                            $enquiry["customer_name"] ?? "Customer unavailable"
+                                        ); ?>
+                                    </div>
+
+                                    <span class="customer-contact">
+                                        <?php echo propertyEnquiryAdminEscape($enquiry["customer_email"] ?? ""); ?>
+                                    </span>
+
+                                    <span class="customer-contact">
+                                        <?php echo propertyEnquiryAdminEscape($enquiry["customer_phone"] ?? ""); ?>
+                                    </span>
+
+                                </td>
+
+                                <td class="data-value">
+                                    <?php echo propertyEnquiryAdminEscape($enquiry["budget"] ?? ""); ?>
+                                </td>
+
+                                <td class="data-value">
+                                    <?php echo propertyEnquiryAdminEscape($enquiry["preferred_location"] ?? ""); ?>
+                                </td>
+
+                                <td>
+                                    <?php echo propertyEnquiryAdminEscape($enquiry["plot_size"] ?? ""); ?>
+                                </td>
+
+                                <td>
+                                    <div class="address-value">
+                                        <?php echo nl2br(propertyEnquiryAdminEscape(
+                                            $enquiry["customer_address"] ?? ""
+                                        )); ?>
+                                    </div>
+                                </td>
+
+                                <td>
+
+                                    <?php
+                                    $platform = strtolower(
+                                        (string)($enquiry["source_platform"] ?? "website")
+                                    );
+                                    ?>
+
+                                    <span class="source-badge">
+                                        <?php echo propertyEnquiryAdminEscape(
+                                            $sourceLabels[$platform] ?? "Other"
                                         ); ?>
                                     </span>
 
-                                <?php endif; ?>
+                                    <?php if (!empty($enquiry["source_campaign"])): ?>
 
-                            </td>
+                                        <span class="campaign-details">
+                                            <span class="tracking-label">Campaign</span>
 
-                            <!-- ADVERTISEMENT TRACKING -->
-
-                            <td>
-
-                                <div class="tracking-details">
-
-                                    <?php
-                                    $hasTrackingDetails = false;
-
-                                    foreach ($trackingLabels as $field => $label):
-
-                                        $trackingValue = trim(
-                                            (string)($enquiry[$field] ?? "")
-                                        );
-
-                                        if ($trackingValue === "") {
-                                            continue;
-                                        }
-
-                                        $hasTrackingDetails = true;
-                                    ?>
-
-                                        <div class="tracking-item">
-
-                                            <span class="tracking-label">
-                                                <?php echo propertyEnquiryAdminEscape($label); ?>
-                                            </span>
-
-                                            <span class="tracking-value">
-                                                <?php echo propertyEnquiryAdminEscape($trackingValue); ?>
-                                            </span>
-
-                                        </div>
-
-                                    <?php endforeach; ?>
-
-                                    <?php if (!$hasTrackingDetails): ?>
-
-                                        <span class="tracking-empty">
-                                            No additional tracking details
+                                            <?php echo propertyEnquiryAdminEscape(
+                                                $enquiry["source_campaign"]
+                                            ); ?>
                                         </span>
 
                                     <?php endif; ?>
 
-                                </div>
+                                </td>
 
-                            </td>
+                                <!-- ADVERTISEMENT TRACKING -->
 
-                            <!-- STATUS MANAGEMENT -->
+                                <td>
 
-                            <td>
+                                    <div class="tracking-details">
 
-                                <form
-                                    method="POST"
-                                    action="actions/update_property_enquiry_status.php"
-                                    class="status-form"
-                                >
+                                        <?php
+                                        $hasTrackingDetails = false;
 
-                                    <input
-                                        type="hidden"
-                                        name="csrf_token"
-                                        value="<?php echo propertyEnquiryAdminEscape($csrfToken); ?>"
-                                    >
+                                        foreach ($trackingLabels as $field => $label):
 
-                                    <input
-                                        type="hidden"
-                                        name="enquiry_id"
-                                        value="<?php echo (int)$enquiry["id"]; ?>"
-                                    >
+                                            $trackingValue = trim(
+                                                (string)($enquiry[$field] ?? "")
+                                            );
 
-                                    <input
-                                        type="hidden"
-                                        name="search"
-                                        value="<?php echo propertyEnquiryAdminEscape($search); ?>"
-                                    >
+                                            if ($trackingValue === "") {
+                                                continue;
+                                            }
 
-                                    <select name="status" required>
+                                            $hasTrackingDetails = true;
+                                        ?>
 
-                                        <?php foreach ($statusOptions as $status): ?>
+                                            <div class="tracking-item">
 
-                                            <option
-                                                value="<?php echo propertyEnquiryAdminEscape($status); ?>"
-                                                <?php echo (
-                                                    ($enquiry["status"] ?? "new") === $status
-                                                ) ? "selected" : ""; ?>
-                                            >
-                                                <?php echo propertyEnquiryAdminEscape(
-                                                    ucwords(str_replace("_", " ", $status))
-                                                ); ?>
-                                            </option>
+                                                <span class="tracking-label">
+                                                    <?php echo propertyEnquiryAdminEscape($label); ?>
+                                                </span>
+
+                                                <span class="tracking-value">
+                                                    <?php echo propertyEnquiryAdminEscape($trackingValue); ?>
+                                                </span>
+
+                                            </div>
 
                                         <?php endforeach; ?>
 
-                                    </select>
+                                        <?php if (!$hasTrackingDetails): ?>
 
-                                    <button type="submit">
-                                        Update Status
-                                    </button>
+                                            <span class="tracking-empty">
+                                                No additional tracking details
+                                            </span>
 
-                                </form>
+                                        <?php endif; ?>
 
-                            </td>
+                                    </div>
 
-                            <!-- CRM LEAD -->
+                                </td>
 
-                            <td>
+                                <!-- STATUS MANAGEMENT -->
 
-                                <?php if (!empty($enquiry["crm_lead_id"])): ?>
+                                <td>
 
-                                    <a
-                                        class="crm-link"
-                                        href="view_lead.php?id=<?php echo (int)$enquiry["crm_lead_id"]; ?>"
+                                    <form
+                                        method="POST"
+                                        action="actions/update_property_enquiry_status.php"
+                                        class="status-form"
                                     >
-                                        View CRM Lead
-                                    </a>
 
-                                <?php else: ?>
+                                        <input
+                                            type="hidden"
+                                            name="csrf_token"
+                                            value="<?php echo propertyEnquiryAdminEscape($csrfToken); ?>"
+                                        >
 
-                                    <span class="no-lead">
-                                        No linked lead
-                                    </span>
+                                        <input
+                                            type="hidden"
+                                            name="enquiry_id"
+                                            value="<?php echo (int)$enquiry["id"]; ?>"
+                                        >
 
-                                <?php endif; ?>
+                                        <input
+                                            type="hidden"
+                                            name="search"
+                                            value="<?php echo propertyEnquiryAdminEscape($search); ?>"
+                                        >
 
+                                        <select name="status" required>
+
+                                            <?php foreach ($statusOptions as $status): ?>
+
+                                                <option
+                                                    value="<?php echo propertyEnquiryAdminEscape($status); ?>"
+                                                    <?php echo (
+                                                        ($enquiry["status"] ?? "new") === $status
+                                                    ) ? "selected" : ""; ?>
+                                                >
+                                                    <?php echo propertyEnquiryAdminEscape(
+                                                        ucwords(str_replace("_", " ", $status))
+                                                    ); ?>
+                                                </option>
+
+                                            <?php endforeach; ?>
+
+                                        </select>
+
+                                        <button type="submit">
+                                            Update Status
+                                        </button>
+
+                                    </form>
+
+                                </td>
+
+                                <!-- CRM LEAD -->
+
+                                <td>
+
+                                    <?php if (!empty($enquiry["crm_lead_id"])): ?>
+
+                                        <a
+                                            class="crm-link"
+                                            href="view_lead.php?id=<?php echo (int)$enquiry["crm_lead_id"]; ?>"
+                                        >
+                                            View CRM Lead
+                                        </a>
+
+                                    <?php else: ?>
+
+                                        <span class="no-lead">
+                                            No linked lead
+                                        </span>
+
+                                    <?php endif; ?>
+
+                                </td>
+
+                                <!-- SUBMISSION DATE -->
+
+                                <td>
+                                    <div class="submitted-date">
+                                        <?php echo propertyEnquiryAdminEscape(
+                                            $enquiry["created_at"] ?? ""
+                                        ); ?>
+                                    </div>
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                    <?php else: ?>
+
+                        <tr>
+                            <td colspan="11" class="empty-state">
+                                <span class="empty-icon">⌕</span>
+                                No property enquiries found.
                             </td>
-
-                            <!-- SUBMISSION DATE -->
-
-                            <td>
-                                <div class="submitted-date">
-                                    <?php echo propertyEnquiryAdminEscape(
-                                        $enquiry["created_at"] ?? ""
-                                    ); ?>
-                                </div>
-                            </td>
-
                         </tr>
 
-                    <?php endforeach; ?>
+                    <?php endif; ?>
 
-                <?php else: ?>
+                    </tbody>
 
-                    <tr>
-                        <td colspan="11" class="empty-state">
-                            <span class="empty-icon">⌕</span>
-                            No property enquiries found.
-                        </td>
-                    </tr>
+                </table>
 
-                <?php endif; ?>
-
-                </tbody>
-
-            </table>
+            </div>
 
         </div>
 
     </div>
 
-</div>
+</main>
+
+<script>
+
+function toggleSidebar() {
+    document.getElementById("adminSidebar").classList.toggle("open");
+    document.getElementById("sidebarOverlay").classList.toggle("show");
+}
+
+function closeSidebar() {
+    document.getElementById("adminSidebar").classList.remove("open");
+    document.getElementById("sidebarOverlay").classList.remove("show");
+}
+
+</script>
 
 </body>
 </html>
+```

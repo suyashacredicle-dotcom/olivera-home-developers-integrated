@@ -44,8 +44,7 @@ function validDateValue($value) {
 
     $date = DateTime::createFromFormat("!Y-m-d", $value);
 
-    return $date !== false &&
-        $date->format("Y-m-d") === $value;
+    return $date !== false && $date->format("Y-m-d") === $value;
 }
 
 function validDateTimeLocal($value) {
@@ -60,11 +59,8 @@ function validDateTimeLocal($value) {
 }
 
 function isFutureVisitDate($date) {
-    if (!$date instanceof DateTime) {
-        return false;
-    }
-
-    return $date->getTimestamp() > time();
+    return $date instanceof DateTime &&
+        $date->getTimestamp() > time();
 }
 
 function formatVisitDate($value, $format = "d-m-Y h:i A") {
@@ -73,8 +69,7 @@ function formatVisitDate($value, $format = "d-m-Y h:i A") {
     }
 
     try {
-        $date = new DateTime($value);
-        return $date->format($format);
+        return (new DateTime($value))->format($format);
     } catch (Throwable $exception) {
         return "Not recorded";
     }
@@ -292,9 +287,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $action = "";
     }
 
-    // --------------------------------------------------
     // SCHEDULE A NEW VISIT
-    // --------------------------------------------------
 
     if ($action === "add_visit") {
 
@@ -433,9 +426,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
         }
 
-    // --------------------------------------------------
     // UPDATE AN EXISTING VISIT STATUS
-    // --------------------------------------------------
 
     } elseif ($action === "update_status") {
 
@@ -895,12 +886,15 @@ $weekDays = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
+
 <title>Site Visit Management | Olivera Home Developers</title>
 
 <style>
+
 :root {
     --navy: #071b38;
     --navy-light: #102b50;
@@ -923,12 +917,122 @@ $weekDays = [
 
 body {
     margin: 0;
-    padding: 28px;
+    padding: 0;
     background: var(--ivory);
     color: var(--text);
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     font-size: 14px;
     line-height: 1.55;
+}
+
+/* --------------------------------------------------
+   LEFT SIDEBAR
+-------------------------------------------------- */
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 255px;
+    height: 100vh;
+    padding: 25px 15px;
+    overflow-y: auto;
+    background: var(--navy);
+    color: white;
+    z-index: 1000;
+    transition: transform .3s ease;
+}
+
+.brand {
+    padding: 5px 12px 25px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(255,255,255,.15);
+}
+
+.brand h2 {
+    margin: 0;
+    color: var(--gold-light);
+    font-size: 21px;
+    letter-spacing: .5px;
+}
+
+.brand p {
+    margin: 7px 0 0;
+    color: #cbd5e1;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.sidebar-label {
+    padding: 10px 12px;
+    color: #aab7c9;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    margin: 4px 0;
+    border-radius: 7px;
+    color: #e6edf6;
+    text-decoration: none;
+    font-size: 13px;
+    transition: .2s;
+}
+
+.sidebar a:hover {
+    background: var(--navy-light);
+    color: var(--gold-light);
+}
+
+.sidebar a.active {
+    background: var(--gold);
+    color: var(--navy);
+    font-weight: bold;
+}
+
+.menu-icon {
+    width: 21px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.sidebar-divider {
+    height: 1px;
+    margin: 15px 8px;
+    background: rgba(255,255,255,.15);
+}
+
+.sidebar-overlay {
+    display: none;
+}
+
+.mobile-menu {
+    display: none;
+    margin-bottom: 15px;
+    padding: 11px 15px;
+    border: 0;
+    border-radius: 7px;
+    background: var(--navy);
+    color: var(--gold-light);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* --------------------------------------------------
+   MAIN CONTENT
+-------------------------------------------------- */
+
+.main-content {
+    min-height: 100vh;
+    margin-left: 255px;
+    padding: 28px;
 }
 
 .container {
@@ -995,7 +1099,6 @@ body {
     text-decoration: none;
     font-size: 13px;
     font-weight: 600;
-    transition: background .18s ease, border-color .18s ease, color .18s ease;
 }
 
 .nav-links a:hover {
@@ -1003,6 +1106,10 @@ body {
     background: #fffaf0;
     color: #8b6418;
 }
+
+/* --------------------------------------------------
+   CARDS AND MESSAGES
+-------------------------------------------------- */
 
 .card {
     margin-bottom: 22px;
@@ -1057,6 +1164,10 @@ body {
     color: #a52e38;
 }
 
+/* --------------------------------------------------
+   FORMS AND FILTERS
+-------------------------------------------------- */
+
 .filter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
@@ -1082,7 +1193,6 @@ input, select, textarea {
     background: #fff;
     color: var(--text);
     font: inherit;
-    transition: border-color .18s ease, box-shadow .18s ease;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -1123,15 +1233,10 @@ button, .button-link, .reset-button {
     font-family: inherit;
     font-size: 13px;
     font-weight: 650;
-    transition: background .18s ease, border-color .18s ease, transform .18s ease;
 }
 
 button:hover, .button-link:hover {
     background: var(--navy-light);
-}
-
-button:active, .button-link:active {
-    transform: translateY(1px);
 }
 
 .reset-button {
@@ -1144,6 +1249,10 @@ button:active, .button-link:active {
     border-color: var(--gold);
     background: #fff7e5;
 }
+
+/* --------------------------------------------------
+   TABLES
+-------------------------------------------------- */
 
 .table-wrapper {
     width: 100%;
@@ -1195,6 +1304,10 @@ tbody tr:hover td {
     color: var(--muted);
     text-align: center;
 }
+
+/* --------------------------------------------------
+   CALENDAR
+-------------------------------------------------- */
 
 .calendar-header {
     display: flex;
@@ -1373,6 +1486,10 @@ tbody tr:hover td {
     border-radius: 3px;
 }
 
+/* --------------------------------------------------
+   DAILY SCHEDULE
+-------------------------------------------------- */
+
 .daily-date-form {
     display: flex;
     align-items: end;
@@ -1535,10 +1652,39 @@ tbody tr:hover td {
     grid-column: 1 / -1;
 }
 
-@media (max-width: 760px) {
-    body {
-        padding: 16px;
+/* --------------------------------------------------
+   RESPONSIVE LAYOUT
+-------------------------------------------------- */
+
+@media (max-width: 900px) {
+
+    .sidebar {
+        transform: translateX(-100%);
     }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.45);
+        z-index: 999;
+    }
+
+    .main-content {
+        margin-left: 0;
+        padding: 18px;
+    }
+
+    .mobile-menu {
+        display: inline-flex;
+    }
+}
+
+@media (max-width: 760px) {
 
     .page-heading h1 {
         font-size: 23px;
@@ -1558,7 +1704,8 @@ tbody tr:hover td {
 }
 
 @media (max-width: 480px) {
-    body {
+
+    .main-content {
         padding: 11px;
     }
 
@@ -1604,714 +1751,1046 @@ tbody tr:hover td {
         text-align: center;
     }
 }
+
 </style>
 </head>
 
 <body>
-<div class="container">
 
-    <header class="page-header">
-        <div class="header-title">
-            <div class="header-icon">◷</div>
-            <div class="page-heading">
-                <h1>Site Visit Management</h1>
-                <p>Schedule, manage and track customer property visits.</p>
-            </div>
-        </div>
-    </header>
+<!-- --------------------------------------------------
+     LEFT SIDEBAR
+-------------------------------------------------- -->
 
-    <nav class="nav-links">
-        <a href="dashboard.php">Dashboard</a>
-        <a href="manage_leads.php">Manage Leads</a>
-        <a href="lead_followups.php">Lead Follow-ups</a>
-        <a href="weekly_site_visits.php">Weekly Schedule</a>
-        <a href="reschedule_site_visits.php">Reschedule Visits</a>
-        <a href="cancel_site_visit.php">Cancel Visits</a>
-        <a href="site_visit_reschedule_history.php">Rescheduling History</a>
-        <a href="site_visit_cancellation_history.php">Cancellation History</a>
-        <a href="site_visit_analytics.php">Performance Analytics</a>
-        <a href="employee_site_visit_reports.php">Employee Reports</a>
-    </nav>
+<aside class="sidebar" id="sidebar">
 
-    <?php if ($message !== ""): ?>
-        <div class="message <?php echo $messageType === "error" ? "error" : ""; ?>">
-            <?php echo e($message); ?>
-        </div>
+    <div class="brand">
+        <h2>OLIVERA</h2>
+        <p>Home Developers</p>
+    </div>
+
+    <div class="sidebar-label">Main Menu</div>
+
+    <a href="dashboard.php">
+        <span class="menu-icon">⌂</span>
+        Dashboard
+    </a>
+
+    <?php if (hasPermission("manage_users")): ?>
+        <a href="property_enquiries.php">
+            <span class="menu-icon">⌕</span>
+            Property Enquiries
+        </a>
     <?php endif; ?>
 
-    <!-- ADVANCED FILTERS -->
+    <?php if (hasPermission("manage_admins")): ?>
+        <a href="manage_admins.php">
+            <span class="menu-icon">♙</span>
+            Manage Admin
+        </a>
 
-    <section class="card">
-        <div class="card-heading">
-            <div>
-                <h2>Search and Advanced Filters</h2>
-                <p class="card-description">Find visits by customer, status, employee, property type or date.</p>
-            </div>
-        </div>
+        <a href="activity_log.php">
+            <span class="menu-icon">◷</span>
+            Activity Log
+        </a>
+    <?php endif; ?>
 
-        <form method="GET" action="site_visits.php">
-            <input type="hidden" name="month" value="<?php echo e($calendarMonth); ?>">
-            <input type="hidden" name="day" value="<?php echo e($selectedDate); ?>">
+    <?php if (hasPermission("manage_leads")): ?>
+        <a href="manage_leads.php">
+            <span class="menu-icon">♧</span>
+            Manage Leads
+        </a>
+    <?php endif; ?>
 
-            <div class="filter-grid">
-                <div>
-                    <label for="search">Search Customer</label>
-                    <input type="text" name="search" id="search"
-                           value="<?php echo e($search); ?>" maxlength="200"
-                           placeholder="Name, phone, email or location">
+    <?php if (hasPermission("manage_partnerships")): ?>
+        <a href="manage_partnerships.php">
+            <span class="menu-icon">♢</span>
+            Manage Partnerships
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_followups")): ?>
+        <a href="lead_followups.php">
+            <span class="menu-icon">☷</span>
+            Lead Follow-ups
+        </a>
+
+        <a href="followup_reminders.php">
+            <span class="menu-icon">◷</span>
+            Follow-up Reminders
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_site_visits")): ?>
+        <a href="site_visits.php" class="active">
+            <span class="menu-icon">⌖</span>
+            Site Visits
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("view_crm_reports")): ?>
+    <a href="crm_reports.php">
+        <span class="menu-icon">▥</span>
+        CRM Reports
+    </a>
+<?php endif; ?>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-label">Site Visit Tools</div>
+
+    <a href="weekly_site_visits.php">
+        <span class="menu-icon">▦</span>
+        Weekly Schedule
+    </a>
+
+    <a href="reschedule_site_visits.php">
+        <span class="menu-icon">↻</span>
+        Reschedule Visits
+    </a>
+
+    <a href="cancel_site_visit.php">
+        <span class="menu-icon">⊗</span>
+        Cancel Visits
+    </a>
+
+    <a href="site_visit_reschedule_history.php">
+        <span class="menu-icon">◷</span>
+        Rescheduling History
+    </a>
+
+    <a href="site_visit_cancellation_history.php">
+        <span class="menu-icon">▤</span>
+        Cancellation History
+    </a>
+
+    <a href="site_visit_analytics.php">
+        <span class="menu-icon">▥</span>
+        Performance Analytics
+    </a>
+
+    <a href="employee_site_visit_reports.php">
+        <span class="menu-icon">♙</span>
+        Employee Reports
+    </a>
+
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- --------------------------------------------------
+     MAIN CONTENT
+-------------------------------------------------- -->
+
+<main class="main-content">
+
+    <button class="mobile-menu" id="mobileMenu" type="button">
+        ☰ Menu
+    </button>
+
+    <div class="container">
+
+        <header class="page-header">
+            <div class="header-title">
+                <div class="header-icon">◷</div>
+
+                <div class="page-heading">
+                    <h1>Site Visit Management</h1>
+                    <p>Schedule, manage and track customer property visits.</p>
                 </div>
-
-                <div>
-                    <label for="status">Visit Status</label>
-                    <select name="status" id="status">
-                        <option value="">All Statuses</option>
-                        <?php foreach ($validFilterStatuses as $status): ?>
-                            <option value="<?php echo e($status); ?>"
-                                <?php echo $filterStatus === $status ? "selected" : ""; ?>>
-                                <?php echo e(visitStatusLabel($status)); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <?php if ($canViewAll): ?>
-                    <div>
-                        <label for="employee">Assigned Sales Employee</label>
-                        <select name="employee" id="employee">
-                            <option value="">All Employees</option>
-                            <option value="0" <?php echo $filterEmployee === "0" ? "selected" : ""; ?>>
-                                Unassigned
-                            </option>
-
-                            <?php foreach ($employees as $employee): ?>
-                                <option value="<?php echo (int)$employee["id"]; ?>"
-                                    <?php echo $filterEmployee === (string)$employee["id"] ? "selected" : ""; ?>>
-                                    <?php echo e($employee["name"]); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                <?php endif; ?>
-
-                <div>
-                    <label for="property_type">Property Type</label>
-                    <select name="property_type" id="property_type">
-                        <option value="">All Property Types</option>
-
-                        <?php foreach ($propertyTypes as $propertyType): ?>
-                            <option value="<?php echo e($propertyType); ?>"
-                                <?php echo $filterProperty === $propertyType ? "selected" : ""; ?>>
-                                <?php echo e($propertyType); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="start_date">From Date</label>
-                    <input type="date" name="start_date" id="start_date"
-                           value="<?php echo e($filterStartDate); ?>">
-                </div>
-
-                <div>
-                    <label for="end_date">To Date</label>
-                    <input type="date" name="end_date" id="end_date"
-                           value="<?php echo e($filterEndDate); ?>">
-                </div>
             </div>
+        </header>
 
-            <div class="filter-actions">
-                <button type="submit">Search / Apply Filters</button>
+        <!-- SITE VISIT QUICK LINKS -->
 
-                <a class="reset-button"
-                   href="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>">
-                    Reset Filters
-                </a>
+        <nav class="nav-links">
+            <a href="weekly_site_visits.php">Weekly Schedule</a>
+            <a href="reschedule_site_visits.php">Reschedule Visits</a>
+            <a href="cancel_site_visit.php">Cancel Visits</a>
+            <a href="site_visit_reschedule_history.php">Rescheduling History</a>
+            <a href="site_visit_cancellation_history.php">Cancellation History</a>
+            <a href="site_visit_analytics.php">Performance Analytics</a>
+            <a href="employee_site_visit_reports.php">Employee Reports</a>
+        </nav>
+
+        <?php if ($message !== ""): ?>
+            <div class="message <?php echo $messageType === "error" ? "error" : ""; ?>">
+                <?php echo e($message); ?>
             </div>
-        </form>
-    </section>
-
-    <!-- MONTHLY CALENDAR -->
-
-    <section class="card">
-        <div class="calendar-header">
-            <div>
-                <h2><?php echo e($calendarTitle); ?> Calendar</h2>
-                <p class="card-description">Select a visit to view the schedule for that date.</p>
-            </div>
-
-            <div class="calendar-navigation">
-                <a href="<?php echo e($previousUrl); ?>">&laquo; Previous</a>
-                <a href="<?php echo e($currentMonthUrl); ?>" class="today-link">Current Month</a>
-                <a href="<?php echo e($nextUrl); ?>">Next &raquo;</a>
-            </div>
-        </div>
-
-        <div class="filter-result">
-            Showing <strong><?php echo count($visits); ?></strong>
-            site visit(s) matching the selected filters.
-        </div>
-
-        <div class="calendar-wrapper">
-            <div class="calendar">
-
-                <?php foreach ($weekDays as $weekDay): ?>
-                    <div class="calendar-day-heading"><?php echo e($weekDay); ?></div>
-                <?php endforeach; ?>
-
-                <?php
-                $currentDay = clone $calendarStart;
-
-                while ($currentDay <= $calendarEnd):
-
-                    $dateKey = $currentDay->format("Y-m-d");
-                    $isCurrentMonth = $currentDay->format("Y-m") === $calendarMonth;
-                    $isToday = $dateKey === $today;
-                    $isSelected = $dateKey === $selectedDate;
-
-                    $dayClasses = "calendar-day";
-
-                    if (!$isCurrentMonth) $dayClasses .= " other-month";
-                    if ($isToday) $dayClasses .= " today";
-                    if ($isSelected) $dayClasses .= " selected-day";
-                ?>
-
-                    <div class="<?php echo e($dayClasses); ?>">
-                        <div class="day-number"><?php echo e($currentDay->format("j")); ?></div>
-
-                        <?php if (isset($visitsByDate[$dateKey])): ?>
-
-                            <?php foreach ($visitsByDate[$dateKey] as $calendarVisit): ?>
-
-                                <?php
-                                $statusClass = $calendarVisit["visit_status"];
-                                $visitTime = formatVisitDate(
-                                    $calendarVisit["scheduled_at"],
-                                    "h:i A"
-                                );
-
-                                $dailyUrl = "site_visits.php?" . http_build_query(
-                                    array_merge(
-                                        [
-                                            "month" => $calendarMonth,
-                                            "day" => $dateKey
-                                        ],
-                                        $activeFilters
-                                    )
-                                ) . "#daily-schedule";
-                                ?>
-
-                                <a href="<?php echo e($dailyUrl); ?>"
-                                   class="calendar-visit <?php echo e($statusClass); ?>"
-                                   title="<?php echo e($calendarVisit["customer_name"]); ?>">
-
-                                    <?php echo e($calendarVisit["customer_name"]); ?>
-
-                                    <span class="calendar-visit-time">
-                                        <?php echo e($visitTime); ?>
-                                    </span>
-                                </a>
-
-                            <?php endforeach; ?>
-
-                        <?php endif; ?>
-                    </div>
-
-                <?php
-                    $currentDay->modify("+1 day");
-                endwhile;
-                ?>
-
-            </div>
-        </div>
-
-        <div class="calendar-legend">
-            <div class="legend-item">
-                <span class="legend-color" style="background:#d6a63b;"></span>
-                Scheduled
-            </div>
-
-            <div class="legend-item">
-                <span class="legend-color" style="background:#16804a;"></span>
-                Completed
-            </div>
-
-            <div class="legend-item">
-                <span class="legend-color" style="background:#bd3944;"></span>
-                Cancelled
-            </div>
-
-            <div class="legend-item">
-                <span class="legend-color" style="background:#a96c16;"></span>
-                Rescheduled
-            </div>
-        </div>
-    </section>
-
-    <!-- DAILY SCHEDULE -->
-
-    <section class="card" id="daily-schedule">
-        <div class="card-heading">
-            <div>
-                <h2>Daily Site Visit Schedule</h2>
-                <p class="card-description">View visit timings and update visit status.</p>
-            </div>
-
-            <span class="section-count">
-                <?php echo count($dailyVisits); ?> visits
-            </span>
-        </div>
-
-        <form method="GET" action="site_visits.php" class="daily-date-form">
-            <input type="hidden" name="month" value="<?php echo e($calendarMonth); ?>">
-
-            <?php foreach ($activeFilters as $key => $value): ?>
-                <input type="hidden" name="<?php echo e($key); ?>" value="<?php echo e($value); ?>">
-            <?php endforeach; ?>
-
-            <div class="date-field">
-                <label for="daily_date">Select Date</label>
-                <input type="date" id="daily_date" name="day"
-                       value="<?php echo e($selectedDate); ?>" required>
-            </div>
-
-            <button type="submit">View Daily Schedule</button>
-
-            <a class="view-visit-link"
-               href="<?php
-               echo e(
-                   "site_visits.php?" .
-                   http_build_query(
-                       array_merge(
-                           ["month" => $calendarMonth, "day" => $today],
-                           $activeFilters
-                       )
-                   ) .
-                   "#daily-schedule"
-               );
-               ?>">
-                Today's Schedule
-            </a>
-        </form>
-
-        <h3><?php echo e($selectedDateDisplay); ?></h3>
-
-        <div class="daily-summary">
-            <strong><?php echo count($dailyVisits); ?></strong>
-            site visit(s) matching the filters for this date.
-
-            <div class="summary-counts">
-                <span class="summary-count">
-                    Scheduled: <?php echo $dailyStatusCounts["scheduled"]; ?>
-                </span>
-
-                <span class="summary-count">
-                    Completed: <?php echo $dailyStatusCounts["completed"]; ?>
-                </span>
-
-                <span class="summary-count">
-                    Cancelled: <?php echo $dailyStatusCounts["cancelled"]; ?>
-                </span>
-
-                <span class="summary-count">
-                    Rescheduled: <?php echo $dailyStatusCounts["rescheduled"]; ?>
-                </span>
-            </div>
-        </div>
-
-        <?php if ($dailyVisits): ?>
-
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Visit ID</th>
-                            <th>Visit Time</th>
-                            <th>Customer</th>
-                            <th>Phone</th>
-                            <th>Property Details</th>
-                            <th>Assigned Employee</th>
-                            <th>Status</th>
-                            <th>Visit Notes</th>
-                            <th>Quick Status Update</th>
-                            <th>History</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-
-                    <?php foreach ($dailyVisits as $dailyVisit): ?>
-
-                        <tr id="daily-visit-<?php echo (int)$dailyVisit["id"]; ?>">
-
-                            <td><?php echo (int)$dailyVisit["id"]; ?></td>
-
-                            <td>
-                                <strong>
-                                    <?php echo e(formatVisitDate($dailyVisit["scheduled_at"], "h:i A")); ?>
-                                </strong>
-                            </td>
-
-                            <td><?php echo e($dailyVisit["customer_name"]); ?></td>
-
-                            <td><?php echo e($dailyVisit["phone"]); ?></td>
-
-                            <td class="property-details">
-                                <strong>
-                                    <?php echo e($dailyVisit["property_type"] ?? "Not specified"); ?>
-                                </strong>
-
-                                <?php echo e($dailyVisit["interested_location"] ?? "Location not specified"); ?>
-                            </td>
-
-                            <td>
-                                <?php echo e($dailyVisit["assigned_employee"] ?? "Not Assigned"); ?>
-                            </td>
-
-                            <td>
-                                <span class="daily-status <?php echo e($dailyVisit["visit_status"]); ?>">
-                                    <?php echo e(visitStatusLabel($dailyVisit["visit_status"])); ?>
-                                </span>
-
-                                <?php if ($dailyVisit["visit_status"] === "cancelled"): ?>
-
-                                    <div class="cancellation-details">
-                                        <strong>Reason:</strong><br>
-
-                                        <?php echo nl2br(e($dailyVisit["cancellation_reason"] ?? "Not recorded")); ?>
-
-                                        <br><br>
-
-                                        <strong>Cancelled By:</strong>
-
-                                        <?php echo e($dailyVisit["cancelled_by_name"] ?? "Deleted User"); ?>
-
-                                        <br>
-
-                                        <strong>Cancelled At:</strong>
-
-                                        <?php echo e(formatVisitDate($dailyVisit["cancelled_at"] ?? null)); ?>
-                                    </div>
-
-                                <?php endif; ?>
-                            </td>
-
-                            <td>
-                                <?php
-                                echo $dailyVisit["notes"] !== null && $dailyVisit["notes"] !== ""
-                                    ? nl2br(e($dailyVisit["notes"]))
-                                    : "No notes";
-                                ?>
-                            </td>
-
-                            <td>
-
-                                <?php if ($dailyVisit["visit_status"] !== "cancelled"): ?>
-
-                                    <form method="POST"
-                                          action="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>#daily-schedule"
-                                          class="daily-action-form">
-
-                                        <input type="hidden" name="csrf_token"
-                                               value="<?php echo e($_SESSION["csrf_token"]); ?>">
-
-                                        <input type="hidden" name="action" value="update_status">
-
-                                        <input type="hidden" name="visit_id"
-                                               value="<?php echo (int)$dailyVisit["id"]; ?>">
-
-                                        <select name="visit_status" required>
-                                            <?php foreach ($allowedStatuses as $status): ?>
-                                                <option value="<?php echo e($status); ?>"
-                                                    <?php echo $dailyVisit["visit_status"] === $status ? "selected" : ""; ?>>
-                                                    <?php echo e(visitStatusLabel($status)); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-
-                                        <button type="submit">Update Status</button>
-                                    </form>
-
-                                    <?php if (in_array($dailyVisit["visit_status"], ["scheduled", "rescheduled"], true)): ?>
-                                        <a href="cancel_site_visit.php" class="cancel-visit-link">
-                                            Cancel Visit
-                                        </a>
-                                    <?php endif; ?>
-
-                                <?php else: ?>
-
-                                    <strong>Cancellation Recorded</strong>
-
-                                <?php endif; ?>
-
-                            </td>
-
-                            <td>
-                                <a href="#visit-<?php echo (int)$dailyVisit["id"]; ?>"
-                                   class="view-visit-link">
-                                    View History
-                                </a>
-                            </td>
-
-                        </tr>
-
-                    <?php endforeach; ?>
-
-                    </tbody>
-                </table>
-            </div>
-
-        <?php else: ?>
-
-            <p class="empty">No site visits match your selected date and filters.</p>
-
         <?php endif; ?>
-    </section>
 
-    <!-- SCHEDULE NEW VISIT -->
+        <!-- ADVANCED FILTERS -->
 
-    <section class="card">
-        <div class="card-heading">
-            <div>
-                <h2>Schedule New Site Visit</h2>
-                <p class="card-description">Create a new property visit for an available customer lead.</p>
+        <section class="card">
+
+            <div class="card-heading">
+                <div>
+                    <h2>Search and Advanced Filters</h2>
+                    <p class="card-description">
+                        Find visits by customer, status, employee, property type or date.
+                    </p>
+                </div>
             </div>
-        </div>
 
-        <?php if ($leads): ?>
+            <form method="GET" action="site_visits.php">
 
-            <form method="POST"
-                  action="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>">
+                <input type="hidden" name="month" value="<?php echo e($calendarMonth); ?>">
+                <input type="hidden" name="day" value="<?php echo e($selectedDate); ?>">
 
-                <input type="hidden" name="csrf_token"
-                       value="<?php echo e($_SESSION["csrf_token"]); ?>">
+                <div class="filter-grid">
 
-                <input type="hidden" name="action" value="add_visit">
-
-                <div class="form-grid">
-
-                    <div class="form-field full-width">
-                        <label for="lead_id">Select Customer *</label>
-
-                        <select name="lead_id" id="lead_id" required>
-                            <option value="">-- Select Customer --</option>
-
-                            <?php foreach ($leads as $lead): ?>
-                                <option value="<?php echo (int)$lead["id"]; ?>">
-                                    <?php
-                                    echo e($lead["customer_name"]);
-                                    echo " - ";
-                                    echo e($lead["phone"]);
-                                    echo " | Employee: ";
-                                    echo e($lead["assigned_employee"] ?? "Not Assigned");
-                                    ?>
-                                </option>
-                            <?php endforeach; ?>
-
-                        </select>
-                    </div>
-
-                    <div class="form-field full-width">
-                        <label for="scheduled_at">Visit Date and Time *</label>
+                    <div>
+                        <label for="search">Search Customer</label>
 
                         <input
-                            type="datetime-local"
-                            name="scheduled_at"
-                            id="scheduled_at"
-                            min="<?php echo e(date("Y-m-d\TH:i", time() + 60)); ?>"
-                            required
+                            type="text"
+                            name="search"
+                            id="search"
+                            value="<?php echo e($search); ?>"
+                            maxlength="200"
+                            placeholder="Name, phone, email or location"
                         >
                     </div>
 
-                    <div class="form-field full-width">
-                        <label for="notes">Visit Notes</label>
+                    <div>
+                        <label for="status">Visit Status</label>
 
-                        <textarea
-                            name="notes"
-                            id="notes"
-                            maxlength="10000"
-                            placeholder="Enter property details, meeting point or other instructions..."
-                        ></textarea>
+                        <select name="status" id="status">
+                            <option value="">All Statuses</option>
+
+                            <?php foreach ($validFilterStatuses as $status): ?>
+                                <option
+                                    value="<?php echo e($status); ?>"
+                                    <?php echo $filterStatus === $status ? "selected" : ""; ?>
+                                >
+                                    <?php echo e(visitStatusLabel($status)); ?>
+                                </option>
+                            <?php endforeach; ?>
+
+                        </select>
+                    </div>
+
+                    <?php if ($canViewAll): ?>
+                        <div>
+                            <label for="employee">Assigned Sales Employee</label>
+
+                            <select name="employee" id="employee">
+                                <option value="">All Employees</option>
+
+                                <option
+                                    value="0"
+                                    <?php echo $filterEmployee === "0" ? "selected" : ""; ?>
+                                >
+                                    Unassigned
+                                </option>
+
+                                <?php foreach ($employees as $employee): ?>
+                                    <option
+                                        value="<?php echo (int)$employee["id"]; ?>"
+                                        <?php echo $filterEmployee === (string)$employee["id"] ? "selected" : ""; ?>
+                                    >
+                                        <?php echo e($employee["name"]); ?>
+                                    </option>
+                                <?php endforeach; ?>
+
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
+                    <div>
+                        <label for="property_type">Property Type</label>
+
+                        <select name="property_type" id="property_type">
+                            <option value="">All Property Types</option>
+
+                            <?php foreach ($propertyTypes as $propertyType): ?>
+                                <option
+                                    value="<?php echo e($propertyType); ?>"
+                                    <?php echo $filterProperty === $propertyType ? "selected" : ""; ?>
+                                >
+                                    <?php echo e($propertyType); ?>
+                                </option>
+                            <?php endforeach; ?>
+
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="start_date">From Date</label>
+                        <input
+                            type="date"
+                            name="start_date"
+                            id="start_date"
+                            value="<?php echo e($filterStartDate); ?>"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="end_date">To Date</label>
+                        <input
+                            type="date"
+                            name="end_date"
+                            id="end_date"
+                            value="<?php echo e($filterEndDate); ?>"
+                        >
                     </div>
 
                 </div>
 
-                <div class="form-actions">
-                    <button type="submit">Schedule Site Visit</button>
+                <div class="filter-actions">
+                    <button type="submit">Search / Apply Filters</button>
+
+                    <a
+                        class="reset-button"
+                        href="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>"
+                    >
+                        Reset Filters
+                    </a>
                 </div>
 
             </form>
 
-        <?php else: ?>
+        </section>
 
-            <p class="empty">No assigned customer leads are available for scheduling.</p>
+        <!-- MONTHLY CALENDAR -->
 
-        <?php endif; ?>
-    </section>
+        <section class="card">
 
-    <!-- FILTERED VISIT HISTORY -->
+            <div class="calendar-header">
 
-    <section class="card">
-        <div class="card-heading">
-            <div>
-                <h2>Site Visit History</h2>
-                <p class="card-description">Review all visits matching the selected filters.</p>
+                <div>
+                    <h2><?php echo e($calendarTitle); ?> Calendar</h2>
+                    <p class="card-description">
+                        Select a visit to view the schedule for that date.
+                    </p>
+                </div>
+
+                <div class="calendar-navigation">
+                    <a href="<?php echo e($previousUrl); ?>">&laquo; Previous</a>
+                    <a href="<?php echo e($currentMonthUrl); ?>" class="today-link">
+                        Current Month
+                    </a>
+                    <a href="<?php echo e($nextUrl); ?>">Next &raquo;</a>
+                </div>
+
             </div>
 
-            <span class="section-count">
-                <?php echo count($visits); ?> visits
-            </span>
-        </div>
+            <div class="filter-result">
+                Showing <strong><?php echo count($visits); ?></strong>
+                site visit(s) matching the selected filters.
+            </div>
 
-        <?php if ($visits): ?>
+            <div class="calendar-wrapper">
 
-            <div class="table-wrapper">
-                <table>
+                <div class="calendar">
 
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Customer</th>
-                            <th>Phone</th>
-                            <th>Property Details</th>
-                            <th>Visit Date and Time</th>
-                            <th>Assigned Employee</th>
-                            <th>Visit Notes</th>
-                            <th>Status and Cancellation Details</th>
-                            <th>Update Status</th>
-                            <th>Created By</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-
-                    <?php foreach ($visits as $visit): ?>
-
-                        <tr id="visit-<?php echo (int)$visit["id"]; ?>">
-
-                            <td><?php echo (int)$visit["id"]; ?></td>
-
-                            <td><?php echo e($visit["customer_name"]); ?></td>
-
-                            <td><?php echo e($visit["phone"]); ?></td>
-
-                            <td class="property-details">
-                                <strong>
-                                    <?php echo e($visit["property_type"] ?? "Not specified"); ?>
-                                </strong>
-
-                                <?php echo e($visit["interested_location"] ?? "Location not specified"); ?>
-                            </td>
-
-                            <td>
-                                <?php echo e(formatVisitDate($visit["scheduled_at"])); ?>
-                            </td>
-
-                            <td>
-                                <?php echo e($visit["assigned_employee"] ?? "Not Assigned"); ?>
-                            </td>
-
-                            <td>
-                                <?php
-                                echo $visit["notes"] !== null && $visit["notes"] !== ""
-                                    ? nl2br(e($visit["notes"]))
-                                    : "No notes";
-                                ?>
-                            </td>
-
-                            <td>
-                                <span class="daily-status <?php echo e($visit["visit_status"]); ?>">
-                                    <?php echo e(visitStatusLabel($visit["visit_status"])); ?>
-                                </span>
-
-                                <?php if ($visit["visit_status"] === "cancelled"): ?>
-
-                                    <div class="cancellation-details">
-
-                                        <strong>Cancellation Reason:</strong><br>
-
-                                        <?php echo nl2br(e($visit["cancellation_reason"] ?? "Not recorded")); ?>
-
-                                        <br><br>
-
-                                        <strong>Cancelled By:</strong><br>
-
-                                        <?php echo e($visit["cancelled_by_name"] ?? "Deleted User"); ?>
-
-                                        <br><br>
-
-                                        <strong>Cancelled At:</strong><br>
-
-                                        <?php echo e(formatVisitDate($visit["cancelled_at"] ?? null)); ?>
-
-                                    </div>
-
-                                <?php endif; ?>
-                            </td>
-
-                            <td>
-
-                                <?php if ($visit["visit_status"] !== "cancelled"): ?>
-
-                                    <form method="POST"
-                                          action="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>"
-                                          class="status-form">
-
-                                        <input type="hidden" name="csrf_token"
-                                               value="<?php echo e($_SESSION["csrf_token"]); ?>">
-
-                                        <input type="hidden" name="action" value="update_status">
-
-                                        <input type="hidden" name="visit_id"
-                                               value="<?php echo (int)$visit["id"]; ?>">
-
-                                        <select name="visit_status" required>
-                                            <?php foreach ($allowedStatuses as $status): ?>
-                                                <option value="<?php echo e($status); ?>"
-                                                    <?php echo $visit["visit_status"] === $status ? "selected" : ""; ?>>
-                                                    <?php echo e(visitStatusLabel($status)); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-
-                                        <button type="submit">Save</button>
-
-                                    </form>
-
-                                    <?php if (in_array($visit["visit_status"], ["scheduled", "rescheduled"], true)): ?>
-                                        <a href="cancel_site_visit.php" class="cancel-visit-link">
-                                            Cancel Visit
-                                        </a>
-                                    <?php endif; ?>
-
-                                <?php else: ?>
-
-                                    <strong>Cancelled</strong>
-
-                                <?php endif; ?>
-
-                            </td>
-
-                            <td>
-                                <?php echo e($visit["created_by_name"] ?? "Deleted User"); ?>
-                            </td>
-
-                        </tr>
-
+                    <?php foreach ($weekDays as $weekDay): ?>
+                        <div class="calendar-day-heading">
+                            <?php echo e($weekDay); ?>
+                        </div>
                     <?php endforeach; ?>
 
-                    </tbody>
-                </table>
+                    <?php
+                    $currentDay = clone $calendarStart;
+
+                    while ($currentDay <= $calendarEnd):
+
+                        $dateKey = $currentDay->format("Y-m-d");
+                        $isCurrentMonth = $currentDay->format("Y-m") === $calendarMonth;
+                        $isToday = $dateKey === $today;
+                        $isSelected = $dateKey === $selectedDate;
+
+                        $dayClasses = "calendar-day";
+
+                        if (!$isCurrentMonth) $dayClasses .= " other-month";
+                        if ($isToday) $dayClasses .= " today";
+                        if ($isSelected) $dayClasses .= " selected-day";
+                    ?>
+
+                        <div class="<?php echo e($dayClasses); ?>">
+
+                            <div class="day-number">
+                                <?php echo e($currentDay->format("j")); ?>
+                            </div>
+
+                            <?php if (isset($visitsByDate[$dateKey])): ?>
+
+                                <?php foreach ($visitsByDate[$dateKey] as $calendarVisit): ?>
+
+                                    <?php
+                                    $statusClass = $calendarVisit["visit_status"];
+
+                                    $visitTime = formatVisitDate(
+                                        $calendarVisit["scheduled_at"],
+                                        "h:i A"
+                                    );
+
+                                    $dailyUrl = "site_visits.php?" . http_build_query(
+                                        array_merge(
+                                            [
+                                                "month" => $calendarMonth,
+                                                "day" => $dateKey
+                                            ],
+                                            $activeFilters
+                                        )
+                                    ) . "#daily-schedule";
+                                    ?>
+
+                                    <a
+                                        href="<?php echo e($dailyUrl); ?>"
+                                        class="calendar-visit <?php echo e($statusClass); ?>"
+                                        title="<?php echo e($calendarVisit["customer_name"]); ?>"
+                                    >
+                                        <?php echo e($calendarVisit["customer_name"]); ?>
+
+                                        <span class="calendar-visit-time">
+                                            <?php echo e($visitTime); ?>
+                                        </span>
+                                    </a>
+
+                                <?php endforeach; ?>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                    <?php
+                        $currentDay->modify("+1 day");
+                    endwhile;
+                    ?>
+
+                </div>
+
             </div>
 
-        <?php else: ?>
+            <div class="calendar-legend">
 
-            <p class="empty">No site visits match your selected filters.</p>
+                <div class="legend-item">
+                    <span class="legend-color" style="background:#d6a63b;"></span>
+                    Scheduled
+                </div>
 
-        <?php endif; ?>
+                <div class="legend-item">
+                    <span class="legend-color" style="background:#16804a;"></span>
+                    Completed
+                </div>
 
-    </section>
+                <div class="legend-item">
+                    <span class="legend-color" style="background:#bd3944;"></span>
+                    Cancelled
+                </div>
 
-</div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background:#a96c16;"></span>
+                    Rescheduled
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- DAILY SCHEDULE -->
+
+        <section class="card" id="daily-schedule">
+
+            <div class="card-heading">
+
+                <div>
+                    <h2>Daily Site Visit Schedule</h2>
+                    <p class="card-description">
+                        View visit timings and update visit status.
+                    </p>
+                </div>
+
+                <span class="section-count">
+                    <?php echo count($dailyVisits); ?> visits
+                </span>
+
+            </div>
+
+            <form method="GET" action="site_visits.php" class="daily-date-form">
+
+                <input
+                    type="hidden"
+                    name="month"
+                    value="<?php echo e($calendarMonth); ?>"
+                >
+
+                <?php foreach ($activeFilters as $key => $value): ?>
+                    <input
+                        type="hidden"
+                        name="<?php echo e($key); ?>"
+                        value="<?php echo e($value); ?>"
+                    >
+                <?php endforeach; ?>
+
+                <div class="date-field">
+                    <label for="daily_date">Select Date</label>
+
+                    <input
+                        type="date"
+                        id="daily_date"
+                        name="day"
+                        value="<?php echo e($selectedDate); ?>"
+                        required
+                    >
+                </div>
+
+                <button type="submit">View Daily Schedule</button>
+
+                <a
+                    class="view-visit-link"
+                    href="<?php
+                    echo e(
+                        "site_visits.php?" .
+                        http_build_query(
+                            array_merge(
+                                ["month" => $calendarMonth, "day" => $today],
+                                $activeFilters
+                            )
+                        ) .
+                        "#daily-schedule"
+                    );
+                    ?>"
+                >
+                    Today's Schedule
+                </a>
+
+            </form>
+
+            <h3><?php echo e($selectedDateDisplay); ?></h3>
+
+            <div class="daily-summary">
+
+                <strong><?php echo count($dailyVisits); ?></strong>
+                site visit(s) matching the filters for this date.
+
+                <div class="summary-counts">
+
+                    <span class="summary-count">
+                        Scheduled: <?php echo $dailyStatusCounts["scheduled"]; ?>
+                    </span>
+
+                    <span class="summary-count">
+                        Completed: <?php echo $dailyStatusCounts["completed"]; ?>
+                    </span>
+
+                    <span class="summary-count">
+                        Cancelled: <?php echo $dailyStatusCounts["cancelled"]; ?>
+                    </span>
+
+                    <span class="summary-count">
+                        Rescheduled: <?php echo $dailyStatusCounts["rescheduled"]; ?>
+                    </span>
+
+                </div>
+
+            </div>
+
+            <?php if ($dailyVisits): ?>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+                            <tr>
+                                <th>Visit ID</th>
+                                <th>Visit Time</th>
+                                <th>Customer</th>
+                                <th>Phone</th>
+                                <th>Property Details</th>
+                                <th>Assigned Employee</th>
+                                <th>Status</th>
+                                <th>Visit Notes</th>
+                                <th>Quick Status Update</th>
+                                <th>History</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                        <?php foreach ($dailyVisits as $dailyVisit): ?>
+
+                            <tr id="daily-visit-<?php echo (int)$dailyVisit["id"]; ?>">
+
+                                <td><?php echo (int)$dailyVisit["id"]; ?></td>
+
+                                <td>
+                                    <strong>
+                                        <?php echo e(formatVisitDate($dailyVisit["scheduled_at"], "h:i A")); ?>
+                                    </strong>
+                                </td>
+
+                                <td><?php echo e($dailyVisit["customer_name"]); ?></td>
+
+                                <td><?php echo e($dailyVisit["phone"]); ?></td>
+
+                                <td class="property-details">
+                                    <strong>
+                                        <?php echo e($dailyVisit["property_type"] ?? "Not specified"); ?>
+                                    </strong>
+
+                                    <?php echo e($dailyVisit["interested_location"] ?? "Location not specified"); ?>
+                                </td>
+
+                                <td>
+                                    <?php echo e($dailyVisit["assigned_employee"] ?? "Not Assigned"); ?>
+                                </td>
+
+                                <td>
+
+                                    <span class="daily-status <?php echo e($dailyVisit["visit_status"]); ?>">
+                                        <?php echo e(visitStatusLabel($dailyVisit["visit_status"])); ?>
+                                    </span>
+
+                                    <?php if ($dailyVisit["visit_status"] === "cancelled"): ?>
+
+                                        <div class="cancellation-details">
+
+                                            <strong>Reason:</strong><br>
+
+                                            <?php echo nl2br(e($dailyVisit["cancellation_reason"] ?? "Not recorded")); ?>
+
+                                            <br><br>
+
+                                            <strong>Cancelled By:</strong>
+
+                                            <?php echo e($dailyVisit["cancelled_by_name"] ?? "Deleted User"); ?>
+
+                                            <br>
+
+                                            <strong>Cancelled At:</strong>
+
+                                            <?php echo e(formatVisitDate($dailyVisit["cancelled_at"] ?? null)); ?>
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo $dailyVisit["notes"] !== null && $dailyVisit["notes"] !== ""
+                                        ? nl2br(e($dailyVisit["notes"]))
+                                        : "No notes";
+                                    ?>
+                                </td>
+
+                                <td>
+
+                                    <?php if ($dailyVisit["visit_status"] !== "cancelled"): ?>
+
+                                        <form
+                                            method="POST"
+                                            action="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>#daily-schedule"
+                                            class="daily-action-form"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="action"
+                                                value="update_status"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="visit_id"
+                                                value="<?php echo (int)$dailyVisit["id"]; ?>"
+                                            >
+
+                                            <select name="visit_status" required>
+
+                                                <?php foreach ($allowedStatuses as $status): ?>
+                                                    <option
+                                                        value="<?php echo e($status); ?>"
+                                                        <?php echo $dailyVisit["visit_status"] === $status ? "selected" : ""; ?>
+                                                    >
+                                                        <?php echo e(visitStatusLabel($status)); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+
+                                            </select>
+
+                                            <button type="submit">Update Status</button>
+
+                                        </form>
+
+                                        <?php if (in_array($dailyVisit["visit_status"], ["scheduled", "rescheduled"], true)): ?>
+                                            <a href="cancel_site_visit.php" class="cancel-visit-link">
+                                                Cancel Visit
+                                            </a>
+                                        <?php endif; ?>
+
+                                    <?php else: ?>
+
+                                        <strong>Cancellation Recorded</strong>
+
+                                    <?php endif; ?>
+
+                                </td>
+
+                                <td>
+                                    <a
+                                        href="#visit-<?php echo (int)$dailyVisit["id"]; ?>"
+                                        class="view-visit-link"
+                                    >
+                                        View History
+                                    </a>
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            <?php else: ?>
+
+                <p class="empty">
+                    No site visits match your selected date and filters.
+                </p>
+
+            <?php endif; ?>
+
+        </section>
+
+        <!-- SCHEDULE NEW VISIT -->
+
+        <section class="card">
+
+            <div class="card-heading">
+
+                <div>
+                    <h2>Schedule New Site Visit</h2>
+                    <p class="card-description">
+                        Create a new property visit for an available customer lead.
+                    </p>
+                </div>
+
+            </div>
+
+            <?php if ($leads): ?>
+
+                <form
+                    method="POST"
+                    action="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                    >
+
+                    <input type="hidden" name="action" value="add_visit">
+
+                    <div class="form-grid">
+
+                        <div class="form-field full-width">
+
+                            <label for="lead_id">Select Customer *</label>
+
+                            <select name="lead_id" id="lead_id" required>
+
+                                <option value="">-- Select Customer --</option>
+
+                                <?php foreach ($leads as $lead): ?>
+
+                                    <option value="<?php echo (int)$lead["id"]; ?>">
+                                        <?php
+                                        echo e($lead["customer_name"]);
+                                        echo " - ";
+                                        echo e($lead["phone"]);
+                                        echo " | Employee: ";
+                                        echo e($lead["assigned_employee"] ?? "Not Assigned");
+                                        ?>
+                                    </option>
+
+                                <?php endforeach; ?>
+
+                            </select>
+
+                        </div>
+
+                        <div class="form-field full-width">
+
+                            <label for="scheduled_at">Visit Date and Time *</label>
+
+                            <input
+                                type="datetime-local"
+                                name="scheduled_at"
+                                id="scheduled_at"
+                                min="<?php echo e(date("Y-m-d\TH:i", time() + 60)); ?>"
+                                required
+                            >
+
+                        </div>
+
+                        <div class="form-field full-width">
+
+                            <label for="notes">Visit Notes</label>
+
+                            <textarea
+                                name="notes"
+                                id="notes"
+                                maxlength="10000"
+                                placeholder="Enter property details, meeting point or other instructions..."
+                            ></textarea>
+
+                        </div>
+
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit">Schedule Site Visit</button>
+                    </div>
+
+                </form>
+
+            <?php else: ?>
+
+                <p class="empty">
+                    No assigned customer leads are available for scheduling.
+                </p>
+
+            <?php endif; ?>
+
+        </section>
+
+        <!-- FILTERED VISIT HISTORY -->
+
+        <section class="card">
+
+            <div class="card-heading">
+
+                <div>
+                    <h2>Site Visit History</h2>
+                    <p class="card-description">
+                        Review all visits matching the selected filters.
+                    </p>
+                </div>
+
+                <span class="section-count">
+                    <?php echo count($visits); ?> visits
+                </span>
+
+            </div>
+
+            <?php if ($visits): ?>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Customer</th>
+                                <th>Phone</th>
+                                <th>Property Details</th>
+                                <th>Visit Date and Time</th>
+                                <th>Assigned Employee</th>
+                                <th>Visit Notes</th>
+                                <th>Status and Cancellation Details</th>
+                                <th>Update Status</th>
+                                <th>Created By</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                        <?php foreach ($visits as $visit): ?>
+
+                            <tr id="visit-<?php echo (int)$visit["id"]; ?>">
+
+                                <td><?php echo (int)$visit["id"]; ?></td>
+
+                                <td><?php echo e($visit["customer_name"]); ?></td>
+
+                                <td><?php echo e($visit["phone"]); ?></td>
+
+                                <td class="property-details">
+
+                                    <strong>
+                                        <?php echo e($visit["property_type"] ?? "Not specified"); ?>
+                                    </strong>
+
+                                    <?php echo e($visit["interested_location"] ?? "Location not specified"); ?>
+
+                                </td>
+
+                                <td>
+                                    <?php echo e(formatVisitDate($visit["scheduled_at"])); ?>
+                                </td>
+
+                                <td>
+                                    <?php echo e($visit["assigned_employee"] ?? "Not Assigned"); ?>
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo $visit["notes"] !== null && $visit["notes"] !== ""
+                                        ? nl2br(e($visit["notes"]))
+                                        : "No notes";
+                                    ?>
+                                </td>
+
+                                <td>
+
+                                    <span class="daily-status <?php echo e($visit["visit_status"]); ?>">
+                                        <?php echo e(visitStatusLabel($visit["visit_status"])); ?>
+                                    </span>
+
+                                    <?php if ($visit["visit_status"] === "cancelled"): ?>
+
+                                        <div class="cancellation-details">
+
+                                            <strong>Cancellation Reason:</strong><br>
+
+                                            <?php echo nl2br(e($visit["cancellation_reason"] ?? "Not recorded")); ?>
+
+                                            <br><br>
+
+                                            <strong>Cancelled By:</strong><br>
+
+                                            <?php echo e($visit["cancelled_by_name"] ?? "Deleted User"); ?>
+
+                                            <br><br>
+
+                                            <strong>Cancelled At:</strong><br>
+
+                                            <?php echo e(formatVisitDate($visit["cancelled_at"] ?? null)); ?>
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+                                </td>
+
+                                <td>
+
+                                    <?php if ($visit["visit_status"] !== "cancelled"): ?>
+
+                                        <form
+                                            method="POST"
+                                            action="site_visits.php?month=<?php echo e($calendarMonth); ?>&day=<?php echo e($selectedDate); ?>"
+                                            class="status-form"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="action"
+                                                value="update_status"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="visit_id"
+                                                value="<?php echo (int)$visit["id"]; ?>"
+                                            >
+
+                                            <select name="visit_status" required>
+
+                                                <?php foreach ($allowedStatuses as $status): ?>
+
+                                                    <option
+                                                        value="<?php echo e($status); ?>"
+                                                        <?php echo $visit["visit_status"] === $status ? "selected" : ""; ?>
+                                                    >
+                                                        <?php echo e(visitStatusLabel($status)); ?>
+                                                    </option>
+
+                                                <?php endforeach; ?>
+
+                                            </select>
+
+                                            <button type="submit">Save</button>
+
+                                        </form>
+
+                                        <?php if (in_array($visit["visit_status"], ["scheduled", "rescheduled"], true)): ?>
+                                            <a href="cancel_site_visit.php" class="cancel-visit-link">
+                                                Cancel Visit
+                                            </a>
+                                        <?php endif; ?>
+
+                                    <?php else: ?>
+
+                                        <strong>Cancelled</strong>
+
+                                    <?php endif; ?>
+
+                                </td>
+
+                                <td>
+                                    <?php echo e($visit["created_by_name"] ?? "Deleted User"); ?>
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            <?php else: ?>
+
+                <p class="empty">
+                    No site visits match your selected filters.
+                </p>
+
+            <?php endif; ?>
+
+        </section>
+
+    </div>
+
+</main>
+
+<script>
+
+const sidebar = document.getElementById("sidebar");
+const mobileMenu = document.getElementById("mobileMenu");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
+
+mobileMenu.addEventListener("click", function () {
+    sidebar.classList.toggle("open");
+    sidebarOverlay.classList.toggle("show");
+});
+
+sidebarOverlay.addEventListener("click", function () {
+    sidebar.classList.remove("open");
+    sidebarOverlay.classList.remove("show");
+});
+
+document.querySelectorAll(".sidebar a").forEach(function (link) {
+    link.addEventListener("click", function () {
+        sidebar.classList.remove("open");
+        sidebarOverlay.classList.remove("show");
+    });
+});
+
+</script>
+
 </body>
 </html>

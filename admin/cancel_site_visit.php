@@ -1,9 +1,28 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
-require_once "../includes/lead_activity_logger.php";
+// --------------------------------------------------
+// SECURITY HEADERS
+// --------------------------------------------------
+
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("Referrer-Policy: no-referrer");
+
+// --------------------------------------------------
+// REQUIRED FILES
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../includes/lead_activity_logger.php";
+
+// --------------------------------------------------
+// PERMISSIONS
+// --------------------------------------------------
 
 requirePermission("manage_site_visits");
 
@@ -13,8 +32,26 @@ $canViewAll = hasPermission("view_all_leads");
 $message = "";
 $messageType = "success";
 
-function e($value) {
+// --------------------------------------------------
+// HELPER FUNCTIONS
+// --------------------------------------------------
+
+function e($value): string
+{
     return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
+}
+
+function formatCancellationDate($value, $format = "d-m-Y h:i A"): string
+{
+    if (!is_string($value) || trim($value) === "") {
+        return "Not available";
+    }
+
+    try {
+        return (new DateTime($value))->format($format);
+    } catch (Throwable $exception) {
+        return "Not available";
+    }
 }
 
 // --------------------------------------------------
@@ -58,12 +95,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit("Invalid security token. Please refresh the page and try again.");
     }
 
+    // --------------------------------------------------
+    // VALIDATE VISIT ID
+    // --------------------------------------------------
+
     $visitIdInput = $_POST["visit_id"] ?? null;
 
     $visitId = (
         is_string($visitIdInput) &&
         ctype_digit($visitIdInput)
     ) ? (int) $visitIdInput : 0;
+
+    // --------------------------------------------------
+    // VALIDATE CANCELLATION REASON
+    // --------------------------------------------------
 
     $reasonInput = $_POST["cancellation_reason"] ?? "";
 
@@ -97,6 +142,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         try {
 
             $pdo->beginTransaction();
+
+            // --------------------------------------------------
+            // FETCH AND LOCK VISIT
+            // --------------------------------------------------
 
             if ($canViewAll) {
 
@@ -147,6 +196,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 throw new RuntimeException("VISIT_NOT_FOUND");
             }
 
+            // --------------------------------------------------
+            // VALIDATE VISIT STATUS
+            // --------------------------------------------------
+
             if (
                 !in_array(
                     $visit["visit_status"],
@@ -159,32 +212,71 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $oldStatus = $visit["visit_status"];
 
-            $update = $pdo->prepare("
-                UPDATE site_visits
-                SET
-                    visit_status = 'cancelled',
-                    cancellation_reason = ?,
-                    cancelled_by = ?,
-                    cancelled_at = NOW()
-                WHERE id = ?
-                AND visit_status IN ('scheduled', 'rescheduled')
-            ");
+            // --------------------------------------------------
+            // UPDATE VISIT
+            // --------------------------------------------------
 
-            $update->execute([
-                $reason,
-                $adminId,
-                $visitId
-            ]);
+            if ($canViewAll) {
+
+                $update = $pdo->prepare("
+                    UPDATE site_visits
+                    SET
+                        visit_status = 'cancelled',
+                        cancellation_reason = ?,
+                        cancelled_by = ?,
+                        cancelled_at = NOW()
+                    WHERE id = ?
+                    AND visit_status IN ('scheduled', 'rescheduled')
+                ");
+
+                $update->execute([
+                    $reason,
+                    $adminId,
+                    $visitId
+                ]);
+
+            } else {
+
+                $update = $pdo->prepare("
+                    UPDATE site_visits sv
+                    INNER JOIN leads l ON sv.lead_id = l.id
+                    SET
+                        sv.visit_status = 'cancelled',
+                        sv.cancellation_reason = ?,
+                        sv.cancelled_by = ?,
+                        sv.cancelled_at = NOW()
+                    WHERE sv.id = ?
+                    AND sv.assigned_to = ?
+                    AND l.assigned_to = ?
+                    AND sv.visit_status IN ('scheduled', 'rescheduled')
+                ");
+
+                $update->execute([
+                    $reason,
+                    $adminId,
+                    $visitId,
+                    $adminId,
+                    $adminId
+                ]);
+            }
 
             if ($update->rowCount() !== 1) {
                 throw new RuntimeException("VISIT_UPDATE_FAILED");
             }
 
+            // --------------------------------------------------
+            // RECORD ACTIVITY
+            // --------------------------------------------------
+
+            $scheduledDisplay = formatCancellationDate(
+                $visit["scheduled_at"]
+            );
+
             $activityDescription =
                 "Site visit cancelled. Previous status: " .
                 ucwords(str_replace("_", " ", $oldStatus)) .
                 ". Scheduled date: " .
-                date("d-m-Y h:i A", strtotime($visit["scheduled_at"])) .
+                $scheduledDisplay .
                 ". Cancellation reason: " .
                 $reason;
 
@@ -197,6 +289,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $oldStatus,
                 "cancelled"
             );
+
+            // --------------------------------------------------
+            // COMMIT TRANSACTION
+            // --------------------------------------------------
 
             $pdo->commit();
 
@@ -330,7 +426,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <meta name="robots" content="noindex, nofollow">
 
     <title>Cancel Site Visits | Olivera Home Developers</title>
@@ -347,6 +442,7 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             --muted: #68768a;
             --border: #e9e2d4;
             --surface: #ffffff;
+            --sidebar-width: 255px;
         }
 
         * {
@@ -357,17 +453,114 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             font-family: Arial, Helvetica, sans-serif;
             background: var(--ivory);
             margin: 0;
-            padding: 30px;
             color: var(--text);
         }
 
+        /* SIDEBAR */
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--navy);
+            color: #ffffff;
+            padding: 22px 14px;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.25s ease;
+        }
+
+        .brand {
+            padding: 8px 12px 23px;
+            border-bottom: 1px solid rgba(255,255,255,0.13);
+            margin-bottom: 20px;
+        }
+
+        .brand-name {
+            color: var(--gold-light);
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+        }
+
+        .brand-subtitle {
+            color: #cbd5e1;
+            font-size: 10px;
+            letter-spacing: 2px;
+            margin-top: 6px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-section {
+            color: #aab8ca;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 12px 12px 8px;
+        }
+
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 11px 12px;
+            margin: 3px 0;
+            border-radius: 6px;
+            color: #e5eaf1;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: 0.2s ease;
+        }
+
+        .sidebar a:hover {
+            background: rgba(255,255,255,0.09);
+            color: var(--gold-light);
+        }
+
+        .sidebar a.active {
+            background: var(--gold);
+            color: var(--navy);
+            font-weight: 700;
+        }
+
+        .sidebar-icon {
+            width: 19px;
+            text-align: center;
+            font-size: 15px;
+        }
+
+        .sidebar-footer {
+            margin-top: 25px;
+            padding: 15px 12px 5px;
+            border-top: 1px solid rgba(255,255,255,0.13);
+            color: #aab8ca;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        /* MAIN CONTENT */
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            padding: 30px;
+        }
+
         .container {
-            max-width: 1450px;
-            margin: auto;
+            max-width: 1550px;
+            margin: 0 auto;
+        }
+
+        .mobile-header {
+            display: none;
         }
 
         .page-header {
-            margin-bottom: 25px;
+            margin-bottom: 23px;
         }
 
         .page-header h1 {
@@ -382,6 +575,8 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             line-height: 1.6;
             margin: 0;
         }
+
+        /* QUICK NAVIGATION */
 
         .nav-links {
             display: flex;
@@ -401,13 +596,15 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             text-decoration: none;
             font-size: 12px;
             font-weight: 600;
-            transition: background 0.2s ease;
+            transition: 0.2s ease;
         }
 
         .nav-links a:hover {
             background: #f0e7d1;
             border-color: var(--gold);
         }
+
+        /* CARDS AND MESSAGES */
 
         .card {
             background: var(--surface);
@@ -440,6 +637,8 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             border-color: #f4cfcb;
             color: #a32222;
         }
+
+        /* TABLE */
 
         .table-wrapper {
             width: 100%;
@@ -477,6 +676,17 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             border-bottom: none;
         }
 
+        .property {
+            line-height: 1.7;
+        }
+
+        .property strong {
+            display: block;
+            color: var(--navy);
+        }
+
+        /* CANCELLATION FORM */
+
         label {
             display: block;
             margin: 12px 0 7px;
@@ -491,7 +701,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             padding: 10px;
             border: 1px solid var(--border);
             border-radius: 6px;
-            box-sizing: border-box;
             font-family: Arial, sans-serif;
             font-size: 12px;
             resize: vertical;
@@ -519,6 +728,8 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
         button:hover {
             background: var(--navy-light);
         }
+
+        /* STATUS */
 
         .status {
             display: inline-block;
@@ -557,19 +768,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             overflow-wrap: anywhere;
         }
 
-        .empty {
-            color: var(--muted);
-        }
-
-        .property {
-            line-height: 1.7;
-        }
-
-        .property strong {
-            display: block;
-            color: var(--navy);
-        }
-
         .cancel-form {
             min-width: 230px;
         }
@@ -589,17 +787,74 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             font-weight: 700;
         }
 
+        .empty {
+            color: var(--muted);
+        }
+
         .empty-state {
             padding: 35px 15px;
             text-align: center;
             color: var(--muted);
+            background: #fcfaf5;
+            border: 1px dashed var(--border);
+            border-radius: 7px;
+        }
+
+        /* MOBILE SIDEBAR */
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        .menu-toggle {
+            border: none;
+            background: var(--navy);
+            color: #ffffff;
+            padding: 10px 13px;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 900px) {
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 18px;
+            }
+
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                gap: 13px;
+                margin-bottom: 24px;
+            }
+
+            .mobile-brand {
+                color: var(--navy);
+                font-size: 15px;
+                font-weight: 800;
+                letter-spacing: 0.6px;
+            }
         }
 
         @media (max-width: 700px) {
-
-            body {
-                padding: 15px;
-            }
 
             .card {
                 padding: 16px;
@@ -621,256 +876,459 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
 
-<div class="container">
+<!-- SIDEBAR OVERLAY -->
 
-    <header class="page-header">
+<div
+    class="sidebar-overlay"
+    id="sidebarOverlay"
+    onclick="closeSidebar()"
+></div>
 
-        <h1>Site Visit Cancellation Management</h1>
+<!-- SIDEBAR -->
 
-        <p>
-            Cancel scheduled site visits and maintain a record
-            of the cancellation reason.
-        </p>
+<aside class="sidebar" id="sidebar">
 
-    </header>
+    <div class="brand">
+        <div class="brand-name">OLIVERA</div>
+        <div class="brand-subtitle">Home Developers</div>
+    </div>
 
-    <nav class="nav-links">
+    <div class="sidebar-section">Main Menu</div>
 
-        <a href="dashboard.php">Dashboard</a>
-        <a href="site_visits.php">Monthly Calendar</a>
-        <a href="weekly_site_visits.php">Weekly Schedule</a>
-        <a href="reschedule_site_visits.php">Reschedule Visits</a>
-        <a href="site_visit_reschedule_history.php">Rescheduling History</a>
-        <a href="manage_leads.php">Manage Leads</a>
+    <a href="dashboard.php">
+        <span class="sidebar-icon">⌂</span>
+        Dashboard
+    </a>
 
-    </nav>
-
-    <?php if ($message !== ""): ?>
-
-        <div
-            class="message <?php echo $messageType === "error" ? "error" : ""; ?>"
-            role="alert"
-        >
-            <?php echo e($message); ?>
-        </div>
-
+    <?php if (hasPermission("manage_users")): ?>
+        <a href="property_enquiries.php">
+            <span class="sidebar-icon">▤</span>
+            Property Enquiries
+        </a>
     <?php endif; ?>
 
-    <section class="card">
+    <?php if (hasPermission("manage_admins")): ?>
+        <a href="manage_admins.php">
+            <span class="sidebar-icon">♙</span>
+            Manage Admin
+        </a>
+    <?php endif; ?>
 
-        <h2>Site Visit Cancellation Records</h2>
+    <?php if (hasPermission("view_activity_log")): ?>
+        <a href="activity_log.php">
+            <span class="sidebar-icon">◷</span>
+            Activity Log
+        </a>
+    <?php endif; ?>
 
-        <?php if (count($visits) > 0): ?>
+    <?php if (
+        hasPermission("manage_leads") ||
+        hasPermission("view_all_leads")
+    ): ?>
+        <a href="manage_leads.php">
+            <span class="sidebar-icon">♧</span>
+            Manage Leads
+        </a>
+    <?php endif; ?>
 
-            <div class="table-wrapper">
+    <?php if (hasPermission("manage_partnerships")): ?>
+        <a href="manage_partnerships.php">
+            <span class="sidebar-icon">◇</span>
+            Manage Partnerships
+        </a>
+    <?php endif; ?>
 
-                <table>
+    <?php if (hasPermission("manage_followups")): ?>
+        <a href="manage_followups.php">
+            <span class="sidebar-icon">◴</span>
+            Lead Follow-ups
+        </a>
 
-                    <thead>
+        <a href="followup_reminders.php">
+            <span class="sidebar-icon">♧</span>
+            Follow-up Reminders
+        </a>
+    <?php endif; ?>
 
-                        <tr>
-                            <th>Visit ID</th>
-                            <th>Customer</th>
-                            <th>Phone</th>
-                            <th>Property Details</th>
-                            <th>Visit Date and Time</th>
-                            <th>Assigned Employee</th>
-                            <th>Status</th>
-                            <th>Cancellation Reason</th>
-                            <th>Cancelled By</th>
-                            <th>Cancelled At</th>
-                            <th>Action</th>
-                        </tr>
+    <div class="sidebar-section">Site Visits</div>
 
-                    </thead>
+    <a href="site_visits.php" class="active">
+        <span class="sidebar-icon">⌖</span>
+        Site Visits
+    </a>
 
-                    <tbody>
+    <a href="weekly_site_visits.php">
+        <span class="sidebar-icon">▦</span>
+        Weekly Schedule
+    </a>
 
-                        <?php foreach ($visits as $visit): ?>
+    <a href="reschedule_site_visits.php">
+        <span class="sidebar-icon">↻</span>
+        Reschedule Visits
+    </a>
 
-                            <tr>
+    <a href="cancel_site_visit.php">
+        <span class="sidebar-icon">⊗</span>
+        Cancel Site Visits
+    </a>
 
-                                <td>
-                                    #<?php echo (int) $visit["id"]; ?>
-                                </td>
+    <a href="site_visit_reschedule_history.php">
+        <span class="sidebar-icon">◷</span>
+        Rescheduling History
+    </a>
 
-                                <td>
-                                    <?php echo e($visit["customer_name"]); ?>
-                                </td>
+    <?php if (hasPermission("view_crm_reports")): ?>
+        <div class="sidebar-section">Analytics</div>
 
-                                <td>
-                                    <?php echo e($visit["phone"]); ?>
-                                </td>
+        <a href="crm_reports.php">
+            <span class="sidebar-icon">▥</span>
+            CRM Reports
+        </a>
+    <?php endif; ?>
 
-                                <td class="property">
+    <div class="sidebar-footer">
+        Olivera Home Developers<br>
+        Admin Management Panel
+    </div>
 
-                                    <strong>
-                                        <?php echo e($visit["property_type"] ?? "Not specified"); ?>
-                                    </strong>
+</aside>
 
-                                    <?php echo e($visit["interested_location"] ?? "Location not specified"); ?>
+<!-- MAIN CONTENT -->
 
-                                </td>
+<main class="main-content">
 
-                                <td>
-                                    <?php
-                                    echo e(
-                                        date(
-                                            "d-m-Y h:i A",
-                                            strtotime($visit["scheduled_at"])
-                                        )
-                                    );
-                                    ?>
-                                </td>
+    <div class="container">
 
-                                <td>
-                                    <?php echo e($visit["assigned_employee"] ?? "Not Assigned"); ?>
-                                </td>
+        <div class="mobile-header">
 
-                                <td>
+            <button
+                type="button"
+                class="menu-toggle"
+                onclick="toggleSidebar()"
+                aria-label="Open navigation menu"
+            >
+                ☰
+            </button>
 
-                                    <span class="status <?php echo e($visit["visit_status"]); ?>">
-                                        <?php
-                                        echo e(
-                                            ucwords(
-                                                str_replace(
-                                                    "_",
-                                                    " ",
-                                                    $visit["visit_status"]
-                                                )
-                                            )
-                                        );
-                                        ?>
-                                    </span>
-
-                                </td>
-
-                                <td class="cancelled-details">
-
-                                    <?php if ($visit["visit_status"] === "cancelled"): ?>
-
-                                        <div class="reason">
-                                            <?php
-                                            echo nl2br(
-                                                e(
-                                                    $visit["cancellation_reason"] ??
-                                                    "Reason not recorded"
-                                                )
-                                            );
-                                            ?>
-                                        </div>
-
-                                    <?php else: ?>
-
-                                        Not cancelled
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                                <td>
-                                    <?php
-                                    echo $visit["visit_status"] === "cancelled"
-                                        ? e($visit["cancelled_by_name"] ?? "Deleted User")
-                                        : "-";
-                                    ?>
-                                </td>
-
-                                <td>
-                                    <?php
-                                    echo $visit["cancelled_at"]
-                                        ? e(
-                                            date(
-                                                "d-m-Y h:i A",
-                                                strtotime($visit["cancelled_at"])
-                                            )
-                                        )
-                                        : "-";
-                                    ?>
-                                </td>
-
-                                <td class="cancel-form">
-
-                                    <?php if (
-                                        in_array(
-                                            $visit["visit_status"],
-                                            ["scheduled", "rescheduled"],
-                                            true
-                                        )
-                                    ): ?>
-
-                                        <form
-                                            method="POST"
-                                            action="cancel_site_visit.php"
-                                            onsubmit="return confirm('Are you sure you want to cancel this site visit?');"
-                                        >
-
-                                            <input
-                                                type="hidden"
-                                                name="csrf_token"
-                                                value="<?php echo e($_SESSION["csrf_token"]); ?>"
-                                            >
-
-                                            <input
-                                                type="hidden"
-                                                name="visit_id"
-                                                value="<?php echo (int) $visit["id"]; ?>"
-                                            >
-
-                                            <label>
-                                                Cancellation Reason *
-                                            </label>
-
-                                            <textarea
-                                                name="cancellation_reason"
-                                                maxlength="1000"
-                                                required
-                                                placeholder="Explain why this site visit is being cancelled..."
-                                            ></textarea>
-
-                                            <button type="submit">
-                                                Cancel Visit
-                                            </button>
-
-                                        </form>
-
-                                    <?php elseif ($visit["visit_status"] === "cancelled"): ?>
-
-                                        <span class="cancelled-label">
-                                            Already Cancelled
-                                        </span>
-
-                                    <?php else: ?>
-
-                                        <span class="empty">
-                                            Completed visits cannot be cancelled.
-                                        </span>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-                    </tbody>
-
-                </table>
-
+            <div class="mobile-brand">
+                OLIVERA HOME DEVELOPERS
             </div>
 
-        <?php else: ?>
+        </div>
 
-            <div class="empty-state">
-                No site visits found.
+        <header class="page-header">
+
+            <h1>Site Visit Cancellation Management</h1>
+
+            <p>
+                Cancel scheduled site visits and maintain a record
+                of the cancellation reason.
+            </p>
+
+        </header>
+
+        <!-- QUICK NAVIGATION -->
+
+        <nav class="nav-links">
+
+            <a href="dashboard.php">Dashboard</a>
+
+            <a href="site_visits.php">
+                Monthly Calendar
+            </a>
+
+            <a href="weekly_site_visits.php">
+                Weekly Schedule
+            </a>
+
+            <a href="reschedule_site_visits.php">
+                Reschedule Visits
+            </a>
+
+            <a href="site_visit_reschedule_history.php">
+                Rescheduling History
+            </a>
+
+            <?php if (
+                hasPermission("manage_leads") ||
+                hasPermission("view_all_leads")
+            ): ?>
+                <a href="manage_leads.php">Manage Leads</a>
+            <?php endif; ?>
+
+        </nav>
+
+        <!-- MESSAGES -->
+
+        <?php if ($message !== ""): ?>
+
+            <div
+                class="message <?php echo $messageType === "error" ? "error" : ""; ?>"
+                role="alert"
+            >
+                <?php echo e($message); ?>
             </div>
 
         <?php endif; ?>
 
-    </section>
+        <!-- CANCELLATION RECORDS -->
 
-</div>
+        <section class="card">
+
+            <h2>Site Visit Cancellation Records</h2>
+
+            <?php if (count($visits) > 0): ?>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th>Visit ID</th>
+                                <th>Customer</th>
+                                <th>Phone</th>
+                                <th>Property Details</th>
+                                <th>Visit Date and Time</th>
+                                <th>Assigned Employee</th>
+                                <th>Status</th>
+                                <th>Cancellation Reason</th>
+                                <th>Cancelled By</th>
+                                <th>Cancelled At</th>
+                                <th>Action</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            <?php foreach ($visits as $visit): ?>
+
+                                <tr>
+
+                                    <td>
+                                        #<?php echo (int) $visit["id"]; ?>
+                                    </td>
+
+                                    <td>
+                                        <?php echo e($visit["customer_name"]); ?>
+                                    </td>
+
+                                    <td>
+                                        <?php echo e($visit["phone"]); ?>
+                                    </td>
+
+                                    <td class="property">
+
+                                        <strong>
+                                            <?php
+                                            echo e(
+                                                $visit["property_type"] ??
+                                                "Not specified"
+                                            );
+                                            ?>
+                                        </strong>
+
+                                        <?php
+                                        echo e(
+                                            $visit["interested_location"] ??
+                                            "Location not specified"
+                                        );
+                                        ?>
+
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo e(
+                                            formatCancellationDate(
+                                                $visit["scheduled_at"]
+                                            )
+                                        );
+                                        ?>
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo e(
+                                            $visit["assigned_employee"] ??
+                                            "Not Assigned"
+                                        );
+                                        ?>
+                                    </td>
+
+                                    <td>
+
+                                        <span class="status <?php echo e($visit["visit_status"]); ?>">
+                                            <?php
+                                            echo e(
+                                                ucwords(
+                                                    str_replace(
+                                                        "_",
+                                                        " ",
+                                                        $visit["visit_status"]
+                                                    )
+                                                )
+                                            );
+                                            ?>
+                                        </span>
+
+                                    </td>
+
+                                    <td class="cancelled-details">
+
+                                        <?php if ($visit["visit_status"] === "cancelled"): ?>
+
+                                            <div class="reason">
+                                                <?php
+                                                echo nl2br(
+                                                    e(
+                                                        $visit["cancellation_reason"] ??
+                                                        "Reason not recorded"
+                                                    )
+                                                );
+                                                ?>
+                                            </div>
+
+                                        <?php else: ?>
+
+                                            Not cancelled
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo $visit["visit_status"] === "cancelled"
+                                            ? e($visit["cancelled_by_name"] ?? "Deleted User")
+                                            : "-";
+                                        ?>
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo !empty($visit["cancelled_at"])
+                                            ? e(
+                                                formatCancellationDate(
+                                                    $visit["cancelled_at"]
+                                                )
+                                            )
+                                            : "-";
+                                        ?>
+                                    </td>
+
+                                    <td class="cancel-form">
+
+                                        <?php if (
+                                            in_array(
+                                                $visit["visit_status"],
+                                                ["scheduled", "rescheduled"],
+                                                true
+                                            )
+                                        ): ?>
+
+                                            <form
+                                                method="POST"
+                                                action="cancel_site_visit.php"
+                                                onsubmit="return confirm('Are you sure you want to cancel this site visit?');"
+                                            >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="<?php echo e($_SESSION["csrf_token"]); ?>"
+                                                >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="visit_id"
+                                                    value="<?php echo (int) $visit["id"]; ?>"
+                                                >
+
+                                                <label>
+                                                    Cancellation Reason *
+                                                </label>
+
+                                                <textarea
+                                                    name="cancellation_reason"
+                                                    maxlength="1000"
+                                                    required
+                                                    placeholder="Explain why this site visit is being cancelled..."
+                                                ></textarea>
+
+                                                <button type="submit">
+                                                    Cancel Visit
+                                                </button>
+
+                                            </form>
+
+                                        <?php elseif ($visit["visit_status"] === "cancelled"): ?>
+
+                                            <span class="cancelled-label">
+                                                Already Cancelled
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="empty">
+                                                Completed visits cannot be cancelled.
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            <?php else: ?>
+
+                <div class="empty-state">
+                    No site visits found.
+                </div>
+
+            <?php endif; ?>
+
+        </section>
+
+    </div>
+
+</main>
+
+<!-- SIDEBAR JAVASCRIPT -->
+
+<script>
+
+function toggleSidebar() {
+
+    document.getElementById("sidebar").classList.toggle("open");
+
+    document
+        .getElementById("sidebarOverlay")
+        .classList.toggle("show");
+
+}
+
+function closeSidebar() {
+
+    document.getElementById("sidebar").classList.remove("open");
+
+    document
+        .getElementById("sidebarOverlay")
+        .classList.remove("show");
+
+}
+
+</script>
 
 </body>
 </html>

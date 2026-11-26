@@ -20,6 +20,7 @@ $permissions = [
         "manage_users",
         "manage_settings",
         "manage_leads",
+        "manage_partnerships",
         "assign_leads",
         "view_all_leads",
         "manage_followups",

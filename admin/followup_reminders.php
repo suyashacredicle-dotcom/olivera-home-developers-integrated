@@ -1,3 +1,4 @@
+
 <?php
 
 require_once "../includes/permissions.php";
@@ -5,11 +6,14 @@ require_once "../config/database.php";
 
 requirePermission("manage_followups");
 
-$adminId = (int)$_SESSION["admin_id"];
-$currentRole = $_SESSION["admin_role"];
+$adminId = (int)($_SESSION["admin_id"] ?? 0);
+$currentRole = $_SESSION["admin_role"] ?? "";
 $isSalesEmployee = ($currentRole === "sales_employee");
 
-// Fetch reminders
+// --------------------------------------------------
+// FETCH REMINDERS
+// --------------------------------------------------
+
 $sql = "
     SELECT
         lf.id,
@@ -28,18 +32,10 @@ $sql = "
         l.assigned_to,
         assigned_admin.name AS employee_name,
         followup_admin.name AS followup_created_by
-
     FROM lead_followups lf
-
-    INNER JOIN leads l
-        ON lf.lead_id = l.id
-
-    LEFT JOIN admins assigned_admin
-        ON l.assigned_to = assigned_admin.id
-
-    LEFT JOIN admins followup_admin
-        ON lf.admin_id = followup_admin.id
-
+    INNER JOIN leads l ON lf.lead_id = l.id
+    LEFT JOIN admins assigned_admin ON l.assigned_to = assigned_admin.id
+    LEFT JOIN admins followup_admin ON lf.admin_id = followup_admin.id
     WHERE lf.next_followup_at IS NOT NULL
 ";
 
@@ -57,13 +53,15 @@ $stmt->execute($params);
 
 $allReminders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Categorize reminders
+// --------------------------------------------------
+// CATEGORIZE REMINDERS
+// --------------------------------------------------
+
 $overdueReminders = [];
 $todayReminders = [];
 $upcomingReminders = [];
 
 $today = date("Y-m-d");
-$tomorrow = date("Y-m-d", strtotime("+1 day"));
 
 foreach ($allReminders as $reminder) {
 
@@ -81,7 +79,10 @@ foreach ($allReminders as $reminder) {
     }
 }
 
-// Count upcoming within 24 hours
+// --------------------------------------------------
+// COUNT UPCOMING WITHIN 24 HOURS
+// --------------------------------------------------
+
 $upcomingSoonCount = 0;
 
 foreach ($upcomingReminders as $reminder) {
@@ -96,7 +97,10 @@ foreach ($upcomingReminders as $reminder) {
     }
 }
 
-// Helper functions
+// --------------------------------------------------
+// HELPER FUNCTIONS
+// --------------------------------------------------
+
 function reminderEscape($value) {
     return htmlspecialchars(
         (string)($value ?? ""),
@@ -121,7 +125,10 @@ function reminderStatusClass($status) {
     );
 }
 
-// Display reminder section
+// --------------------------------------------------
+// DISPLAY REMINDER SECTION
+// --------------------------------------------------
+
 function displayReminderSection(
     $title,
     $reminders,
@@ -133,15 +140,10 @@ function displayReminderSection(
 <section class="reminder-section <?= reminderEscape($sectionClass) ?>">
 
     <div class="section-heading">
-
-        <h2 style="color:<?= reminderEscape($color) ?>">
-            <?= reminderEscape($title) ?>
-        </h2>
-
+        <h2><?= reminderEscape($title) ?></h2>
         <span class="section-count">
             <?= count($reminders) ?> reminders
         </span>
-
     </div>
 
     <?php if (!empty($reminders)): ?>
@@ -152,24 +154,13 @@ function displayReminderSection(
 
                 <?php
 
-                $reminderTime = strtotime(
-                    $reminder["next_followup_at"]
-                );
+                $reminderTime = strtotime($reminder["next_followup_at"]);
 
-                $isOverdue = (
-                    $sectionClass === "overdue-section"
-                );
-
-                $isToday = (
-                    $sectionClass === "today-section"
-                );
-
-                $isUpcoming = (
-                    $sectionClass === "upcoming-section"
-                );
+                $isOverdue = ($sectionClass === "overdue-section");
+                $isToday = ($sectionClass === "today-section");
+                $isUpcoming = ($sectionClass === "upcoming-section");
 
                 $priority = $reminder["priority"] ?? "medium";
-
                 $isHighPriority = ($priority === "high");
 
                 $daysOverdue = 0;
@@ -180,7 +171,6 @@ function displayReminderSection(
                     );
                 }
 
-                // Upcoming countdown
                 $daysUntil = 0;
                 $isTomorrow = false;
                 $isWithin24Hours = false;
@@ -209,8 +199,7 @@ function displayReminderSection(
                     );
 
                     $isUrgentUpcoming = (
-                        $isHighPriority &&
-                        $daysUntil <= 3
+                        $isHighPriority && $daysUntil <= 3
                     );
                 }
 
@@ -222,65 +211,49 @@ function displayReminderSection(
                     <?= $isUrgentUpcoming ? "urgent-upcoming-card" : "" ?>
                     <?= $isHighPriority ? "high-priority-card" : "" ?>">
 
-                    <!-- Badges -->
-
                     <div class="card-top">
 
                         <?php if ($isOverdue): ?>
 
                             <span class="overdue-warning">
-
                                 ⚠ OVERDUE
-
                                 <?php if ($daysOverdue > 0): ?>
                                     <?= $daysOverdue ?> day(s) late
                                 <?php else: ?>
                                     Due earlier today
                                 <?php endif; ?>
-
                             </span>
 
                         <?php elseif ($isToday): ?>
 
                             <span class="today-warning">
-                                🟠 FOLLOW UP TODAY
+                                FOLLOW UP TODAY
                             </span>
 
                         <?php elseif ($isUpcoming): ?>
 
                             <?php if ($isWithin24Hours): ?>
-
                                 <span class="soon-warning">
-                                    🔔 UPCOMING SOON
+                                    UPCOMING SOON
                                 </span>
-
                             <?php elseif ($isTomorrow): ?>
-
                                 <span class="tomorrow-warning">
-                                    🟡 DUE TOMORROW
+                                    DUE TOMORROW
                                 </span>
-
                             <?php else: ?>
-
                                 <span class="upcoming-warning">
-                                    📅 DUE IN <?= $daysUntil ?> DAYS
+                                    DUE IN <?= $daysUntil ?> DAYS
                                 </span>
-
                             <?php endif; ?>
 
                         <?php endif; ?>
 
-                        <span class="priority-badge
-                            <?= reminderEscape(reminderPriorityClass($priority)) ?>">
-
+                        <span class="priority-badge <?= reminderEscape(reminderPriorityClass($priority)) ?>">
                             <?= $isHighPriority ? "🔥 " : "" ?>
                             <?= reminderEscape(ucfirst($priority)) ?> Priority
-
                         </span>
 
-                        <span class="status-badge
-                            <?= reminderEscape(reminderStatusClass($reminder["lead_status"])) ?>">
-
+                        <span class="status-badge <?= reminderEscape(reminderStatusClass($reminder["lead_status"])) ?>">
                             <?= reminderEscape(
                                 ucwords(
                                     str_replace(
@@ -290,18 +263,13 @@ function displayReminderSection(
                                     )
                                 )
                             ) ?>
-
                         </span>
 
                     </div>
 
-                    <!-- Customer -->
-
                     <h3>
                         <?= reminderEscape($reminder["customer_name"]) ?>
                     </h3>
-
-                    <!-- Customer Information -->
 
                     <div class="card-info">
 
@@ -338,50 +306,33 @@ function displayReminderSection(
                             ) ?>
                         </p>
 
-                        <!-- Reminder Date -->
-
                         <div class="reminder-date
                             <?= $isOverdue ? "overdue-date" : "" ?>
                             <?= $isToday ? "today-date" : "" ?>
                             <?= $isUpcoming ? "upcoming-date" : "" ?>">
 
-                            <strong>Reminder Date:</strong>
+                            <strong>Reminder Date</strong>
 
                             <div class="date-display">
-
-                                <?= reminderEscape(
-                                    date("d-m-Y", $reminderTime)
-                                ) ?>
-
+                                <?= reminderEscape(date("d-m-Y", $reminderTime)) ?>
                             </div>
 
                             <div class="time-display">
-                                ⏰
-                                <?= reminderEscape(
-                                    date("h:i A", $reminderTime)
-                                ) ?>
+                                <?= reminderEscape(date("h:i A", $reminderTime)) ?>
                             </div>
 
                             <?php if ($isUpcoming): ?>
-
                                 <div class="countdown-text">
 
                                     <?php if ($isWithin24Hours): ?>
-
-                                        🔔 Scheduled within the next 24 hours
-
+                                        Scheduled within the next 24 hours
                                     <?php elseif ($isTomorrow): ?>
-
-                                        🟡 Customer follow-up is tomorrow
-
+                                        Customer follow-up is tomorrow
                                     <?php else: ?>
-
-                                        📅 <?= $daysUntil ?> days remaining
-
+                                        <?= $daysUntil ?> days remaining
                                     <?php endif; ?>
 
                                 </div>
-
                             <?php endif; ?>
 
                         </div>
@@ -402,39 +353,26 @@ function displayReminderSection(
 
                     </div>
 
-                    <!-- Notes -->
-
                     <?php if (!empty($reminder["notes"])): ?>
-
                         <div class="notes-box">
-
                             <strong>Follow-up Notes</strong>
-
-                            <p>
-                                <?= nl2br(
-                                    reminderEscape($reminder["notes"])
-                                ) ?>
-                            </p>
-
+                            <p><?= nl2br(reminderEscape($reminder["notes"])) ?></p>
                         </div>
-
                     <?php endif; ?>
-
-                    <!-- Buttons -->
 
                     <div class="card-actions">
 
-                        <a class="btn btn-blue"
+                        <a class="btn btn-primary"
                            href="view_lead.php?id=<?= (int)$reminder["lead_id"] ?>">
                             View Lead
                         </a>
 
-                        <a class="btn btn-green"
+                        <a class="btn btn-success"
                            href="lead_followups.php?lead_id=<?= (int)$reminder["lead_id"] ?>">
                             Add Follow-up
                         </a>
 
-                        <a class="btn btn-orange"
+                        <a class="btn btn-gold"
                            href="site_visits.php">
                             Site Visits
                         </a>
@@ -467,109 +405,213 @@ function displayReminderSection(
 <head>
 
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>Follow-up Reminders</title>
+    <title>Follow-up Reminders | Admin Panel</title>
 
     <style>
+
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --white: #ffffff;
+            --text: #263449;
+            --muted: #718096;
+            --border: #e5e1d7;
+            --red: #b42318;
+            --orange: #b76e00;
+            --green: #067647;
+        }
 
         * {
             box-sizing: border-box;
         }
 
         body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f9;
-            padding: 20px;
             margin: 0;
-            color: #333;
+            font-family: Arial, sans-serif;
+            background: var(--ivory);
+            color: var(--text);
         }
 
-        .container {
-            max-width: 1400px;
-            margin: auto;
+        /* SIDEBAR */
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 255px;
+            height: 100vh;
+            background: var(--navy);
+            color: var(--white);
+            padding: 25px 15px;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform .3s ease;
         }
 
-        .header {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+        .brand {
+            padding: 5px 12px 25px;
+            border-bottom: 1px solid rgba(255,255,255,.15);
+            margin-bottom: 22px;
         }
 
-        h1 {
-            margin-top: 0;
+        .brand h2 {
+            color: var(--gold-light);
+            margin: 0;
+            font-size: 21px;
+            letter-spacing: .5px;
         }
 
-        .header-description {
-            color: #667085;
+        .brand p {
+            color: #cbd5e1;
+            font-size: 11px;
+            margin: 7px 0 0;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
         }
 
-        .navigation {
+        .sidebar-label {
+            color: #aab7c9;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            padding: 10px 12px;
+            text-transform: uppercase;
+        }
+
+        .sidebar a {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
+            align-items: center;
+            gap: 12px;
+            color: #e6edf6;
+            text-decoration: none;
+            padding: 12px;
+            margin: 4px 0;
+            border-radius: 7px;
+            font-size: 13px;
+            transition: .2s;
         }
 
-        .navigation a {
-            display: inline-block;
-            background: #1f5e9c;
-            color: white;
-            text-decoration: none;
-            padding: 10px 14px;
-            border-radius: 5px;
+        .sidebar a:hover {
+            background: var(--navy-light);
+            color: var(--gold-light);
         }
+
+        .sidebar a.active {
+            background: var(--gold);
+            color: var(--navy);
+            font-weight: bold;
+        }
+
+        .menu-icon {
+            width: 21px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        /* MAIN CONTENT */
+
+        .main-content {
+            margin-left: 255px;
+            padding: 30px;
+            min-height: 100vh;
+        }
+
+        .mobile-menu {
+            display: none;
+            background: var(--navy);
+            color: var(--gold-light);
+            border: 0;
+            padding: 11px 15px;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .page-header {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-top: 4px solid var(--gold);
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 3px 12px rgba(7,27,56,.04);
+        }
+
+        .page-header h1 {
+            margin: 0 0 10px;
+            color: var(--navy);
+            font-size: 27px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            margin: 0;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        /* SUMMARY */
 
         .summary {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 16px;
             margin-bottom: 25px;
         }
 
         .summary-box {
-            background: white;
+            background: var(--white);
             padding: 22px;
             border-radius: 9px;
-            border-top: 5px solid #1f5e9c;
+            border: 1px solid var(--border);
+            border-top: 4px solid var(--gold);
+            box-shadow: 0 3px 12px rgba(7,27,56,.04);
         }
 
         .summary-box.overdue {
-            border-top-color: #dc3545;
+            border-top-color: var(--red);
         }
 
         .summary-box.today {
-            border-top-color: #e69500;
+            border-top-color: var(--orange);
         }
 
         .summary-box.upcoming {
-            border-top-color: #198754;
+            border-top-color: var(--green);
         }
 
         .summary-box.soon {
-            border-top-color: #f0ad4e;
+            border-top-color: var(--gold);
         }
 
         .summary-label {
-            color: #667085;
-            font-size: 14px;
+            color: var(--muted);
+            font-size: 13px;
         }
 
         .summary-number {
             display: block;
+            color: var(--navy);
             font-size: 32px;
             font-weight: bold;
             margin-top: 10px;
         }
 
+        /* REMINDER SECTIONS */
+
         .reminder-section {
-            background: white;
+            background: var(--white);
             padding: 22px;
             border-radius: 10px;
             margin-bottom: 25px;
+            border: 1px solid var(--border);
+            box-shadow: 0 3px 12px rgba(7,27,56,.04);
         }
 
         .section-heading {
@@ -579,19 +621,23 @@ function displayReminderSection(
             flex-wrap: wrap;
             gap: 10px;
             margin-bottom: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 14px;
         }
 
         .section-heading h2 {
+            color: var(--navy);
             margin: 0;
+            font-size: 19px;
         }
 
         .section-count {
-            background: #f1f4f8;
-            padding: 6px 12px;
+            background: #f1eee5;
+            color: var(--navy);
+            padding: 7px 12px;
             border-radius: 20px;
-            font-size: 13px;
+            font-size: 12px;
+            font-weight: bold;
         }
 
         .reminder-grid {
@@ -601,74 +647,75 @@ function displayReminderSection(
         }
 
         .reminder-card {
-            background: #f8fafc;
-            border: 1px solid #e4e7ec;
-            border-left: 5px solid #1f5e9c;
+            background: #fffefa;
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--gold);
             border-radius: 8px;
             padding: 18px;
+            min-width: 0;
         }
 
         .overdue-section .reminder-card {
-            border-left-color: #dc3545;
+            border-left-color: var(--red);
         }
 
         .today-section .reminder-card {
-            border-left-color: #e69500;
+            border-left-color: var(--orange);
         }
 
         .upcoming-section .reminder-card {
-            border-left-color: #198754;
+            border-left-color: var(--green);
         }
 
-        /* Overdue */
+        /* OVERDUE */
 
         .overdue-card {
             background: #fff5f5;
-            border: 2px solid #dc3545;
-            border-left: 8px solid #dc3545;
+            border: 2px solid #dcaca8;
+            border-left: 7px solid var(--red);
         }
 
         .overdue-warning {
-            background: #dc3545;
+            background: var(--red);
             color: white;
             font-weight: bold;
             padding: 7px 10px;
             border-radius: 5px;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .overdue-date {
-            background: #ffe0e0 !important;
+            background: #ffe8e6 !important;
             color: #a40000;
-            padding: 10px;
+            padding: 12px;
             border-radius: 5px;
         }
 
-        /* Today */
+        /* TODAY */
 
         .today-card {
             background: #fffaf0;
-            border: 2px solid #f0ad4e;
-            border-left: 8px solid #e69500;
+            border: 2px solid #e9cb8d;
+            border-left: 7px solid var(--orange);
         }
 
         .today-warning {
-            background: #e69500;
+            background: var(--orange);
             color: white;
             font-weight: bold;
             padding: 7px 10px;
             border-radius: 5px;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .today-date {
             background: #fff0d1 !important;
-            border: 1px solid #f0ad4e;
+            border: 1px solid #e9cb8d;
             padding: 12px;
             border-radius: 6px;
         }
 
-        /* Upcoming */
+        /* UPCOMING */
 
         .upcoming-date {
             background: #eaf8ef;
@@ -678,20 +725,20 @@ function displayReminderSection(
         }
 
         .upcoming-warning {
-            background: #198754;
+            background: var(--green);
             color: white;
             padding: 7px 10px;
             border-radius: 5px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
         }
 
         .soon-warning {
-            background: #f0ad4e;
-            color: #533600;
+            background: var(--gold-light);
+            color: var(--navy);
             padding: 7px 10px;
             border-radius: 5px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
         }
 
@@ -700,47 +747,47 @@ function displayReminderSection(
             color: #805b00;
             padding: 7px 10px;
             border-radius: 5px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
         }
 
         .urgent-upcoming-card {
             background: #fffaf0;
-            border: 2px solid #f0ad4e;
-            border-left: 8px solid #e69500;
-            box-shadow: 0 3px 12px rgba(230, 149, 0, 0.12);
+            border: 2px solid var(--gold);
+            border-left: 7px solid var(--gold);
+            box-shadow: 0 3px 12px rgba(214,166,59,.12);
         }
 
         .urgent-upcoming-card h3 {
-            color: #b76e00;
+            color: var(--navy);
         }
 
         .countdown-text {
             margin-top: 10px;
             font-weight: bold;
-            color: #216e39;
-            font-size: 13px;
+            color: var(--green);
+            font-size: 12px;
         }
 
-        /* Priority */
+        /* PRIORITY */
 
         .high-priority-card {
-            box-shadow: 0 3px 12px rgba(220, 53, 69, 0.12);
+            box-shadow: 0 3px 12px rgba(180,35,24,.10);
         }
 
         .overdue-card.high-priority-card {
             border: 3px solid #b42318;
-            border-left: 10px solid #b42318;
+            border-left: 9px solid #b42318;
             background: #ffeded;
         }
 
         .today-card.high-priority-card {
-            border: 3px solid #e69500;
-            border-left: 10px solid #e69500;
+            border: 3px solid var(--gold);
+            border-left: 9px solid var(--gold);
             background: #fff4dd;
         }
 
-        /* Badges */
+        /* BADGES */
 
         .card-top {
             display: flex;
@@ -755,7 +802,7 @@ function displayReminderSection(
             display: inline-block;
             padding: 5px 9px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
         }
 
@@ -773,8 +820,6 @@ function displayReminderSection(
             background: #d1fadf;
             color: #067647;
         }
-
-        /* Status */
 
         .status-new {
             background: #e9eef5;
@@ -811,19 +856,24 @@ function displayReminderSection(
             color: #b42318;
         }
 
-        /* Customer Information */
+        /* CUSTOMER INFORMATION */
 
         .reminder-card h3 {
-            margin-top: 12px;
+            margin-top: 15px;
             margin-bottom: 15px;
             font-size: 19px;
+            color: var(--navy);
         }
 
         .card-info p {
             margin: 9px 0;
-            font-size: 14px;
-            line-height: 1.5;
+            font-size: 13px;
+            line-height: 1.6;
             overflow-wrap: anywhere;
+        }
+
+        .card-info strong {
+            color: var(--navy);
         }
 
         .date-display {
@@ -835,27 +885,33 @@ function displayReminderSection(
         .time-display {
             font-size: 20px;
             font-weight: bold;
-            color: #b76e00;
+            color: var(--navy);
             margin-top: 7px;
         }
 
-        /* Notes */
+        /* NOTES */
 
         .notes-box {
-            background: white;
+            background: #f7f5ef;
             padding: 12px;
             border-radius: 6px;
             margin-top: 15px;
-            border: 1px solid #e4e7ec;
+            border: 1px solid var(--border);
+            overflow-wrap: anywhere;
+        }
+
+        .notes-box strong {
+            color: var(--navy);
         }
 
         .notes-box p {
             margin-bottom: 0;
             margin-top: 8px;
-            line-height: 1.5;
+            line-height: 1.6;
+            font-size: 13px;
         }
 
-        /* Buttons */
+        /* BUTTONS */
 
         .card-actions {
             display: flex;
@@ -868,54 +924,111 @@ function displayReminderSection(
             display: inline-block;
             text-decoration: none;
             color: white;
-            padding: 9px 11px;
+            padding: 10px 12px;
             border-radius: 5px;
-            font-size: 13px;
+            font-size: 12px;
+            font-weight: bold;
+            transition: .2s;
         }
 
-        .btn-blue {
-            background: #1f5e9c;
+        .btn-primary {
+            background: var(--navy);
         }
 
-        .btn-green {
-            background: #218653;
+        .btn-success {
+            background: var(--green);
         }
 
-        .btn-orange {
-            background: #b76e00;
+        .btn-gold {
+            background: var(--gold);
+            color: var(--navy);
         }
 
         .btn:hover {
-            opacity: 0.85;
+            opacity: .85;
+            transform: translateY(-1px);
         }
 
-        /* Empty */
+        /* EMPTY STATE */
 
         .empty-box {
-            background: #f8fafc;
-            border: 1px dashed #d0d5dd;
+            background: #faf9f5;
+            border: 1px dashed #d0c9b8;
             border-radius: 7px;
             padding: 25px;
             text-align: center;
-            color: #667085;
+            color: var(--muted);
         }
 
-        /* Mobile */
+        /* RESPONSIVE */
+
+        @media (max-width: 900px) {
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 18px;
+            }
+
+            .mobile-menu {
+                display: inline-block;
+            }
+
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,.45);
+                z-index: 999;
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
+        }
 
         @media (max-width: 600px) {
 
-            body {
-                padding: 10px;
+            .main-content {
+                padding: 12px;
             }
 
-            .header,
+            .page-header,
             .reminder-section {
-                padding: 15px;
+                padding: 16px;
+            }
+
+            .page-header h1 {
+                font-size: 22px;
+            }
+
+            .reminder-grid {
+                grid-template-columns: 1fr;
             }
 
             .card-actions .btn {
                 flex: 1;
                 text-align: center;
+            }
+
+            .summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .summary-box {
+                padding: 15px;
+            }
+
+            .summary-number {
+                font-size: 26px;
             }
         }
 
@@ -925,32 +1038,103 @@ function displayReminderSection(
 
 <body>
 
-<div class="container">
+<!-- SIDEBAR -->
 
-    <!-- Header -->
+<aside class="sidebar" id="sidebar">
 
-    <div class="header">
+    <div class="brand">
+        <h2>OLIVERA</h2>
+        <p>Home Developers</p>
+    </div>
+
+    <div class="sidebar-label">Main Menu</div>
+
+    <a href="dashboard.php">
+        <span class="menu-icon">⌂</span>
+        Dashboard
+    </a>
+
+    <?php if (hasPermission("manage_users")): ?>
+        <a href="property_enquiries.php">
+            <span class="menu-icon">⌕</span>
+            Property Enquiries
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_admins")): ?>
+        <a href="manage_admins.php">
+            <span class="menu-icon">♙</span>
+            Manage Admin
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_admins")): ?>
+        <a href="activity_log.php">
+            <span class="menu-icon">◷</span>
+            Activity Log
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_leads")): ?>
+        <a href="manage_leads.php">
+            <span class="menu-icon">♧</span>
+            Manage Leads
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_partnerships")): ?>
+        <a href="manage_partnerships.php">
+            <span class="menu-icon">♢</span>
+            Manage Partnerships
+        </a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_followups")): ?>
+        <a href="lead_followups.php">
+            <span class="menu-icon">☷</span>
+            Lead Follow-ups
+        </a>
+
+        <a href="followup_reminders.php" class="active">
+            <span class="menu-icon">◷</span>
+            Follow-up Reminders
+        </a>
+    <?php endif; ?>
+
+    <a href="site_visits.php">
+        <span class="menu-icon">⌖</span>
+        Site Visits
+    </a>
+
+    <a href="crm_reports.php">
+        <span class="menu-icon">▥</span>
+        CRM Reports
+    </a>
+
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- MAIN CONTENT -->
+
+<main class="main-content">
+
+    <button class="mobile-menu" id="mobileMenu" type="button">
+        ☰ Menu
+    </button>
+
+    <div class="page-header">
 
         <h1>Follow-up Reminders</h1>
 
-        <p class="header-description">
+        <p>
             Track overdue, today's and upcoming customer follow-ups.
             Prepare in advance and prioritize important customers.
         </p>
 
-        <div class="navigation">
-
-            <a href="dashboard.php">Dashboard</a>
-            <a href="manage_leads.php">Manage Leads</a>
-            <a href="lead_followups.php">Lead Follow-ups</a>
-            <a href="site_visits.php">Site Visits</a>
-            <a href="crm_reports.php">CRM Reports</a>
-
-        </div>
-
     </div>
 
-    <!-- Summary -->
+    <!-- SUMMARY -->
 
     <div class="summary">
 
@@ -984,40 +1168,58 @@ function displayReminderSection(
 
     </div>
 
-    <!-- Overdue -->
+    <!-- OVERDUE -->
 
     <?php
     displayReminderSection(
         "Overdue Follow-ups",
         $overdueReminders,
-        "#dc3545",
+        "#b42318",
         "overdue-section"
     );
     ?>
 
-    <!-- Today -->
+    <!-- TODAY -->
 
     <?php
     displayReminderSection(
         "Today's Follow-ups",
         $todayReminders,
-        "#e69500",
+        "#b76e00",
         "today-section"
     );
     ?>
 
-    <!-- Upcoming -->
+    <!-- UPCOMING -->
 
     <?php
     displayReminderSection(
         "Upcoming Follow-ups",
         $upcomingReminders,
-        "#198754",
+        "#067647",
         "upcoming-section"
     );
     ?>
 
-</div>
+</main>
+
+<script>
+
+    const sidebar = document.getElementById("sidebar");
+    const mobileMenu = document.getElementById("mobileMenu");
+    const sidebarOverlay = document.getElementById("sidebarOverlay");
+
+    mobileMenu.addEventListener("click", function () {
+        sidebar.classList.toggle("open");
+        sidebarOverlay.classList.toggle("show");
+    });
+
+    sidebarOverlay.addEventListener("click", function () {
+        sidebar.classList.remove("open");
+        sidebarOverlay.classList.remove("show");
+    });
+
+</script>
 
 </body>
 </html>

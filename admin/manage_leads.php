@@ -1,9 +1,9 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
-require_once "../includes/lead_activity_logger.php";
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../includes/lead_activity_logger.php";
 
 $message = "";
 $messageType = "success";
@@ -14,15 +14,22 @@ $currentRole = $_SESSION["admin_role"] ?? "";
 $canManageLeads = hasPermission("manage_leads");
 $canAssignLeads = ($currentRole === "super_admin");
 $canViewAllLeads = hasPermission("view_all_leads");
-
+$canViewAssignedLeads = hasPermission("view_assigned_leads");
 $isSalesEmployee = ($currentRole === "sales_employee");
 
-if (!$canManageLeads && !$canViewAllLeads && !hasPermission("view_assigned_leads")) {
+// --------------------------------------------------
+// ACCESS CONTROL
+// --------------------------------------------------
+
+if (!$canManageLeads && !$canViewAllLeads && !$canViewAssignedLeads) {
     http_response_code(403);
     exit("Access Denied! You do not have permission to view leads.");
 }
 
-// Create CSRF token
+// --------------------------------------------------
+// CSRF TOKEN
+// --------------------------------------------------
+
 if (
     !isset($_SESSION["csrf_token"]) ||
     !is_string($_SESSION["csrf_token"]) ||
@@ -33,7 +40,10 @@ if (
 
 $csrfToken = $_SESSION["csrf_token"];
 
-// Display flash message
+// --------------------------------------------------
+// FLASH MESSAGE
+// --------------------------------------------------
+
 if (isset($_SESSION["user_message"])) {
     $message = $_SESSION["user_message"];
     $messageType = $_SESSION["user_message_type"] ?? "success";
@@ -41,14 +51,16 @@ if (isset($_SESSION["user_message"])) {
     unset($_SESSION["user_message"], $_SESSION["user_message_type"]);
 }
 
-// Lead priority options
+// --------------------------------------------------
+// OPTIONS
+// --------------------------------------------------
+
 $priorities = [
     "high" => "High",
     "medium" => "Medium",
     "low" => "Low"
 ];
 
-// Lead status options
 $statuses = [
     "new" => "New",
     "contacted" => "Contacted",
@@ -59,7 +71,6 @@ $statuses = [
     "lost" => "Lost"
 ];
 
-// Property types
 $propertyTypes = [
     "Plot",
     "Apartment",
@@ -69,7 +80,6 @@ $propertyTypes = [
     "Other"
 ];
 
-// Lead sources
 $leadSources = [
     "Manual Entry",
     "Website",
@@ -91,7 +101,10 @@ $leadSources = [
     "Other"
 ];
 
-// Active Sales Employees
+// --------------------------------------------------
+// ACTIVE SALES EMPLOYEES
+// --------------------------------------------------
+
 $stmt = $pdo->query("
     SELECT id, name
     FROM admins
@@ -102,7 +115,17 @@ $stmt = $pdo->query("
 
 $salesEmployees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-function manageLeadsRedirect() {
+// --------------------------------------------------
+// HELPER FUNCTIONS
+// --------------------------------------------------
+
+function manageLeadsEscape($value): string
+{
+    return htmlspecialchars((string)($value ?? ""), ENT_QUOTES, "UTF-8");
+}
+
+function manageLeadsRedirect(): void
+{
     header("Location: manage_leads.php");
     exit;
 }
@@ -115,7 +138,7 @@ function manageLeadsLog(
     $description,
     $oldValue = null,
     $newValue = null
-) {
+): void {
     logLeadActivity(
         $pdo,
         $leadId,
@@ -127,19 +150,31 @@ function manageLeadsLog(
     );
 }
 
+function manageLeadsPriorityClass($priority): string
+{
+    return match ($priority) {
+        "high" => "priority-high",
+        "low" => "priority-low",
+        default => "priority-medium"
+    };
+}
+
+function manageLeadsStatusClass($status): string
+{
+    return "status-" . preg_replace("/[^a-z0-9_-]/i", "", (string)$status);
+}
+
 // --------------------------------------------------
 // POST ACTIONS
 // --------------------------------------------------
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    // Strict CSRF validation
     if (
         !is_string($csrfToken) ||
         !is_string($_POST["csrf_token"] ?? null) ||
         !hash_equals($csrfToken, $_POST["csrf_token"])
     ) {
-
         $message = "Invalid security token. Please try again.";
         $messageType = "error";
 
@@ -190,6 +225,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             ) {
 
                 $message = "Minimum budget cannot be greater than maximum budget.";
+                $messageType = "error";
+
+            } elseif (!in_array($leadSource, $leadSources, true)) {
+
+                $message = "Invalid lead source selected.";
+                $messageType = "error";
+
+            } elseif (
+                $propertyType !== "" &&
+                !in_array($propertyType, $propertyTypes, true)
+            ) {
+
+                $message = "Invalid property type selected.";
                 $messageType = "error";
 
             } else {
@@ -262,6 +310,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 SELECT id, assigned_to, customer_name
                 FROM leads
                 WHERE id = ?
+                LIMIT 1
             ");
 
             $stmt->execute([$leadId]);
@@ -310,21 +359,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $newName = "Unassigned";
 
                         if ($oldAssigned !== null) {
-
                             $n = $pdo->prepare("
                                 SELECT name FROM admins WHERE id = ?
                             ");
-
                             $n->execute([$oldAssigned]);
                             $oldName = $n->fetchColumn() ?: "Unknown";
                         }
 
                         if ($assignedTo !== null) {
-
                             $n = $pdo->prepare("
                                 SELECT name FROM admins WHERE id = ?
                             ");
-
                             $n->execute([$assignedTo]);
                             $newName = $n->fetchColumn() ?: "Unknown";
                         }
@@ -346,7 +391,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         manageLeadsRedirect();
 
                     } else {
-
                         $message = "Assignment is unchanged.";
                     }
                 }
@@ -378,7 +422,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     $pdo->beginTransaction();
 
-                    // Lock the lead row before changing its status.
                     $stmt = $pdo->prepare("
                         SELECT
                             id,
@@ -395,13 +438,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $stmt->execute([$leadId]);
                     $lead = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                    if (
-                        !$lead ||
-                        (
-                            $isSalesEmployee &&
-                            (int)$lead["assigned_to"] !== $adminId
-                        )
-                    ) {
+                    $canUpdateThisLead = $lead && (
+                        $canManageLeads ||
+                        $canViewAllLeads ||
+                        (int)($lead["assigned_to"] ?? 0) === $adminId
+                    );
+
+                    if (!$canUpdateThisLead) {
 
                         $pdo->rollBack();
 
@@ -414,7 +457,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         if ($oldStatus !== $newStatus) {
 
-                            // Update CRM lead status.
                             $updateLead = $pdo->prepare("
                                 UPDATE leads
                                 SET lead_status = ?
@@ -426,7 +468,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 $leadId
                             ]);
 
-                            // Update linked property enquiry, if one exists.
                             if (!empty($lead["property_enquiry_id"])) {
 
                                 $updateEnquiry = $pdo->prepare("
@@ -441,7 +482,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 ]);
                             }
 
-                            // Record the status change in CRM activity.
                             manageLeadsLog(
                                 $pdo,
                                 $leadId,
@@ -454,7 +494,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 $newStatus
                             );
 
-                            // Commit both status updates together.
                             $pdo->commit();
 
                             $_SESSION["user_message"] =
@@ -469,7 +508,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             $pdo->commit();
 
                             $message = "Lead status is unchanged.";
-                            $messageType = "success";
                         }
                     }
 
@@ -546,6 +584,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $_SESSION["user_message_type"] = "success";
 
                     manageLeadsRedirect();
+
+                } else {
+                    $message = "Lead priority is unchanged.";
                 }
             }
         }
@@ -568,19 +609,13 @@ $priorityFilter = trim($_GET["priority"] ?? "");
 $where = [];
 $params = [];
 
-if ($isSalesEmployee) {
-
-    $where[] = "l.assigned_to = ?";
-    $params[] = $adminId;
-
-} elseif (!$canViewAllLeads && !$canManageLeads) {
-
+// Restrict assigned-only users to their own leads.
+if (!$canManageLeads && !$canViewAllLeads) {
     $where[] = "l.assigned_to = ?";
     $params[] = $adminId;
 }
 
 if ($search !== "") {
-
     $where[] = "
         (
             l.customer_name LIKE ?
@@ -596,48 +631,46 @@ if ($search !== "") {
 }
 
 if ($statusFilter !== "" && isset($statuses[$statusFilter])) {
-
     $where[] = "l.lead_status = ?";
     $params[] = $statusFilter;
 }
 
-if ($propertyFilter !== "") {
-
+if (
+    $propertyFilter !== "" &&
+    in_array($propertyFilter, $propertyTypes, true)
+) {
     $where[] = "l.property_type = ?";
     $params[] = $propertyFilter;
 }
 
-if ($sourceFilter !== "") {
-
+if (
+    $sourceFilter !== "" &&
+    in_array($sourceFilter, $leadSources, true)
+) {
     $where[] = "l.lead_source = ?";
     $params[] = $sourceFilter;
 }
 
 if ($locationFilter !== "") {
-
     $where[] = "l.interested_location LIKE ?";
     $params[] = "%" . $locationFilter . "%";
 }
 
 if ($priorityFilter !== "" && isset($priorities[$priorityFilter])) {
-
     $where[] = "l.priority = ?";
     $params[] = $priorityFilter;
 }
 
 if ($canAssignLeads && $employeeFilter !== "") {
-
     $where[] = "l.assigned_to = ?";
     $params[] = (int)$employeeFilter;
 }
 
 if ($canAssignLeads && $assignedFilter === "unassigned") {
-
     $where[] = "l.assigned_to IS NULL";
 }
 
 if ($canAssignLeads && $assignedFilter === "assigned") {
-
     $where[] = "l.assigned_to IS NOT NULL";
 }
 
@@ -713,25 +746,7 @@ $stmt->execute($params);
 
 $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// --------------------------------------------------
-// HELPER FUNCTIONS
-// --------------------------------------------------
-
-function h($value) {
-    return htmlspecialchars((string)$value, ENT_QUOTES, "UTF-8");
-}
-
-function priorityBadgeClass($priority) {
-
-    return match ($priority) {
-        "high" => "priority-high",
-        "low" => "priority-low",
-        default => "priority-medium"
-    };
-}
-
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -743,20 +758,19 @@ function priorityBadgeClass($priority) {
 <title>Manage Leads | Olivera Home Developers</title>
 
 <style>
-
 :root {
-    --primary: #315f91;
-    --primary-dark: #244a73;
-    --primary-light: #eaf1f8;
-    --background: #f5f7fa;
-    --surface: #ffffff;
-    --text: #263445;
-    --muted: #758397;
-    --border: #e4eaf1;
+    --navy: #071b38;
+    --navy-light: #102b50;
+    --gold: #d6a63b;
+    --gold-light: #edca76;
+    --ivory: #f7f5ef;
+    --white: #ffffff;
+    --text: #263449;
+    --muted: #718096;
+    --border: #e5e7eb;
     --success: #25845b;
     --danger: #c45151;
     --warning: #b77a28;
-    --shadow: 0 3px 14px rgba(30, 48, 70, 0.055);
 }
 
 * {
@@ -764,38 +778,120 @@ function priorityBadgeClass($priority) {
 }
 
 body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: var(--background);
     margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--ivory);
     color: var(--text);
-    padding: 28px;
     line-height: 1.5;
 }
 
-main {
-    max-width: 1550px;
-    margin: 0 auto;
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
 }
 
-a {
+/* SIDEBAR */
+
+.sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--navy);
+    color: var(--white);
+    min-height: 100vh;
+    padding: 25px 16px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.sidebar-brand {
+    padding: 5px 12px 25px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    margin-bottom: 22px;
+}
+
+.sidebar-brand h2 {
+    margin: 0;
+    color: var(--gold-light);
+    font-size: 21px;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-brand p {
+    color: #cbd5e1;
+    font-size: 11px;
+    margin: 7px 0 0;
+    letter-spacing: 1.2px;
+}
+
+.sidebar-section {
+    color: var(--gold-light);
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    padding: 15px 12px 8px;
+    text-transform: uppercase;
+}
+
+.sidebar a {
+    display: block;
+    color: #e2e8f0;
+    text-decoration: none;
+    padding: 12px 13px;
+    margin: 4px 0;
+    border-radius: 7px;
+    font-size: 13px;
     transition: 0.2s ease;
+}
+
+.sidebar a:hover {
+    background: var(--navy-light);
+    color: var(--gold-light);
+}
+
+.sidebar a.active {
+    background: var(--gold);
+    color: var(--navy);
+    font-weight: bold;
+}
+
+.sidebar-footer {
+    margin-top: 30px;
+    padding: 15px 12px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* MAIN CONTENT */
+
+.main-content {
+    margin-left: 260px;
+    width: calc(100% - 260px);
+    padding: 30px;
+}
+
+.mobile-header {
+    display: none;
 }
 
 .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 15px;
     flex-wrap: wrap;
-    margin-bottom: 22px;
+    gap: 15px;
+    margin-bottom: 24px;
 }
 
 .page-header h1 {
+    color: var(--navy);
     font-size: 27px;
-    margin: 0 0 5px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    color: #25384e;
+    margin: 0 0 7px;
 }
 
 .page-subtitle {
@@ -804,15 +900,21 @@ a {
     margin: 0;
 }
 
-.top-links,
-.actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 9px;
+.admin-user {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 16px;
+    color: var(--navy);
+    font-size: 13px;
+    font-weight: bold;
 }
 
 .top-links {
-    margin-bottom: 23px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-bottom: 22px;
 }
 
 .top-links a,
@@ -820,39 +922,37 @@ a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
     padding: 10px 15px;
     border-radius: 7px;
-    background: var(--primary);
-    color: #fff;
+    background: var(--navy);
+    color: var(--white);
     text-decoration: none;
     border: 1px solid transparent;
     cursor: pointer;
     font-size: 13px;
     font-weight: 600;
-    transition: background 0.2s ease, transform 0.2s ease;
+    transition: 0.2s ease;
 }
 
 .top-links a:hover,
 .btn:hover {
-    background: var(--primary-dark);
+    background: var(--navy-light);
     transform: translateY(-1px);
 }
 
 .panel {
-    background: var(--surface);
+    background: var(--white);
     padding: 23px;
     border: 1px solid var(--border);
     border-radius: 11px;
     margin-bottom: 21px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 18px rgba(7, 27, 56, 0.04);
 }
 
 .panel h2 {
     font-size: 17px;
-    color: #2d4056;
+    color: var(--navy);
     margin: 0 0 19px;
-    font-weight: 700;
 }
 
 .panel-heading {
@@ -899,7 +999,6 @@ td select {
     font-family: inherit;
     font-size: 13px;
     outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .filters input:focus,
@@ -908,8 +1007,8 @@ td select {
 .form-grid select:focus,
 .form-grid textarea:focus,
 td select:focus {
-    border-color: #7399bf;
-    box-shadow: 0 0 0 3px rgba(49, 95, 145, 0.09);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(214,166,59,0.12);
 }
 
 .form-grid textarea {
@@ -917,12 +1016,19 @@ td select:focus {
     min-height: 43px;
 }
 
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+    gap: 16px;
+    align-items: end;
+}
+
 .btn-secondary {
-    background: #68788b;
+    background: #64748b;
 }
 
 .btn-secondary:hover {
-    background: #526174;
+    background: #475569;
 }
 
 .btn-green {
@@ -937,23 +1043,8 @@ td select:focus {
     background: #bd5555;
 }
 
-.btn-red:hover {
-    background: #a44040;
-}
-
 .btn-orange {
     background: #b77a28;
-}
-
-.btn-orange:hover {
-    background: #98621d;
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
-    gap: 16px;
-    align-items: end;
 }
 
 .notice {
@@ -987,19 +1078,13 @@ td select:focus {
     border: 1px solid var(--border);
     border-radius: 9px;
     padding: 17px;
-    background: #fcfdff;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.work-card:hover {
-    border-color: #cbd8e6;
-    box-shadow: 0 4px 12px rgba(30, 48, 70, 0.05);
+    background: #fcfaf5;
 }
 
 .work-card h3 {
     margin: 0 0 11px;
     font-size: 15px;
-    color: #344c67;
+    color: var(--navy);
 }
 
 .work-card p {
@@ -1011,10 +1096,6 @@ td select:focus {
 
 .work-card strong {
     color: #33465c;
-}
-
-.muted {
-    color: var(--muted);
 }
 
 .badge {
@@ -1103,8 +1184,8 @@ td {
 }
 
 th {
-    background: #f5f7fa;
-    color: #56677b;
+    background: var(--navy);
+    color: var(--white);
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -1122,7 +1203,7 @@ tbody tr:last-child td {
 }
 
 tbody tr:hover {
-    background: #fafbfd;
+    background: #fcfaf5;
 }
 
 td strong {
@@ -1153,7 +1234,8 @@ td select {
     flex-wrap: wrap;
 }
 
-.lead-actions a {
+.lead-actions a,
+.lead-actions button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1161,38 +1243,27 @@ td select {
     border-radius: 6px;
     text-decoration: none;
     color: #fff;
-    background: var(--primary);
+    background: var(--navy);
+    border: none;
     font-size: 11px;
     font-weight: 600;
+    cursor: pointer;
 }
 
-.lead-actions a:hover {
-    background: var(--primary-dark);
+.lead-actions a:hover,
+.lead-actions button:hover {
+    background: var(--navy-light);
 }
 
 .lead-actions a.edit {
     background: #68788b;
 }
 
-.lead-actions a.edit:hover {
-    background: #526174;
-}
-
-.lead-actions a.delete,
-.lead-actions .delete-button {
+.lead-actions button.delete-button {
     background: #bd5555;
-    color: #fff;
-    border: none;
-    padding: 7px 9px;
-    border-radius: 6px;
-    text-decoration: none;
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: 600;
 }
 
-.lead-actions a.delete:hover,
-.lead-actions .delete-button:hover {
+.lead-actions button.delete-button:hover {
     background: #a44040;
 }
 
@@ -1203,10 +1274,6 @@ td select {
     font-size: 13px;
 }
 
-.small {
-    font-size: 12px;
-}
-
 .table-count {
     display: inline-flex;
     align-items: center;
@@ -1215,8 +1282,8 @@ td select {
     height: 25px;
     padding: 0 8px;
     border-radius: 20px;
-    background: var(--primary-light);
-    color: var(--primary);
+    background: #fdf6e5;
+    color: #795a17;
     font-size: 12px;
     font-weight: 700;
     margin-left: 5px;
@@ -1226,62 +1293,79 @@ td select {
     margin: 0;
 }
 
-@media (max-width: 900px) {
+.sidebar-overlay {
+    display: none;
+}
 
-    body {
-        padding: 20px;
+@media (max-width: 900px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
     }
 
-    .panel {
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 999;
+    }
+
+    .main-content {
+        margin-left: 0;
+        width: 100%;
         padding: 18px;
     }
 
+    .mobile-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: var(--navy);
+        color: var(--white);
+        padding: 14px 18px;
+        margin: -18px -18px 22px;
+    }
+
+    .menu-button {
+        border: none;
+        background: var(--gold);
+        color: var(--navy);
+        padding: 9px 12px;
+        border-radius: 5px;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    .mobile-header strong {
+        color: var(--gold-light);
+        font-size: 15px;
+    }
+
     .page-header h1 {
-        font-size: 24px;
+        font-size: 23px;
     }
 }
 
 @media (max-width: 600px) {
-
-    body {
+    .main-content {
         padding: 13px;
     }
 
-    .page-header {
-        align-items: flex-start;
-    }
-
-    .page-header h1 {
-        font-size: 22px;
-    }
-
-    .top-links {
-        gap: 7px;
-    }
-
-    .top-links a,
-    .btn {
-        padding: 9px 11px;
-        font-size: 12px;
+    .mobile-header {
+        margin: -13px -13px 20px;
     }
 
     .panel {
         padding: 15px;
-        border-radius: 9px;
     }
 
-    .panel h2 {
-        font-size: 16px;
-    }
-
-    .filters {
-        grid-template-columns: 1fr;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
+    .filters,
+    .form-grid,
     .workload-grid {
         grid-template-columns: 1fr;
     }
@@ -1302,803 +1386,799 @@ td select {
     .export-form button {
         width: 100%;
     }
-}
 
+    .top-links a {
+        padding: 9px 11px;
+        font-size: 12px;
+    }
+}
 </style>
 
 </head>
 
 <body>
 
-<main>
+<div class="admin-layout">
 
-<div class="page-header">
+<!-- SIDEBAR -->
 
-    <div>
-        <h1>Manage Leads</h1>
-        <p class="page-subtitle">
-            Manage customer enquiries, sales assignments and CRM activities.
-        </p>
+<aside class="sidebar" id="adminSidebar">
+
+    <div class="sidebar-brand">
+        <h2>OLIVERA</h2>
+        <p>HOME DEVELOPERS</p>
     </div>
 
-</div>
-
-<div class="top-links">
+    <div class="sidebar-section">Main Menu</div>
 
     <a href="dashboard.php">Dashboard</a>
-    <a href="lead_followups.php">Lead Follow-ups</a>
-    <a href="site_visits.php">Site Visits</a>
-    <a href="crm_reports.php">CRM Reports</a>
 
-    <?php if ($canAssignLeads): ?>
+    <?php if (hasPermission("manage_users")): ?>
+        <a href="property_enquiries.php">Property Enquiries</a>
+    <?php endif; ?>
 
+    <?php if (hasPermission("manage_admins")): ?>
+        <a href="manage_admins.php">Manage Admin</a>
+        <a href="activity_logs.php">Activity Log</a>
+    <?php endif; ?>
+
+    <?php if ($canManageLeads || $canViewAllLeads || $canViewAssignedLeads): ?>
+        <a href="manage_leads.php" class="active">Manage Leads</a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_partnerships")): ?>
+        <a href="manage_partnerships.php">Manage Partnerships</a>
+    <?php endif; ?>
+
+    <?php if (hasPermission("manage_followups")): ?>
+        <a href="lead_followups.php">Lead Follow-ups</a>
         <a href="followup_reminders.php">Follow-up Reminders</a>
-
     <?php endif; ?>
 
-</div>
-
-<?php if ($message !== ""): ?>
-
-    <div class="notice <?php echo h($messageType); ?>">
-        <?php echo h($message); ?>
-    </div>
-
-<?php endif; ?>
-
-<?php if ($canManageLeads): ?>
-
-<section class="panel">
-
-<h2>Add New Lead</h2>
-
-<form method="post" class="form-grid">
-
-    <input
-        type="hidden"
-        name="csrf_token"
-        value="<?php echo h($csrfToken); ?>"
-    >
-
-    <input
-        type="hidden"
-        name="action"
-        value="add_lead"
-    >
-
-    <label>
-        Customer Name *
-
-        <input name="customer_name" required>
-    </label>
-
-    <label>
-        Phone *
-
-        <input name="phone" required>
-    </label>
-
-    <label>
-        Email
-
-        <input type="email" name="email">
-    </label>
-
-    <label>
-        Property Type
-
-        <select name="property_type">
-
-            <option value="">Select</option>
-
-            <?php foreach ($propertyTypes as $type): ?>
-
-                <option value="<?php echo h($type); ?>">
-                    <?php echo h($type); ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </label>
-
-    <label>
-        Interested Location
-
-        <input name="interested_location">
-    </label>
-
-    <label>
-        Minimum Budget
-
-        <input
-            type="number"
-            name="budget_min"
-            min="0"
-            step="0.01"
-        >
-    </label>
-
-    <label>
-        Maximum Budget
-
-        <input
-            type="number"
-            name="budget_max"
-            min="0"
-            step="0.01"
-        >
-    </label>
-
-    <label>
-        Lead Source
-
-        <select name="lead_source">
-
-            <?php foreach ($leadSources as $source): ?>
-
-                <option
-                    value="<?php echo h($source); ?>"
-                    <?php echo $source === "Manual Entry" ? "selected" : ""; ?>
-                >
-                    <?php echo h($source); ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </label>
-
-    <label>
-        Message
-
-        <textarea name="message" rows="2"></textarea>
-    </label>
-
-    <div>
-
-        <button class="btn btn-green" type="submit">
-            Add Lead
-        </button>
-
-    </div>
-
-</form>
-
-</section>
-
-<?php endif; ?>
-
-<?php if ($canAssignLeads): ?>
-
-<section class="panel">
-
-<h2>Sales Employee Workload Summary</h2>
-
-<div class="workload-grid">
-
-<?php foreach ($workload as $employee): ?>
-
-    <?php
-
-    $total = (int)$employee["total_leads"];
-
-    $level = $total <= 5
-        ? "Low"
-        : ($total <= 10 ? "Medium" : "High");
-
-    ?>
-
-    <div class="work-card">
-
-        <h3><?php echo h($employee["name"]); ?></h3>
-
-        <p>
-
-            <strong>Total Assigned Leads:</strong>
-
-            <?php echo $total; ?>
-
-            <span class="badge">
-                <?php echo h($level); ?> Workload
-            </span>
-
-        </p>
-
-        <p>
-
-            New: <?php echo (int)$employee["new_count"]; ?> |
-
-            Contacted: <?php echo (int)$employee["contacted_count"]; ?> |
-
-            Interested: <?php echo (int)$employee["interested_count"]; ?> |
-
-            Converted: <?php echo (int)$employee["converted_count"]; ?>
-
-        </p>
-
-        <a
-            href="manage_leads.php?assigned_employee=<?php echo (int)$employee["id"]; ?>"
-            class="btn btn-secondary"
-        >
-            View Leads
-        </a>
-
-    </div>
-
-<?php endforeach; ?>
-
-<div class="work-card">
-
-    <h3>Unassigned Leads</h3>
-
-    <p>
-
-        <strong><?php echo $unassignedCount; ?></strong>
-
-        leads need assignment.
-
-    </p>
-
-    <a
-        class="btn btn-orange"
-        href="manage_leads.php?assigned_filter=unassigned"
-    >
-        View Unassigned
-    </a>
-
-</div>
-
-</div>
-
-</section>
-
-<?php endif; ?>
-
-<section class="panel">
-
-<h2>Search &amp; Filter Leads</h2>
-
-<form method="get" class="filters">
-
-    <label>
-        Search
-
-        <input
-            type="text"
-            name="search"
-            value="<?php echo h($search); ?>"
-            placeholder="Name, phone, email, location"
-        >
-    </label>
-
-    <label>
-        Lead Status
-
-        <select name="status">
-
-            <option value="">All Statuses</option>
-
-            <?php foreach ($statuses as $key => $label): ?>
-
-                <option
-                    value="<?php echo h($key); ?>"
-                    <?php echo $statusFilter === $key ? "selected" : ""; ?>
-                >
-                    <?php echo h($label); ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </label>
-
-    <label>
-        Property Type
-
-        <select name="property_type">
-
-            <option value="">All Property Types</option>
-
-            <?php foreach ($propertyTypes as $type): ?>
-
-                <option
-                    value="<?php echo h($type); ?>"
-                    <?php echo $propertyFilter === $type ? "selected" : ""; ?>
-                >
-                    <?php echo h($type); ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </label>
-
-    <label>
-        Lead Source
-
-        <select name="lead_source">
-
-            <option value="">All Sources</option>
-
-            <?php foreach ($leadSources as $source): ?>
-
-                <option
-                    value="<?php echo h($source); ?>"
-                    <?php echo $sourceFilter === $source ? "selected" : ""; ?>
-                >
-                    <?php echo h($source); ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </label>
-
-    <label>
-        Interested Location
-
-        <input
-            name="location"
-            value="<?php echo h($locationFilter); ?>"
-            placeholder="Filter location"
-        >
-    </label>
-
-    <label>
-        Priority
-
-        <select name="priority">
-
-            <option value="">All Priorities</option>
-
-            <?php foreach ($priorities as $key => $label): ?>
-
-                <option
-                    value="<?php echo h($key); ?>"
-                    <?php echo $priorityFilter === $key ? "selected" : ""; ?>
-                >
-                    <?php echo h($label); ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </label>
-
-    <?php if ($canAssignLeads): ?>
-
-    <label>
-        Sales Employee
-
-        <select name="assigned_employee">
-
-            <option value="">All Employees</option>
-
-            <?php foreach ($salesEmployees as $employee): ?>
-
-                <option
-                    value="<?php echo (int)$employee["id"]; ?>"
-                    <?php echo $employeeFilter === (string)$employee["id"] ? "selected" : ""; ?>
-                >
-                    <?php echo h($employee["name"]); ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </label>
-
-    <label>
-        Assignment
-
-        <select name="assigned_filter">
-
-            <option value="">All Leads</option>
-
-            <option
-                value="assigned"
-                <?php echo $assignedFilter === "assigned" ? "selected" : ""; ?>
-            >
-                Assigned
-            </option>
-
-            <option
-                value="unassigned"
-                <?php echo $assignedFilter === "unassigned" ? "selected" : ""; ?>
-            >
-                Unassigned
-            </option>
-
-        </select>
-    </label>
-
+    <?php if (hasPermission("manage_site_visits")): ?>
+        <div class="sidebar-section">Site Visits</div>
+        <a href="site_visits.php">Site Visits</a>
+        <a href="weekly_site_visits.php">Weekly Site Visits</a>
+        <a href="reschedule_site_visits.php">Reschedule Visits</a>
+        <a href="cancel_site_visit.php">Cancel Site Visits</a>
+        <a href="site_visit_reschedule_history.php">Rescheduling History</a>
     <?php endif; ?>
 
-    <div class="actions">
+    <?php if (hasPermission("view_crm_reports")): ?>
+        <div class="sidebar-section">Analytics</div>
+        <a href="crm_reports.php">CRM Reports</a>
+    <?php endif; ?>
 
-        <button class="btn" type="submit">
-            Apply Filters
-        </button>
+    <div class="sidebar-footer">
+        Logged in as<br>
+        <strong><?php echo manageLeadsEscape($_SESSION["admin_name"] ?? "Administrator"); ?></strong>
+    </div>
 
-        <a
-            class="btn btn-secondary"
-            href="manage_leads.php"
-        >
-            Reset
-        </a>
+</aside>
+
+<div
+    class="sidebar-overlay"
+    id="sidebarOverlay"
+    onclick="closeSidebar()"
+></div>
+
+<!-- MAIN CONTENT -->
+
+<main class="main-content">
+
+    <div class="mobile-header">
+        <button
+            class="menu-button"
+            type="button"
+            onclick="toggleSidebar()"
+        >☰</button>
+
+        <strong>OLIVERA HOME DEVELOPERS</strong>
+    </div>
+
+    <div class="page-header">
+
+        <div>
+            <h1>Manage Leads</h1>
+            <p class="page-subtitle">
+                Manage customer enquiries, sales assignments and CRM activities.
+            </p>
+        </div>
+
+        <div class="admin-user">
+            <?php echo manageLeadsEscape($_SESSION["admin_name"] ?? "Administrator"); ?>
+        </div>
 
     </div>
 
-</form>
+    <div class="top-links">
+        <a href="lead_followups.php">Lead Follow-ups</a>
+        <a href="site_visits.php">Site Visits</a>
+        <a href="crm_reports.php">CRM Reports</a>
+        <a href="followup_reminders.php">Follow-up Reminders</a>
+    </div>
 
-</section>
-
-<section class="panel">
-
-<div class="panel-heading">
-
-    <h2>
-        Lead List
-        <span class="table-count"><?php echo count($leads); ?></span>
-    </h2>
-
-    <!-- CSV Export -->
-
-    <form method="get" action="export_leads.php" class="export-form">
-
-        <input type="hidden" name="search" value="<?php echo h($search); ?>">
-
-        <input type="hidden" name="status" value="<?php echo h($statusFilter); ?>">
-
-        <input type="hidden" name="property_type" value="<?php echo h($propertyFilter); ?>">
-
-        <input type="hidden" name="lead_source" value="<?php echo h($sourceFilter); ?>">
-
-        <input type="hidden" name="location" value="<?php echo h($locationFilter); ?>">
-
-        <input type="hidden" name="priority" value="<?php echo h($priorityFilter); ?>">
-
-        <input type="hidden" name="assigned_employee" value="<?php echo h($employeeFilter); ?>">
-
-        <input type="hidden" name="assigned_filter" value="<?php echo h($assignedFilter); ?>">
-
-        <button class="btn btn-green" type="submit">
-            Export CSV
-        </button>
-
-    </form>
-
-</div>
-
-<div class="table-wrap">
-
-<table>
-
-<thead>
-
-<tr>
-
-    <th>ID</th>
-    <th>Customer</th>
-    <th>Phone / Email</th>
-    <th>Property</th>
-    <th>Location</th>
-    <th>Budget</th>
-    <th>Source</th>
-    <th>Priority</th>
-    <th>Status</th>
-
-    <?php if ($canAssignLeads): ?>
-
-        <th>Assigned Employee</th>
-
+    <?php if ($message !== ""): ?>
+        <div class="notice <?php echo manageLeadsEscape($messageType); ?>">
+            <?php echo manageLeadsEscape($message); ?>
+        </div>
     <?php endif; ?>
 
-    <th>Created</th>
-    <th>Actions</th>
+    <!-- ADD NEW LEAD -->
 
-</tr>
+    <?php if ($canManageLeads): ?>
 
-</thead>
+    <section class="panel">
 
-<tbody>
+        <h2>Add New Lead</h2>
 
-<?php if (!$leads): ?>
-
-<tr>
-
-    <td
-        colspan="<?php echo 11 + ($canAssignLeads ? 1 : 0); ?>"
-        class="empty"
-    >
-        No leads found for these filters.
-    </td>
-
-</tr>
-
-<?php else: ?>
-
-<?php foreach ($leads as $lead): ?>
-
-<tr>
-
-    <td>
-        <?php echo (int)$lead["id"]; ?>
-    </td>
-
-    <td>
-        <strong><?php echo h($lead["customer_name"]); ?></strong>
-    </td>
-
-    <td>
-        <?php echo h($lead["phone"]); ?>
-        <br>
-        <?php echo h($lead["email"]); ?>
-    </td>
-
-    <td>
-        <?php echo h($lead["property_type"]); ?>
-    </td>
-
-    <td>
-        <?php echo h($lead["interested_location"]); ?>
-    </td>
-
-    <td>
-
-        <?php if ($lead["budget_min"] !== null || $lead["budget_max"] !== null): ?>
-
-            ₹<?php echo number_format((float)$lead["budget_min"]); ?>
-
-            –
-
-            ₹<?php echo number_format((float)$lead["budget_max"]); ?>
-
-        <?php else: ?>
-
-            -
-
-        <?php endif; ?>
-
-    </td>
-
-    <td>
-        <?php echo h($lead["lead_source"]); ?>
-    </td>
-
-    <!-- Priority Management -->
-
-    <td>
-
-        <?php if ($canManageLeads): ?>
-
-        <form method="post" class="inline-form priority-form">
+        <form method="post" class="form-grid">
 
             <input
                 type="hidden"
                 name="csrf_token"
-                value="<?php echo h($csrfToken); ?>"
+                value="<?php echo manageLeadsEscape($csrfToken); ?>"
             >
 
-            <input
-                type="hidden"
-                name="action"
-                value="update_priority"
-            >
+            <input type="hidden" name="action" value="add_lead">
 
-            <input
-                type="hidden"
-                name="lead_id"
-                value="<?php echo (int)$lead["id"]; ?>"
-            >
+            <label>
+                Customer Name *
 
-            <select
-                name="priority"
-                class="<?php echo h(priorityBadgeClass($lead["priority"] ?? "medium")); ?>"
-                onchange="this.form.submit()"
-            >
+                <input name="customer_name" required maxlength="190">
+            </label>
 
-                <?php foreach ($priorities as $key => $label): ?>
+            <label>
+                Phone *
 
-                    <option
-                        value="<?php echo h($key); ?>"
-                        <?php echo ($lead["priority"] ?? "medium") === $key ? "selected" : ""; ?>
-                    >
-                        <?php echo h($label); ?>
-                    </option>
+                <input name="phone" required maxlength="30">
+            </label>
 
-                <?php endforeach; ?>
+            <label>
+                Email
 
-            </select>
+                <input type="email" name="email" maxlength="190">
+            </label>
+
+            <label>
+                Property Type
+
+                <select name="property_type">
+                    <option value="">Select</option>
+
+                    <?php foreach ($propertyTypes as $type): ?>
+                        <option value="<?php echo manageLeadsEscape($type); ?>">
+                            <?php echo manageLeadsEscape($type); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                Interested Location
+
+                <input name="interested_location" maxlength="190">
+            </label>
+
+            <label>
+                Minimum Budget
+
+                <input
+                    type="number"
+                    name="budget_min"
+                    min="0"
+                    step="0.01"
+                >
+            </label>
+
+            <label>
+                Maximum Budget
+
+                <input
+                    type="number"
+                    name="budget_max"
+                    min="0"
+                    step="0.01"
+                >
+            </label>
+
+            <label>
+                Lead Source
+
+                <select name="lead_source">
+                    <?php foreach ($leadSources as $source): ?>
+                        <option
+                            value="<?php echo manageLeadsEscape($source); ?>"
+                            <?php echo $source === "Manual Entry" ? "selected" : ""; ?>
+                        >
+                            <?php echo manageLeadsEscape($source); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                Message
+
+                <textarea name="message" rows="2"></textarea>
+            </label>
+
+            <div>
+                <button class="btn btn-green" type="submit">
+                    Add Lead
+                </button>
+            </div>
 
         </form>
 
-        <?php else: ?>
-
-        <span class="badge <?php echo h(priorityBadgeClass($lead["priority"] ?? "medium")); ?>">
-
-            <?php echo h(ucfirst($lead["priority"] ?? "medium")); ?>
-
-        </span>
-
-        <?php endif; ?>
-
-    </td>
-
-    <!-- Lead Status -->
-
-    <td>
-
-        <form method="post" class="inline-form">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo h($csrfToken); ?>"
-            >
-
-            <input
-                type="hidden"
-                name="action"
-                value="update_status"
-            >
-
-            <input
-                type="hidden"
-                name="lead_id"
-                value="<?php echo (int)$lead["id"]; ?>"
-            >
-
-            <select
-                name="lead_status"
-                onchange="this.form.submit()"
-                class="status-<?php echo h($lead["lead_status"]); ?>"
-            >
-
-                <?php foreach ($statuses as $key => $label): ?>
-
-                    <option
-                        value="<?php echo h($key); ?>"
-                        <?php echo $lead["lead_status"] === $key ? "selected" : ""; ?>
-                    >
-                        <?php echo h($label); ?>
-                    </option>
-
-                <?php endforeach; ?>
-
-            </select>
-
-        </form>
-
-    </td>
-
-    <!-- Sales Employee Assignment -->
-
-    <?php if ($canAssignLeads): ?>
-
-    <td>
-
-        <form method="post" class="inline-form">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo h($csrfToken); ?>"
-            >
-
-            <input
-                type="hidden"
-                name="action"
-                value="assign_lead"
-            >
-
-            <input
-                type="hidden"
-                name="lead_id"
-                value="<?php echo (int)$lead["id"]; ?>"
-            >
-
-            <select
-                name="assigned_to"
-                onchange="this.form.submit()"
-            >
-
-                <option value="">Unassigned</option>
-
-                <?php foreach ($salesEmployees as $employee): ?>
-
-                    <option
-                        value="<?php echo (int)$employee["id"]; ?>"
-                        <?php echo (string)$lead["assigned_to"] === (string)$employee["id"] ? "selected" : ""; ?>
-                    >
-                        <?php echo h($employee["name"]); ?>
-                    </option>
-
-                <?php endforeach; ?>
-
-            </select>
-
-        </form>
-
-        <?php echo h($lead["assigned_employee"] ?? "Unassigned"); ?>
-
-    </td>
+    </section>
 
     <?php endif; ?>
 
-    <td>
-        <?php echo h(date("d-m-Y", strtotime($lead["created_at"]))); ?>
-    </td>
+    <!-- SALES EMPLOYEE WORKLOAD -->
 
-    <!-- Lead Actions -->
+    <?php if ($canAssignLeads): ?>
 
-    <td>
+    <section class="panel">
 
-        <div class="lead-actions">
+        <h2>Sales Employee Workload Summary</h2>
 
-            <a href="view_lead.php?id=<?php echo (int)$lead["id"]; ?>">
-                View
-            </a>
+        <div class="workload-grid">
 
-            <?php if ($canManageLeads): ?>
+            <?php foreach ($workload as $employee): ?>
+
+                <?php
+                $total = (int)$employee["total_leads"];
+
+                $level = $total <= 5
+                    ? "Low"
+                    : ($total <= 10 ? "Medium" : "High");
+                ?>
+
+                <div class="work-card">
+
+                    <h3><?php echo manageLeadsEscape($employee["name"]); ?></h3>
+
+                    <p>
+                        <strong>Total Assigned Leads:</strong>
+                        <?php echo $total; ?>
+
+                        <span class="badge">
+                            <?php echo manageLeadsEscape($level); ?> Workload
+                        </span>
+                    </p>
+
+                    <p>
+                        New: <?php echo (int)$employee["new_count"]; ?> |
+                        Contacted: <?php echo (int)$employee["contacted_count"]; ?> |
+                        Interested: <?php echo (int)$employee["interested_count"]; ?> |
+                        Converted: <?php echo (int)$employee["converted_count"]; ?>
+                    </p>
+
+                    <a
+                        href="manage_leads.php?assigned_employee=<?php echo (int)$employee["id"]; ?>"
+                        class="btn btn-secondary"
+                    >
+                        View Leads
+                    </a>
+
+                </div>
+
+            <?php endforeach; ?>
+
+            <div class="work-card">
+
+                <h3>Unassigned Leads</h3>
+
+                <p>
+                    <strong><?php echo $unassignedCount; ?></strong>
+                    leads need assignment.
+                </p>
 
                 <a
-                    class="edit"
-                    href="edit_lead.php?id=<?php echo (int)$lead["id"]; ?>"
+                    class="btn btn-orange"
+                    href="manage_leads.php?assigned_filter=unassigned"
                 >
-                    Edit
+                    View Unassigned
                 </a>
 
-                <form
-                    method="POST"
-                    action="delete_lead.php"
-                    class="inline-form"
-                    onsubmit="return confirm('Are you sure you want to permanently delete this lead?');"
-                >
-
-                    <input
-                        type="hidden"
-                        name="csrf_token"
-                        value="<?php echo h($csrfToken); ?>"
-                    >
-
-                    <input
-                        type="hidden"
-                        name="lead_id"
-                        value="<?php echo (int)$lead["id"]; ?>"
-                    >
-
-                    <button
-                        type="submit"
-                        class="delete-button"
-                    >
-                        Delete
-                    </button>
-
-                </form>
-
-            <?php endif; ?>
+            </div>
 
         </div>
 
-    </td>
+    </section>
 
-</tr>
+    <?php endif; ?>
 
-<?php endforeach; ?>
+    <!-- SEARCH AND FILTERS -->
 
-<?php endif; ?>
+    <section class="panel">
 
-</tbody>
+        <h2>Search &amp; Filter Leads</h2>
 
-</table>
+        <form method="get" class="filters">
+
+            <label>
+                Search
+
+                <input
+                    type="text"
+                    name="search"
+                    value="<?php echo manageLeadsEscape($search); ?>"
+                    placeholder="Name, phone, email, location"
+                >
+            </label>
+
+            <label>
+                Lead Status
+
+                <select name="status">
+                    <option value="">All Statuses</option>
+
+                    <?php foreach ($statuses as $key => $label): ?>
+                        <option
+                            value="<?php echo manageLeadsEscape($key); ?>"
+                            <?php echo $statusFilter === $key ? "selected" : ""; ?>
+                        >
+                            <?php echo manageLeadsEscape($label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                Property Type
+
+                <select name="property_type">
+                    <option value="">All Property Types</option>
+
+                    <?php foreach ($propertyTypes as $type): ?>
+                        <option
+                            value="<?php echo manageLeadsEscape($type); ?>"
+                            <?php echo $propertyFilter === $type ? "selected" : ""; ?>
+                        >
+                            <?php echo manageLeadsEscape($type); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                Lead Source
+
+                <select name="lead_source">
+                    <option value="">All Sources</option>
+
+                    <?php foreach ($leadSources as $source): ?>
+                        <option
+                            value="<?php echo manageLeadsEscape($source); ?>"
+                            <?php echo $sourceFilter === $source ? "selected" : ""; ?>
+                        >
+                            <?php echo manageLeadsEscape($source); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                Interested Location
+
+                <input
+                    name="location"
+                    value="<?php echo manageLeadsEscape($locationFilter); ?>"
+                    placeholder="Filter location"
+                >
+            </label>
+
+            <label>
+                Priority
+
+                <select name="priority">
+                    <option value="">All Priorities</option>
+
+                    <?php foreach ($priorities as $key => $label): ?>
+                        <option
+                            value="<?php echo manageLeadsEscape($key); ?>"
+                            <?php echo $priorityFilter === $key ? "selected" : ""; ?>
+                        >
+                            <?php echo manageLeadsEscape($label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <?php if ($canAssignLeads): ?>
+
+                <label>
+                    Sales Employee
+
+                    <select name="assigned_employee">
+                        <option value="">All Employees</option>
+
+                        <?php foreach ($salesEmployees as $employee): ?>
+                            <option
+                                value="<?php echo (int)$employee["id"]; ?>"
+                                <?php echo $employeeFilter === (string)$employee["id"] ? "selected" : ""; ?>
+                            >
+                                <?php echo manageLeadsEscape($employee["name"]); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <label>
+                    Assignment
+
+                    <select name="assigned_filter">
+                        <option value="">All Leads</option>
+
+                        <option
+                            value="assigned"
+                            <?php echo $assignedFilter === "assigned" ? "selected" : ""; ?>
+                        >
+                            Assigned
+                        </option>
+
+                        <option
+                            value="unassigned"
+                            <?php echo $assignedFilter === "unassigned" ? "selected" : ""; ?>
+                        >
+                            Unassigned
+                        </option>
+                    </select>
+                </label>
+
+            <?php endif; ?>
+
+            <div class="actions">
+                <button class="btn" type="submit">
+                    Apply Filters
+                </button>
+
+                <a class="btn btn-secondary" href="manage_leads.php">
+                    Reset
+                </a>
+            </div>
+
+        </form>
+
+    </section>
+
+    <!-- LEAD LIST -->
+
+    <section class="panel">
+
+        <div class="panel-heading">
+
+            <h2>
+                Lead List
+                <span class="table-count"><?php echo count($leads); ?></span>
+            </h2>
+
+            <form method="get" action="export_leads.php" class="export-form">
+
+                <input type="hidden" name="search" value="<?php echo manageLeadsEscape($search); ?>">
+                <input type="hidden" name="status" value="<?php echo manageLeadsEscape($statusFilter); ?>">
+                <input type="hidden" name="property_type" value="<?php echo manageLeadsEscape($propertyFilter); ?>">
+                <input type="hidden" name="lead_source" value="<?php echo manageLeadsEscape($sourceFilter); ?>">
+                <input type="hidden" name="location" value="<?php echo manageLeadsEscape($locationFilter); ?>">
+                <input type="hidden" name="priority" value="<?php echo manageLeadsEscape($priorityFilter); ?>">
+                <input type="hidden" name="assigned_employee" value="<?php echo manageLeadsEscape($employeeFilter); ?>">
+                <input type="hidden" name="assigned_filter" value="<?php echo manageLeadsEscape($assignedFilter); ?>">
+
+                <button class="btn btn-green" type="submit">
+                    Export CSV
+                </button>
+
+            </form>
+
+        </div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Phone / Email</th>
+                        <th>Property</th>
+                        <th>Location</th>
+                        <th>Budget</th>
+                        <th>Source</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+
+                        <?php if ($canAssignLeads): ?>
+                            <th>Assigned Employee</th>
+                        <?php endif; ?>
+
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    <?php if (!$leads): ?>
+
+                        <tr>
+                            <td
+                                colspan="<?php echo 11 + ($canAssignLeads ? 1 : 0); ?>"
+                                class="empty"
+                            >
+                                No leads found for these filters.
+                            </td>
+                        </tr>
+
+                    <?php else: ?>
+
+                        <?php foreach ($leads as $lead): ?>
+
+                            <tr>
+
+                                <td><?php echo (int)$lead["id"]; ?></td>
+
+                                <td>
+                                    <strong>
+                                        <?php echo manageLeadsEscape($lead["customer_name"]); ?>
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    <?php echo manageLeadsEscape($lead["phone"]); ?>
+                                    <br>
+                                    <?php echo manageLeadsEscape($lead["email"]); ?>
+                                </td>
+
+                                <td>
+                                    <?php echo manageLeadsEscape($lead["property_type"]); ?>
+                                </td>
+
+                                <td>
+                                    <?php echo manageLeadsEscape($lead["interested_location"]); ?>
+                                </td>
+
+                                <td>
+                                    <?php if ($lead["budget_min"] !== null || $lead["budget_max"] !== null): ?>
+                                        ₹<?php echo number_format((float)$lead["budget_min"]); ?>
+                                        –
+                                        ₹<?php echo number_format((float)$lead["budget_max"]); ?>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+
+                                <td>
+                                    <?php echo manageLeadsEscape($lead["lead_source"]); ?>
+                                </td>
+
+                                <!-- PRIORITY -->
+
+                                <td>
+
+                                    <?php if ($canManageLeads): ?>
+
+                                        <form method="post" class="inline-form priority-form">
+
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?php echo manageLeadsEscape($csrfToken); ?>"
+                                            >
+
+                                            <input type="hidden" name="action" value="update_priority">
+
+                                            <input
+                                                type="hidden"
+                                                name="lead_id"
+                                                value="<?php echo (int)$lead["id"]; ?>"
+                                            >
+
+                                            <select
+                                                name="priority"
+                                                class="<?php echo manageLeadsPriorityClass($lead["priority"] ?? "medium"); ?>"
+                                                onchange="this.form.submit()"
+                                            >
+
+                                                <?php foreach ($priorities as $key => $label): ?>
+                                                    <option
+                                                        value="<?php echo manageLeadsEscape($key); ?>"
+                                                        <?php echo ($lead["priority"] ?? "medium") === $key ? "selected" : ""; ?>
+                                                    >
+                                                        <?php echo manageLeadsEscape($label); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+
+                                            </select>
+
+                                        </form>
+
+                                    <?php else: ?>
+
+                                        <span class="badge <?php echo manageLeadsPriorityClass($lead["priority"] ?? "medium"); ?>">
+                                            <?php echo manageLeadsEscape(ucfirst($lead["priority"] ?? "medium")); ?>
+                                        </span>
+
+                                    <?php endif; ?>
+
+                                </td>
+
+                                <!-- STATUS -->
+
+                                <td>
+
+                                    <form method="post" class="inline-form">
+
+                                        <input
+                                            type="hidden"
+                                            name="csrf_token"
+                                            value="<?php echo manageLeadsEscape($csrfToken); ?>"
+                                        >
+
+                                        <input type="hidden" name="action" value="update_status">
+
+                                        <input
+                                            type="hidden"
+                                            name="lead_id"
+                                            value="<?php echo (int)$lead["id"]; ?>"
+                                        >
+
+                                        <select
+                                            name="lead_status"
+                                            onchange="this.form.submit()"
+                                            class="<?php echo manageLeadsStatusClass($lead["lead_status"]); ?>"
+                                        >
+
+                                            <?php foreach ($statuses as $key => $label): ?>
+                                                <option
+                                                    value="<?php echo manageLeadsEscape($key); ?>"
+                                                    <?php echo $lead["lead_status"] === $key ? "selected" : ""; ?>
+                                                >
+                                                    <?php echo manageLeadsEscape($label); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+
+                                        </select>
+
+                                    </form>
+
+                                </td>
+
+                                <!-- ASSIGNMENT -->
+
+                                <?php if ($canAssignLeads): ?>
+
+                                    <td>
+
+                                        <form method="post" class="inline-form">
+
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?php echo manageLeadsEscape($csrfToken); ?>"
+                                            >
+
+                                            <input type="hidden" name="action" value="assign_lead">
+
+                                            <input
+                                                type="hidden"
+                                                name="lead_id"
+                                                value="<?php echo (int)$lead["id"]; ?>"
+                                            >
+
+                                            <select
+                                                name="assigned_to"
+                                                onchange="this.form.submit()"
+                                            >
+
+                                                <option value="">Unassigned</option>
+
+                                                <?php foreach ($salesEmployees as $employee): ?>
+                                                    <option
+                                                        value="<?php echo (int)$employee["id"]; ?>"
+                                                        <?php echo (string)$lead["assigned_to"] === (string)$employee["id"] ? "selected" : ""; ?>
+                                                    >
+                                                        <?php echo manageLeadsEscape($employee["name"]); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+
+                                            </select>
+
+                                        </form>
+
+                                    </td>
+
+                                <?php endif; ?>
+
+                                <td>
+                                    <?php
+                                    echo !empty($lead["created_at"])
+                                        ? manageLeadsEscape(date("d-m-Y", strtotime($lead["created_at"])))
+                                        : "-";
+                                    ?>
+                                </td>
+
+                                <!-- ACTIONS -->
+
+                                <td>
+
+                                    <div class="lead-actions">
+
+                                        <a href="view_lead.php?id=<?php echo (int)$lead["id"]; ?>">
+                                            View
+                                        </a>
+
+                                        <?php if ($canManageLeads): ?>
+
+                                            <a
+                                                class="edit"
+                                                href="edit_lead.php?id=<?php echo (int)$lead["id"]; ?>"
+                                            >
+                                                Edit
+                                            </a>
+
+                                            <form
+                                                method="POST"
+                                                action="delete_lead.php"
+                                                class="inline-form"
+                                                onsubmit="return confirm('Are you sure you want to permanently delete this lead?');"
+                                            >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="<?php echo manageLeadsEscape($csrfToken); ?>"
+                                                >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="lead_id"
+                                                    value="<?php echo (int)$lead["id"]; ?>"
+                                                >
+
+                                                <button type="submit" class="delete-button">
+                                                    Delete
+                                                </button>
+
+                                            </form>
+
+                                        <?php endif; ?>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                    <?php endif; ?>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
 
 </div>
 
-</section>
+<script>
+function toggleSidebar() {
+    document.getElementById("adminSidebar").classList.toggle("open");
+    document.getElementById("sidebarOverlay").classList.toggle("show");
+}
 
-</main>
+function closeSidebar() {
+    document.getElementById("adminSidebar").classList.remove("open");
+    document.getElementById("sidebarOverlay").classList.remove("show");
+}
+</script>
 
 </body>
 </html>

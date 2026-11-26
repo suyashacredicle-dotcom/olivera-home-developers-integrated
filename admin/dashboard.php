@@ -1,4 +1,4 @@
-
+```php
 <?php
 
 require_once "../includes/permissions.php";
@@ -1116,11 +1116,12 @@ $visitTotal = array_sum($siteVisitChart);
 
             <img
                 src="<?php echo e($logoPath); ?>"
-alt="<?php echo e($websiteName); ?> Logo"            >
+                alt="<?php echo e($websiteName); ?> Logo"
+            >
 
         <?php endif; ?>
 
-<h2><?php echo e($websiteName); ?></h2>
+        <h2><?php echo e($websiteName); ?></h2>
         <p>Admin Control Panel</p>
 
     </div>
@@ -1192,6 +1193,15 @@ alt="<?php echo e($websiteName); ?> Logo"            >
             <a href="manage_leads.php">
                 <span class="menu-icon">♧</span>
                 Manage Leads
+            </a>
+
+        <?php endif; ?>
+
+        <?php if (hasPermission("manage_partnerships")): ?>
+
+            <a href="manage_partnerships.php">
+                <span class="menu-icon">♙</span>
+                Manage Partnerships
             </a>
 
         <?php endif; ?>
@@ -1725,10 +1735,12 @@ alt="<?php echo e($websiteName); ?> Logo"            >
 
     <footer class="page-footer">
 
-<?php echo e($websiteName); ?> — Admin Control Panel
+        <?php echo e($websiteName); ?> — Admin Control Panel
+
     </footer>
 
 </main>
 
 </body>
 </html>
+```
