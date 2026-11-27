@@ -1,8 +1,8 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
 
 // --------------------------------------------------
 // WEBSITE SETTINGS
@@ -22,14 +22,13 @@ foreach ($settingsRows as $row) {
 }
 
 $websiteName = $settings["website_name"] ?? "Olivera Home Developers";
-$websiteLogo = $settings["website_logo"] ?? "";
 
 // --------------------------------------------------
 // HELPER FUNCTIONS
 // --------------------------------------------------
 
 function e($value) {
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
+    return htmlspecialchars((string)$value, ENT_QUOTES, "UTF-8");
 }
 
 function createPieGradient($data, $colors) {
@@ -46,7 +45,7 @@ function createPieGradient($data, $colors) {
 
     foreach ($data as $value) {
 
-        $value = (int) $value;
+        $value = (int)$value;
 
         if ($value <= 0) {
             $index++;
@@ -76,7 +75,7 @@ function createPieGradient($data, $colors) {
 
 $adminName = $_SESSION["admin_name"] ?? "Admin";
 $adminRole = $_SESSION["admin_role"] ?? "";
-$adminId = (int) ($_SESSION["admin_id"] ?? 0);
+$adminId = (int)($_SESSION["admin_id"] ?? 0);
 
 if ($adminId <= 0) {
     http_response_code(403);
@@ -100,6 +99,7 @@ if (
 
 $isManager = hasPermission("view_all_leads");
 $isSalesEmployee = hasPermission("view_assigned_leads");
+
 $canManageAdmins = hasPermission("manage_admins");
 $canManageUsers = hasPermission("manage_users");
 $canManageContent = hasPermission("manage_content");
@@ -143,25 +143,25 @@ $siteVisitChart = [];
 
 if ($canManageAdmins) {
 
-    $totalAdmins = (int) $pdo->query("
+    $totalAdmins = (int)$pdo->query("
         SELECT COUNT(*) FROM admins
     ")->fetchColumn();
 }
 
 if ($canManageUsers) {
 
-    $totalUsers = (int) $pdo->query("
+    $totalUsers = (int)$pdo->query("
         SELECT COUNT(*) FROM users
     ")->fetchColumn();
 
-    $totalCustomers = (int) $pdo->query("
+    $totalCustomers = (int)$pdo->query("
         SELECT COUNT(*) FROM customers
     ")->fetchColumn();
 }
 
 if ($canManageContent) {
 
-    $totalContent = (int) $pdo->query("
+    $totalContent = (int)$pdo->query("
         SELECT COUNT(*) FROM content
     ")->fetchColumn();
 }
@@ -176,7 +176,7 @@ if ($canManageProjects) {
 
     try {
 
-        $totalProjects = (int) $pdo->query("
+        $totalProjects = (int)$pdo->query("
             SELECT COUNT(*) FROM projects
         ")->fetchColumn();
 
@@ -193,21 +193,21 @@ if ($canManageProjects) {
 
 if ($isManager) {
 
-    $totalLeads = (int) $pdo->query("
+    $totalLeads = (int)$pdo->query("
         SELECT COUNT(*) FROM leads
     ")->fetchColumn();
 
-    $assignedLeads = (int) $pdo->query("
+    $assignedLeads = (int)$pdo->query("
         SELECT COUNT(*)
         FROM leads
         WHERE assigned_to IS NOT NULL
     ")->fetchColumn();
 
-    $totalFollowups = (int) $pdo->query("
+    $totalFollowups = (int)$pdo->query("
         SELECT COUNT(*) FROM lead_followups
     ")->fetchColumn();
 
-    $totalSiteVisits = (int) $pdo->query("
+    $totalSiteVisits = (int)$pdo->query("
         SELECT COUNT(*) FROM site_visits
     ")->fetchColumn();
 
@@ -220,7 +220,7 @@ if ($isManager) {
     ");
 
     $stmt->execute([$adminId]);
-    $assignedLeads = (int) $stmt->fetchColumn();
+    $assignedLeads = (int)$stmt->fetchColumn();
 
     $totalLeads = $assignedLeads;
 
@@ -232,7 +232,7 @@ if ($isManager) {
     ");
 
     $stmt->execute([$adminId]);
-    $totalFollowups = (int) $stmt->fetchColumn();
+    $totalFollowups = (int)$stmt->fetchColumn();
 
     $stmt = $pdo->prepare("
         SELECT COUNT(*)
@@ -241,7 +241,7 @@ if ($isManager) {
     ");
 
     $stmt->execute([$adminId]);
-    $totalSiteVisits = (int) $stmt->fetchColumn();
+    $totalSiteVisits = (int)$stmt->fetchColumn();
 }
 
 // --------------------------------------------------
@@ -275,13 +275,13 @@ if ($isManager || $isSalesEmployee) {
         $status = strtolower(trim($row["lead_status"]));
 
         if ($status === "new") {
-            $leadChart["New"] = (int) $row["total"];
+            $leadChart["New"] = (int)$row["total"];
         } elseif ($status === "contacted") {
-            $leadChart["Contacted"] = (int) $row["total"];
+            $leadChart["Contacted"] = (int)$row["total"];
         } elseif ($status === "converted") {
-            $leadChart["Converted"] = (int) $row["total"];
+            $leadChart["Converted"] = (int)$row["total"];
         } elseif ($status === "lost") {
-            $leadChart["Lost"] = (int) $row["total"];
+            $leadChart["Lost"] = (int)$row["total"];
         }
     }
 }
@@ -315,10 +315,10 @@ if ($isManager || $isSalesEmployee) {
     foreach ($visitRows as $row) {
 
         $status = ucwords(
-            str_replace("_", " ", (string) $row["visit_status"])
+            str_replace("_", " ", (string)$row["visit_status"])
         );
 
-        $siteVisitChart[$status] = (int) $row["total"];
+        $siteVisitChart[$status] = (int)$row["total"];
     }
 }
 
@@ -346,7 +346,7 @@ if ($isManager || $isSalesEmployee) {
         $stmt = $pdo->query($leadTodaySql);
     }
 
-    $todaysNewLeads = (int) $stmt->fetchColumn();
+    $todaysNewLeads = (int)$stmt->fetchColumn();
 
     $followupTodaySql = "
         SELECT COUNT(*)
@@ -368,7 +368,7 @@ if ($isManager || $isSalesEmployee) {
         $stmt = $pdo->query($followupTodaySql);
     }
 
-    $todaysFollowups = (int) $stmt->fetchColumn();
+    $todaysFollowups = (int)$stmt->fetchColumn();
 
     $visitTodaySql = "
         SELECT COUNT(*)
@@ -388,7 +388,7 @@ if ($isManager || $isSalesEmployee) {
         $stmt = $pdo->query($visitTodaySql);
     }
 
-    $todaysSiteVisits = (int) $stmt->fetchColumn();
+    $todaysSiteVisits = (int)$stmt->fetchColumn();
 }
 
 // --------------------------------------------------
@@ -403,7 +403,7 @@ if ($canManageAdmins) {
         WHERE DATE(created_at) = CURDATE()
     ");
 
-    $todaysActivities = (int) $stmt->fetchColumn();
+    $todaysActivities = (int)$stmt->fetchColumn();
 
 } else {
 
@@ -415,7 +415,7 @@ if ($canManageAdmins) {
     ");
 
     $stmt->execute([$adminId]);
-    $todaysActivities = (int) $stmt->fetchColumn();
+    $todaysActivities = (int)$stmt->fetchColumn();
 }
 
 // --------------------------------------------------
@@ -433,28 +433,7 @@ if ($isSalesEmployee) {
 
     $notificationStmt->execute([$adminId]);
 
-    $unreadNotifications = (int) $notificationStmt->fetchColumn();
-}
-
-// --------------------------------------------------
-// LOGO VALIDATION
-// --------------------------------------------------
-
-$logoPath = "";
-
-if (
-    is_string($websiteLogo) &&
-    preg_match(
-        '/^uploads\/[a-f0-9]{32}\.(jpg|jpeg|png|webp)$/i',
-        $websiteLogo
-    )
-) {
-
-    $physicalLogoPath = dirname(__DIR__) . "/" . $websiteLogo;
-
-    if (is_file($physicalLogoPath)) {
-        $logoPath = "../" . $websiteLogo;
-    }
+    $unreadNotifications = (int)$notificationStmt->fetchColumn();
 }
 
 // --------------------------------------------------
@@ -531,137 +510,6 @@ $visitTotal = array_sum($siteVisitChart);
             color: var(--olivera-text);
         }
 
-        /* SIDEBAR */
-
-        .sidebar {
-            width: 255px;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            background: var(--olivera-navy);
-            color: white;
-            padding: 22px 15px;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            z-index: 100;
-            border-right: 1px solid rgba(214, 166, 59, 0.28);
-        }
-
-        .sidebar-header {
-            text-align: center;
-            padding: 9px 10px 23px;
-            border-bottom: 1px solid rgba(214, 166, 59, 0.35);
-            margin-bottom: 20px;
-        }
-
-        .sidebar-header img {
-            max-width: 155px;
-            max-height: 72px;
-            object-fit: contain;
-            margin-bottom: 12px;
-        }
-
-        .sidebar-header h2 {
-            margin: 0 0 7px;
-            font-family: Georgia, "Times New Roman", serif;
-            font-size: 16px;
-            font-weight: 600;
-            line-height: 1.5;
-            color: var(--olivera-gold-light);
-            letter-spacing: 0.5px;
-            overflow-wrap: anywhere;
-        }
-
-        .sidebar-header p {
-            margin: 0;
-            color: #d4dbea;
-            font-size: 11px;
-            letter-spacing: 1.1px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .sidebar-menu a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 13px;
-            min-height: 43px;
-            border-radius: 8px;
-            border: 1px solid transparent;
-            color: #e0e6ef;
-            text-decoration: none;
-            font-size: 13px;
-            transition: background 0.2s ease, color 0.2s ease;
-        }
-
-        .sidebar-menu a:hover {
-            background: rgba(214, 166, 59, 0.12);
-            border-color: rgba(214, 166, 59, 0.25);
-            color: var(--olivera-gold-light);
-        }
-
-        .sidebar-menu a.active {
-            background: var(--olivera-gold);
-            border-color: var(--olivera-gold);
-            color: var(--olivera-navy);
-            font-weight: 700;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
-        }
-
-        .menu-icon {
-            width: 21px;
-            text-align: center;
-            font-size: 17px;
-            flex-shrink: 0;
-        }
-
-        .notification-badge {
-            display: inline-block;
-            background: #c83f47;
-            color: white;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px 7px;
-            border-radius: 20px;
-            margin-left: auto;
-        }
-
-        .sidebar-footer {
-            margin-top: auto;
-            padding-top: 17px;
-            border-top: 1px solid rgba(214, 166, 59, 0.3);
-        }
-
-        .sidebar-footer form {
-            margin: 0;
-        }
-
-        .sidebar-footer button {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid rgba(214, 166, 59, 0.55);
-            border-radius: 8px;
-            background: transparent;
-            color: var(--olivera-gold-light);
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s ease, color 0.2s ease;
-        }
-
-        .sidebar-footer button:hover {
-            background: var(--olivera-gold);
-            color: var(--olivera-navy);
-        }
-
         /* MAIN CONTENT */
 
         .main-content {
@@ -701,7 +549,12 @@ $visitTotal = array_sum($siteVisitChart);
             color: var(--olivera-navy);
         }
 
+        /* TOP-RIGHT PROFILE */
+
         .admin-profile-label {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             background: white;
             border: 1px solid var(--olivera-border);
             border-left: 3px solid var(--olivera-gold);
@@ -714,6 +567,24 @@ $visitTotal = array_sum($siteVisitChart);
 
         .admin-profile-label strong {
             color: var(--olivera-navy);
+        }
+
+        .admin-profile-link {
+            display: inline-block;
+            color: #9a6d16;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .admin-profile-link:hover {
+            color: var(--olivera-navy);
+            text-decoration: underline;
+        }
+
+        .admin-profile-link:focus-visible {
+            outline: 2px solid var(--olivera-gold);
+            outline-offset: 3px;
         }
 
         /* SECTION HEADINGS */
@@ -996,9 +867,7 @@ $visitTotal = array_sum($siteVisitChart);
 
         /* ACCESSIBILITY */
 
-        .sidebar-menu a:focus-visible,
-        .dashboard-card a:focus-visible,
-        .sidebar-footer button:focus-visible {
+        .dashboard-card a:focus-visible {
             outline: 3px solid var(--olivera-gold-light);
             outline-offset: 3px;
         }
@@ -1014,10 +883,6 @@ $visitTotal = array_sum($siteVisitChart);
 
         @media (max-width: 1000px) {
 
-            .sidebar {
-                width: 220px;
-            }
-
             .main-content {
                 margin-left: 220px;
                 padding: 25px;
@@ -1025,34 +890,6 @@ $visitTotal = array_sum($siteVisitChart);
         }
 
         @media (max-width: 700px) {
-
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                padding: 18px;
-            }
-
-            .sidebar-header {
-                padding-bottom: 15px;
-                margin-bottom: 15px;
-            }
-
-            .sidebar-menu {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 5px;
-            }
-
-            .sidebar-menu a {
-                padding: 10px;
-                font-size: 12px;
-            }
-
-            .sidebar-footer {
-                margin-top: 15px;
-                padding-top: 10px;
-            }
 
             .main-content {
                 margin-left: 0;
@@ -1093,207 +930,15 @@ $visitTotal = array_sum($siteVisitChart);
 
     </style>
 
+    <!-- SHARED SIDEBAR CSS -->
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
-
-<aside class="sidebar">
-
-    <div class="sidebar-header">
-
-        <?php if ($logoPath !== ""): ?>
-
-            <img
-                src="<?php echo e($logoPath); ?>"
-                alt="<?php echo e($websiteName); ?> Logo"
-            >
-
-        <?php endif; ?>
-
-        <h2><?php echo e($websiteName); ?></h2>
-        <p>Admin Control Panel</p>
-
-    </div>
-
-    <nav class="sidebar-menu">
-
-        <a href="dashboard.php" class="active">
-            <span class="menu-icon">▦</span>
-            Dashboard
-        </a>
-
-        <?php
-        require __DIR__ . "/includes/gallery_sidebar_link.php";
-        ?>
-
-        <?php if ($canManageAdmins): ?>
-
-            <a href="manage_admins.php">
-                <span class="menu-icon">♙</span>
-                Manage Admins
-            </a>
-
-            <a href="all_accounts.php">
-                <span class="menu-icon">☷</span>
-                All Accounts
-            </a>
-
-            <a href="activity_logs.php">
-                <span class="menu-icon">◷</span>
-                Activity Logs
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageContent): ?>
-
-            <a href="manage_content.php">
-                <span class="menu-icon">▤</span>
-                Manage Content
-            </a>
-
-        <?php endif; ?>
-
-        <!-- MANAGE PROJECTS -->
-
-        <?php if ($canManageProjects): ?>
-
-            <a href="manage_projects.php">
-                <span class="menu-icon">⌂</span>
-                Manage Projects
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageUsers): ?>
-
-            <a href="manage_users.php">
-                <span class="menu-icon">♧</span>
-                Manage Users
-            </a>
-
-            <a href="manage_customers.php">
-                <span class="menu-icon">♧</span>
-                Manage Customers
-            </a>
-
-        <?php endif; ?>
-
-        <?php if (hasPermission("manage_settings")): ?>
-
-            <a href="manage_settings.php">
-                <span class="menu-icon">⚙</span>
-                Website Settings
-            </a>
-
-        <?php endif; ?>
-
-        <?php if (hasPermission("manage_leads")): ?>
-
-            <a href="manage_leads.php">
-                <span class="menu-icon">♧</span>
-                Manage Leads
-            </a>
-
-        <?php endif; ?>
-
-        <?php if (hasPermission("manage_partnerships")): ?>
-
-            <a href="manage_partnerships.php">
-                <span class="menu-icon">♙</span>
-                Manage Partnerships
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageFollowups): ?>
-
-            <a href="lead_followups.php">
-                <span class="menu-icon">◷</span>
-                Lead Follow-ups
-            </a>
-
-            <a href="followup_reminders.php">
-                <span class="menu-icon">♢</span>
-                Follow-up Reminders
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageVisits): ?>
-
-            <a href="site_visits.php">
-                <span class="menu-icon">⌂</span>
-                Site Visits
-            </a>
-
-        <?php endif; ?>
-
-        <?php if (hasPermission("view_crm_reports")): ?>
-
-            <a href="crm_reports.php">
-                <span class="menu-icon">▥</span>
-                CRM Reports
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($isSalesEmployee): ?>
-
-            <a href="manage_leads.php">
-                <span class="menu-icon">♙</span>
-                My Assigned Leads
-            </a>
-
-            <a href="notifications.php">
-                <span class="menu-icon">♧</span>
-                Notifications
-
-                <?php if ($unreadNotifications > 0): ?>
-
-                    <span class="notification-badge">
-                        <?php echo (int) $unreadNotifications; ?>
-                    </span>
-
-                <?php endif; ?>
-
-            </a>
-
-        <?php endif; ?>
-
-        <a href="profile.php">
-            <span class="menu-icon">♙</span>
-            My Profile
-        </a>
-
-        <a href="change_password.php">
-            <span class="menu-icon">🔒</span>
-            Change Password
-        </a>
-
-    </nav>
-
-    <div class="sidebar-footer">
-
-        <form action="logout.php" method="POST">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo e($_SESSION["csrf_token"]); ?>"
-            >
-
-            <button type="submit">
-                ↪ &nbsp; Logout
-            </button>
-
-        </form>
-
-    </div>
-
-</aside>
+<!-- SHARED ADMIN SIDEBAR -->
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
 <!-- MAIN CONTENT -->
 
@@ -1314,15 +959,20 @@ $visitTotal = array_sum($siteVisitChart);
 
         <div class="admin-profile-label">
 
-            Role:
+            <div>
+                Role:
+                <strong>
+                    <?php
+                    echo e(
+                        ucwords(str_replace("_", " ", $adminRole))
+                    );
+                    ?>
+                </strong>
+            </div>
 
-            <strong>
-                <?php
-                echo e(
-                    ucwords(str_replace("_", " ", $adminRole))
-                );
-                ?>
-            </strong>
+            <a href="profile.php" class="admin-profile-link">
+                My Profile →
+            </a>
 
         </div>
 
@@ -1346,7 +996,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Total Admins</h3>
 
-                <h1><?php echo (int) $totalAdmins; ?></h1>
+                <h1><?php echo (int)$totalAdmins; ?></h1>
 
                 <p>Total administrator accounts</p>
 
@@ -1362,7 +1012,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Total Website Users</h3>
 
-                <h1><?php echo (int) $totalUsers; ?></h1>
+                <h1><?php echo (int)$totalUsers; ?></h1>
 
                 <p>Total registered website users</p>
 
@@ -1374,7 +1024,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Total Customers</h3>
 
-                <h1><?php echo (int) $totalCustomers; ?></h1>
+                <h1><?php echo (int)$totalCustomers; ?></h1>
 
                 <p>Total registered website customers</p>
 
@@ -1390,7 +1040,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Total Content</h3>
 
-                <h1><?php echo (int) $totalContent; ?></h1>
+                <h1><?php echo (int)$totalContent; ?></h1>
 
                 <p>Total website content entries</p>
 
@@ -1400,15 +1050,13 @@ $visitTotal = array_sum($siteVisitChart);
 
         <?php endif; ?>
 
-        <!-- PROJECT MANAGEMENT CARD -->
-
         <?php if ($canManageProjects): ?>
 
             <div class="dashboard-card stat-card">
 
                 <h3>Total Projects</h3>
 
-                <h1><?php echo (int) $totalProjects; ?></h1>
+                <h1><?php echo (int)$totalProjects; ?></h1>
 
                 <p>Manage your property projects and listings.</p>
 
@@ -1424,7 +1072,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Total Leads</h3>
 
-                <h1><?php echo (int) $totalLeads; ?></h1>
+                <h1><?php echo (int)$totalLeads; ?></h1>
 
                 <p>Total customer enquiries</p>
 
@@ -1436,7 +1084,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Assigned Leads</h3>
 
-                <h1><?php echo (int) $assignedLeads; ?></h1>
+                <h1><?php echo (int)$assignedLeads; ?></h1>
 
                 <p>Leads assigned to employees</p>
 
@@ -1448,7 +1096,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Total Follow-ups</h3>
 
-                <h1><?php echo (int) $totalFollowups; ?></h1>
+                <h1><?php echo (int)$totalFollowups; ?></h1>
 
                 <p>Recorded customer follow-ups</p>
 
@@ -1460,7 +1108,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Site Visits</h3>
 
-                <h1><?php echo (int) $totalSiteVisits; ?></h1>
+                <h1><?php echo (int)$totalSiteVisits; ?></h1>
 
                 <p>Recorded property visits</p>
 
@@ -1476,7 +1124,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>My Assigned Leads</h3>
 
-                <h1><?php echo (int) $assignedLeads; ?></h1>
+                <h1><?php echo (int)$assignedLeads; ?></h1>
 
                 <p>Customers assigned to you</p>
 
@@ -1488,7 +1136,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>My Follow-ups</h3>
 
-                <h1><?php echo (int) $totalFollowups; ?></h1>
+                <h1><?php echo (int)$totalFollowups; ?></h1>
 
                 <p>Follow-ups for your assigned leads</p>
 
@@ -1500,7 +1148,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>My Site Visits</h3>
 
-                <h1><?php echo (int) $totalSiteVisits; ?></h1>
+                <h1><?php echo (int)$totalSiteVisits; ?></h1>
 
                 <p>Your assigned property visits</p>
 
@@ -1543,7 +1191,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>New Leads Today</h3>
 
-                <h1><?php echo (int) $todaysNewLeads; ?></h1>
+                <h1><?php echo (int)$todaysNewLeads; ?></h1>
 
                 <p>New customer enquiries created today.</p>
 
@@ -1553,7 +1201,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Today's Follow-ups</h3>
 
-                <h1><?php echo (int) $todaysFollowups; ?></h1>
+                <h1><?php echo (int)$todaysFollowups; ?></h1>
 
                 <p>Customer follow-ups scheduled for today.</p>
 
@@ -1563,7 +1211,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Today's Site Visits</h3>
 
-                <h1><?php echo (int) $todaysSiteVisits; ?></h1>
+                <h1><?php echo (int)$todaysSiteVisits; ?></h1>
 
                 <p>Property visits scheduled for today.</p>
 
@@ -1573,7 +1221,7 @@ $visitTotal = array_sum($siteVisitChart);
 
                 <h3>Activities Recorded Today</h3>
 
-                <h1><?php echo (int) $todaysActivities; ?></h1>
+                <h1><?php echo (int)$todaysActivities; ?></h1>
 
                 <p>Admin activities recorded in the activity log.</p>
 
@@ -1623,7 +1271,7 @@ $visitTotal = array_sum($siteVisitChart);
                             <div class="pie-chart-center">
 
                                 <strong>
-                                    <?php echo (int) $leadTotal; ?>
+                                    <?php echo (int)$leadTotal; ?>
                                 </strong>
 
                                 <span>Total Leads</span>
@@ -1650,7 +1298,7 @@ $visitTotal = array_sum($siteVisitChart);
                                     <span><?php echo e($label); ?></span>
 
                                     <span class="legend-value">
-                                        <?php echo (int) $value; ?>
+                                        <?php echo (int)$value; ?>
                                     </span>
 
                                 </div>
@@ -1698,7 +1346,7 @@ $visitTotal = array_sum($siteVisitChart);
                             <div class="pie-chart-center">
 
                                 <strong>
-                                    <?php echo (int) $visitTotal; ?>
+                                    <?php echo (int)$visitTotal; ?>
                                 </strong>
 
                                 <span>Total Visits</span>
@@ -1725,7 +1373,7 @@ $visitTotal = array_sum($siteVisitChart);
                                     <span><?php echo e($label); ?></span>
 
                                     <span class="legend-value">
-                                        <?php echo (int) $value; ?>
+                                        <?php echo (int)$value; ?>
                                     </span>
 
                                 </div>

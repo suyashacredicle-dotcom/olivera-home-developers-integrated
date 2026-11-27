@@ -1,4 +1,3 @@
-
 <?php
 
 require_once __DIR__ . "/../includes/auth.php";
@@ -171,13 +170,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $adminId
                     ]);
 
-                    // Verify that the admin record still exists.
-                    // Do not rely only on rowCount(), because some
-                    // database configurations report affected rows
-                    // differently.
+                    // Read back the saved password hash and verify that it
+                    // matches the new password before reporting success.
+                    // This confirms the actual stored value, not just that
+                    // the admin record still exists.
 
                     $checkStmt = $pdo->prepare("
-                        SELECT id
+                        SELECT password
                         FROM admins
                         WHERE id = ?
                         LIMIT 1
@@ -185,7 +184,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     $checkStmt->execute([$adminId]);
 
-                    $passwordUpdateConfirmed = (bool)$checkStmt->fetchColumn();
+                    $savedPasswordHash = $checkStmt->fetchColumn();
+
+                    $passwordUpdateConfirmed = (
+                        is_string($savedPasswordHash) &&
+                        $savedPasswordHash !== "" &&
+                        password_verify($newPassword, $savedPasswordHash)
+                    );
 
                     if ($passwordUpdateConfirmed) {
 
@@ -243,6 +248,7 @@ function e($value) {
     <title>Change Password | Admin Panel</title>
 
     <link rel="stylesheet" href="../assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
     <style>
 
@@ -274,67 +280,12 @@ function e($value) {
             min-height: 100vh;
         }
 
-        /* SIDEBAR */
-
-        .sidebar {
-            width: 250px;
-            min-width: 250px;
-            background: var(--navy);
-            color: #ffffff;
-            padding: 25px 16px;
-        }
-
-        .sidebar-brand {
-            font-size: 21px;
-            font-weight: bold;
-            color: var(--gold-light);
-            padding: 0 12px 28px;
-            border-bottom: 1px solid rgba(255,255,255,0.12);
-            margin-bottom: 22px;
-        }
-
-        .sidebar-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 7px;
-        }
-
-        .sidebar-menu a {
-            display: block;
-            padding: 12px 14px;
-            color: #d5deea;
-            text-decoration: none;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: background 0.2s, color 0.2s;
-        }
-
-        .sidebar-menu a:hover {
-            background: var(--navy-light);
-            color: var(--gold-light);
-        }
-
-        .sidebar-menu a.active {
-            background: rgba(214,166,59,0.17);
-            color: var(--gold-light);
-            border-left: 3px solid var(--gold);
-            font-weight: bold;
-        }
-
-        .sidebar-section {
-            color: #a9b6c9;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            padding: 18px 14px 7px;
-            text-transform: uppercase;
-        }
-
         /* MAIN CONTENT */
 
         .main-content {
             flex: 1;
             min-width: 0;
+            margin-left: 255px;
             padding: 35px;
         }
 
@@ -592,34 +543,16 @@ function e($value) {
 
         /* RESPONSIVE */
 
-        @media (max-width: 850px) {
-
-            .admin-layout {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                min-width: 0;
-                padding: 18px;
-            }
-
-            .sidebar-brand {
-                padding-bottom: 15px;
-                margin-bottom: 12px;
-            }
-
-            .sidebar-menu {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .sidebar-section {
-                grid-column: 1 / -1;
-            }
-
+        @media (max-width: 1000px) {
             .main-content {
+                margin-left: 220px;
                 padding: 22px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .main-content {
+                margin-left: 0;
             }
         }
 
@@ -644,10 +577,6 @@ function e($value) {
 
         @media (max-width: 500px) {
 
-            .sidebar-menu {
-                grid-template-columns: 1fr;
-            }
-
             .form-actions {
                 flex-direction: column;
                 align-items: stretch;
@@ -671,93 +600,7 @@ function e($value) {
 
 <div class="admin-layout">
 
-    <aside class="sidebar">
-
-        <div class="sidebar-brand">
-            Olivera Home Developers
-        </div>
-
-        <nav class="sidebar-menu">
-
-            <a href="dashboard.php">
-                ◈ Dashboard
-            </a>
-
-            <?php
-            require __DIR__ . "/includes/gallery_sidebar_link.php";
-            ?>
-
-            <div class="sidebar-section">
-                Administration
-            </div>
-
-            <a href="manage_admins.php">
-                ◉ Manage Admins
-            </a>
-
-            <a href="manage_users.php">
-                ◉ Manage Users
-            </a>
-
-            <a href="manage_customers.php">
-                ◉ Manage Customers
-            </a>
-
-            <a href="manage_content.php">
-                ◉ Manage Content
-            </a>
-
-            <a href="manage_settings.php">
-                ⚙ Website Settings
-            </a>
-
-            <a href="activity_logs.php">
-                ◷ Activity Logs
-            </a>
-
-            <div class="sidebar-section">
-                My Account
-            </div>
-
-            <a href="profile.php">
-                ◉ My Profile
-            </a>
-
-            <a href="change_password.php" class="active">
-                🔒 Change Password
-            </a>
-
-            <form method="POST" action="logout.php">
-
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?php echo e($_SESSION["csrf_token"]); ?>"
-                >
-
-                <button
-                    type="submit"
-                    style="
-                        display:block;
-                        width:100%;
-                        padding:12px 14px;
-                        border:0;
-                        border-radius:8px;
-                        background:transparent;
-                        color:#d5deea;
-                        text-align:left;
-                        font-size:14px;
-                        cursor:pointer;
-                    "
-                >
-                    ↪ Logout
-                </button>
-
-            </form>
-
-        </nav>
-
-    </aside>
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
     <main class="main-content">
 

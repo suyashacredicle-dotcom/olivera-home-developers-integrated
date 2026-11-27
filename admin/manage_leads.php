@@ -15,7 +15,6 @@ $canManageLeads = hasPermission("manage_leads");
 $canAssignLeads = ($currentRole === "super_admin");
 $canViewAllLeads = hasPermission("view_all_leads");
 $canViewAssignedLeads = hasPermission("view_assigned_leads");
-$isSalesEmployee = ($currentRole === "sales_employee");
 
 // --------------------------------------------------
 // ACCESS CONTROL
@@ -757,6 +756,8 @@ $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <title>Manage Leads | Olivera Home Developers</title>
 
+<link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
 <style>
 :root {
     --navy: #071b38;
@@ -790,93 +791,13 @@ body {
     min-height: 100vh;
 }
 
-/* SIDEBAR */
-
-.sidebar {
-    width: 260px;
-    min-width: 260px;
-    background: var(--navy);
-    color: var(--white);
-    min-height: 100vh;
-    padding: 25px 16px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    overflow-y: auto;
-    z-index: 1000;
-}
-
-.sidebar-brand {
-    padding: 5px 12px 25px;
-    border-bottom: 1px solid rgba(255,255,255,0.15);
-    margin-bottom: 22px;
-}
-
-.sidebar-brand h2 {
-    margin: 0;
-    color: var(--gold-light);
-    font-size: 21px;
-    letter-spacing: 0.5px;
-}
-
-.sidebar-brand p {
-    color: #cbd5e1;
-    font-size: 11px;
-    margin: 7px 0 0;
-    letter-spacing: 1.2px;
-}
-
-.sidebar-section {
-    color: var(--gold-light);
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 1.5px;
-    padding: 15px 12px 8px;
-    text-transform: uppercase;
-}
-
-.sidebar a {
-    display: block;
-    color: #e2e8f0;
-    text-decoration: none;
-    padding: 12px 13px;
-    margin: 4px 0;
-    border-radius: 7px;
-    font-size: 13px;
-    transition: 0.2s ease;
-}
-
-.sidebar a:hover {
-    background: var(--navy-light);
-    color: var(--gold-light);
-}
-
-.sidebar a.active {
-    background: var(--gold);
-    color: var(--navy);
-    font-weight: bold;
-}
-
-.sidebar-footer {
-    margin-top: 30px;
-    padding: 15px 12px;
-    border-top: 1px solid rgba(255,255,255,0.15);
-    color: #cbd5e1;
-    font-size: 12px;
-    line-height: 1.6;
-}
-
 /* MAIN CONTENT */
 
 .main-content {
-    margin-left: 260px;
-    width: calc(100% - 260px);
+    margin-left: 255px;
+    width: calc(100% - 255px);
+    min-width: 0;
     padding: 30px;
-}
-
-.mobile-header {
-    display: none;
 }
 
 .page-header {
@@ -1293,71 +1214,23 @@ td select {
     margin: 0;
 }
 
-.sidebar-overlay {
-    display: none;
+@media (max-width: 1000px) {
+    .main-content {
+        margin-left: 220px;
+        width: calc(100% - 220px);
+        padding: 22px;
+    }
 }
 
-@media (max-width: 900px) {
-    .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-    }
-
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .sidebar-overlay.show {
-        display: block;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.45);
-        z-index: 999;
-    }
-
+@media (max-width: 700px) {
     .main-content {
         margin-left: 0;
         width: 100%;
-        padding: 18px;
-    }
-
-    .mobile-header {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        background: var(--navy);
-        color: var(--white);
-        padding: 14px 18px;
-        margin: -18px -18px 22px;
-    }
-
-    .menu-button {
-        border: none;
-        background: var(--gold);
-        color: var(--navy);
-        padding: 9px 12px;
-        border-radius: 5px;
-        font-size: 19px;
-        cursor: pointer;
-    }
-
-    .mobile-header strong {
-        color: var(--gold-light);
-        font-size: 15px;
+        padding: 15px;
     }
 
     .page-header h1 {
         font-size: 23px;
-    }
-}
-
-@media (max-width: 600px) {
-    .main-content {
-        padding: 13px;
-    }
-
-    .mobile-header {
-        margin: -13px -13px 20px;
     }
 
     .panel {
@@ -1400,655 +1273,544 @@ td select {
 
 <div class="admin-layout">
 
-<!-- SIDEBAR -->
+    <!-- SHARED ADMIN SIDEBAR -->
 
-<aside class="sidebar" id="adminSidebar">
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
-    <div class="sidebar-brand">
-        <h2>OLIVERA</h2>
-        <p>HOME DEVELOPERS</p>
-    </div>
+    <!-- MAIN CONTENT -->
 
-    <div class="sidebar-section">Main Menu</div>
+    <main class="main-content">
 
-    <a href="dashboard.php">Dashboard</a>
-
-    <?php if (hasPermission("manage_users")): ?>
-        <a href="property_enquiries.php">Property Enquiries</a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_admins")): ?>
-        <a href="manage_admins.php">Manage Admin</a>
-        <a href="activity_logs.php">Activity Log</a>
-    <?php endif; ?>
-
-    <?php if ($canManageLeads || $canViewAllLeads || $canViewAssignedLeads): ?>
-        <a href="manage_leads.php" class="active">Manage Leads</a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_partnerships")): ?>
-        <a href="manage_partnerships.php">Manage Partnerships</a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_followups")): ?>
-        <a href="lead_followups.php">Lead Follow-ups</a>
-        <a href="followup_reminders.php">Follow-up Reminders</a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_site_visits")): ?>
-        <div class="sidebar-section">Site Visits</div>
-        <a href="site_visits.php">Site Visits</a>
-        <a href="weekly_site_visits.php">Weekly Site Visits</a>
-        <a href="reschedule_site_visits.php">Reschedule Visits</a>
-        <a href="cancel_site_visit.php">Cancel Site Visits</a>
-        <a href="site_visit_reschedule_history.php">Rescheduling History</a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("view_crm_reports")): ?>
-        <div class="sidebar-section">Analytics</div>
-        <a href="crm_reports.php">CRM Reports</a>
-    <?php endif; ?>
-
-    <div class="sidebar-footer">
-        Logged in as<br>
-        <strong><?php echo manageLeadsEscape($_SESSION["admin_name"] ?? "Administrator"); ?></strong>
-    </div>
-
-</aside>
-
-<div
-    class="sidebar-overlay"
-    id="sidebarOverlay"
-    onclick="closeSidebar()"
-></div>
-
-<!-- MAIN CONTENT -->
-
-<main class="main-content">
-
-    <div class="mobile-header">
-        <button
-            class="menu-button"
-            type="button"
-            onclick="toggleSidebar()"
-        >☰</button>
-
-        <strong>OLIVERA HOME DEVELOPERS</strong>
-    </div>
-
-    <div class="page-header">
-
-        <div>
-            <h1>Manage Leads</h1>
-            <p class="page-subtitle">
-                Manage customer enquiries, sales assignments and CRM activities.
-            </p>
-        </div>
-
-        <div class="admin-user">
-            <?php echo manageLeadsEscape($_SESSION["admin_name"] ?? "Administrator"); ?>
-        </div>
-
-    </div>
-
-    <div class="top-links">
-        <a href="lead_followups.php">Lead Follow-ups</a>
-        <a href="site_visits.php">Site Visits</a>
-        <a href="crm_reports.php">CRM Reports</a>
-        <a href="followup_reminders.php">Follow-up Reminders</a>
-    </div>
-
-    <?php if ($message !== ""): ?>
-        <div class="notice <?php echo manageLeadsEscape($messageType); ?>">
-            <?php echo manageLeadsEscape($message); ?>
-        </div>
-    <?php endif; ?>
-
-    <!-- ADD NEW LEAD -->
-
-    <?php if ($canManageLeads): ?>
-
-    <section class="panel">
-
-        <h2>Add New Lead</h2>
-
-        <form method="post" class="form-grid">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo manageLeadsEscape($csrfToken); ?>"
-            >
-
-            <input type="hidden" name="action" value="add_lead">
-
-            <label>
-                Customer Name *
-
-                <input name="customer_name" required maxlength="190">
-            </label>
-
-            <label>
-                Phone *
-
-                <input name="phone" required maxlength="30">
-            </label>
-
-            <label>
-                Email
-
-                <input type="email" name="email" maxlength="190">
-            </label>
-
-            <label>
-                Property Type
-
-                <select name="property_type">
-                    <option value="">Select</option>
-
-                    <?php foreach ($propertyTypes as $type): ?>
-                        <option value="<?php echo manageLeadsEscape($type); ?>">
-                            <?php echo manageLeadsEscape($type); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-
-            <label>
-                Interested Location
-
-                <input name="interested_location" maxlength="190">
-            </label>
-
-            <label>
-                Minimum Budget
-
-                <input
-                    type="number"
-                    name="budget_min"
-                    min="0"
-                    step="0.01"
-                >
-            </label>
-
-            <label>
-                Maximum Budget
-
-                <input
-                    type="number"
-                    name="budget_max"
-                    min="0"
-                    step="0.01"
-                >
-            </label>
-
-            <label>
-                Lead Source
-
-                <select name="lead_source">
-                    <?php foreach ($leadSources as $source): ?>
-                        <option
-                            value="<?php echo manageLeadsEscape($source); ?>"
-                            <?php echo $source === "Manual Entry" ? "selected" : ""; ?>
-                        >
-                            <?php echo manageLeadsEscape($source); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-
-            <label>
-                Message
-
-                <textarea name="message" rows="2"></textarea>
-            </label>
+        <div class="page-header">
 
             <div>
-                <button class="btn btn-green" type="submit">
-                    Add Lead
-                </button>
+                <h1>Manage Leads</h1>
+                <p class="page-subtitle">
+                    Manage customer enquiries, sales assignments and CRM activities.
+                </p>
             </div>
 
-        </form>
-
-    </section>
-
-    <?php endif; ?>
-
-    <!-- SALES EMPLOYEE WORKLOAD -->
-
-    <?php if ($canAssignLeads): ?>
-
-    <section class="panel">
-
-        <h2>Sales Employee Workload Summary</h2>
-
-        <div class="workload-grid">
-
-            <?php foreach ($workload as $employee): ?>
-
-                <?php
-                $total = (int)$employee["total_leads"];
-
-                $level = $total <= 5
-                    ? "Low"
-                    : ($total <= 10 ? "Medium" : "High");
-                ?>
-
-                <div class="work-card">
-
-                    <h3><?php echo manageLeadsEscape($employee["name"]); ?></h3>
-
-                    <p>
-                        <strong>Total Assigned Leads:</strong>
-                        <?php echo $total; ?>
-
-                        <span class="badge">
-                            <?php echo manageLeadsEscape($level); ?> Workload
-                        </span>
-                    </p>
-
-                    <p>
-                        New: <?php echo (int)$employee["new_count"]; ?> |
-                        Contacted: <?php echo (int)$employee["contacted_count"]; ?> |
-                        Interested: <?php echo (int)$employee["interested_count"]; ?> |
-                        Converted: <?php echo (int)$employee["converted_count"]; ?>
-                    </p>
-
-                    <a
-                        href="manage_leads.php?assigned_employee=<?php echo (int)$employee["id"]; ?>"
-                        class="btn btn-secondary"
-                    >
-                        View Leads
-                    </a>
-
-                </div>
-
-            <?php endforeach; ?>
-
-            <div class="work-card">
-
-                <h3>Unassigned Leads</h3>
-
-                <p>
-                    <strong><?php echo $unassignedCount; ?></strong>
-                    leads need assignment.
-                </p>
-
-                <a
-                    class="btn btn-orange"
-                    href="manage_leads.php?assigned_filter=unassigned"
-                >
-                    View Unassigned
-                </a>
-
+            <div class="admin-user">
+                <?php echo manageLeadsEscape($_SESSION["admin_name"] ?? "Administrator"); ?>
             </div>
 
         </div>
 
-    </section>
+        <div class="top-links">
+            <a href="lead_followups.php">Lead Follow-ups</a>
+            <a href="site_visits.php">Site Visits</a>
+            <a href="crm_reports.php">CRM Reports</a>
+            <a href="followup_reminders.php">Follow-up Reminders</a>
+        </div>
 
-    <?php endif; ?>
+        <?php if ($message !== ""): ?>
+            <div class="notice <?php echo manageLeadsEscape($messageType); ?>">
+                <?php echo manageLeadsEscape($message); ?>
+            </div>
+        <?php endif; ?>
 
-    <!-- SEARCH AND FILTERS -->
+        <!-- ADD NEW LEAD -->
 
-    <section class="panel">
+        <?php if ($canManageLeads): ?>
 
-        <h2>Search &amp; Filter Leads</h2>
+        <section class="panel">
 
-        <form method="get" class="filters">
+            <h2>Add New Lead</h2>
 
-            <label>
-                Search
-
-                <input
-                    type="text"
-                    name="search"
-                    value="<?php echo manageLeadsEscape($search); ?>"
-                    placeholder="Name, phone, email, location"
-                >
-            </label>
-
-            <label>
-                Lead Status
-
-                <select name="status">
-                    <option value="">All Statuses</option>
-
-                    <?php foreach ($statuses as $key => $label): ?>
-                        <option
-                            value="<?php echo manageLeadsEscape($key); ?>"
-                            <?php echo $statusFilter === $key ? "selected" : ""; ?>
-                        >
-                            <?php echo manageLeadsEscape($label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-
-            <label>
-                Property Type
-
-                <select name="property_type">
-                    <option value="">All Property Types</option>
-
-                    <?php foreach ($propertyTypes as $type): ?>
-                        <option
-                            value="<?php echo manageLeadsEscape($type); ?>"
-                            <?php echo $propertyFilter === $type ? "selected" : ""; ?>
-                        >
-                            <?php echo manageLeadsEscape($type); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-
-            <label>
-                Lead Source
-
-                <select name="lead_source">
-                    <option value="">All Sources</option>
-
-                    <?php foreach ($leadSources as $source): ?>
-                        <option
-                            value="<?php echo manageLeadsEscape($source); ?>"
-                            <?php echo $sourceFilter === $source ? "selected" : ""; ?>
-                        >
-                            <?php echo manageLeadsEscape($source); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-
-            <label>
-                Interested Location
+            <form method="post" class="form-grid">
 
                 <input
-                    name="location"
-                    value="<?php echo manageLeadsEscape($locationFilter); ?>"
-                    placeholder="Filter location"
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?php echo manageLeadsEscape($csrfToken); ?>"
                 >
-            </label>
 
-            <label>
-                Priority
-
-                <select name="priority">
-                    <option value="">All Priorities</option>
-
-                    <?php foreach ($priorities as $key => $label): ?>
-                        <option
-                            value="<?php echo manageLeadsEscape($key); ?>"
-                            <?php echo $priorityFilter === $key ? "selected" : ""; ?>
-                        >
-                            <?php echo manageLeadsEscape($label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-
-            <?php if ($canAssignLeads): ?>
+                <input type="hidden" name="action" value="add_lead">
 
                 <label>
-                    Sales Employee
+                    Customer Name *
 
-                    <select name="assigned_employee">
-                        <option value="">All Employees</option>
+                    <input name="customer_name" required maxlength="190">
+                </label>
 
-                        <?php foreach ($salesEmployees as $employee): ?>
-                            <option
-                                value="<?php echo (int)$employee["id"]; ?>"
-                                <?php echo $employeeFilter === (string)$employee["id"] ? "selected" : ""; ?>
-                            >
-                                <?php echo manageLeadsEscape($employee["name"]); ?>
+                <label>
+                    Phone *
+
+                    <input name="phone" required maxlength="30">
+                </label>
+
+                <label>
+                    Email
+
+                    <input type="email" name="email" maxlength="190">
+                </label>
+
+                <label>
+                    Property Type
+
+                    <select name="property_type">
+                        <option value="">Select</option>
+
+                        <?php foreach ($propertyTypes as $type): ?>
+                            <option value="<?php echo manageLeadsEscape($type); ?>">
+                                <?php echo manageLeadsEscape($type); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </label>
 
                 <label>
-                    Assignment
+                    Interested Location
 
-                    <select name="assigned_filter">
-                        <option value="">All Leads</option>
+                    <input name="interested_location" maxlength="190">
+                </label>
 
-                        <option
-                            value="assigned"
-                            <?php echo $assignedFilter === "assigned" ? "selected" : ""; ?>
-                        >
-                            Assigned
-                        </option>
+                <label>
+                    Minimum Budget
 
-                        <option
-                            value="unassigned"
-                            <?php echo $assignedFilter === "unassigned" ? "selected" : ""; ?>
-                        >
-                            Unassigned
-                        </option>
+                    <input
+                        type="number"
+                        name="budget_min"
+                        min="0"
+                        step="0.01"
+                    >
+                </label>
+
+                <label>
+                    Maximum Budget
+
+                    <input
+                        type="number"
+                        name="budget_max"
+                        min="0"
+                        step="0.01"
+                    >
+                </label>
+
+                <label>
+                    Lead Source
+
+                    <select name="lead_source">
+                        <?php foreach ($leadSources as $source): ?>
+                            <option
+                                value="<?php echo manageLeadsEscape($source); ?>"
+                                <?php echo $source === "Manual Entry" ? "selected" : ""; ?>
+                            >
+                                <?php echo manageLeadsEscape($source); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </label>
 
-            <?php endif; ?>
+                <label>
+                    Message
 
-            <div class="actions">
-                <button class="btn" type="submit">
-                    Apply Filters
-                </button>
+                    <textarea name="message" rows="2"></textarea>
+                </label>
 
-                <a class="btn btn-secondary" href="manage_leads.php">
-                    Reset
-                </a>
-            </div>
-
-        </form>
-
-    </section>
-
-    <!-- LEAD LIST -->
-
-    <section class="panel">
-
-        <div class="panel-heading">
-
-            <h2>
-                Lead List
-                <span class="table-count"><?php echo count($leads); ?></span>
-            </h2>
-
-            <form method="get" action="export_leads.php" class="export-form">
-
-                <input type="hidden" name="search" value="<?php echo manageLeadsEscape($search); ?>">
-                <input type="hidden" name="status" value="<?php echo manageLeadsEscape($statusFilter); ?>">
-                <input type="hidden" name="property_type" value="<?php echo manageLeadsEscape($propertyFilter); ?>">
-                <input type="hidden" name="lead_source" value="<?php echo manageLeadsEscape($sourceFilter); ?>">
-                <input type="hidden" name="location" value="<?php echo manageLeadsEscape($locationFilter); ?>">
-                <input type="hidden" name="priority" value="<?php echo manageLeadsEscape($priorityFilter); ?>">
-                <input type="hidden" name="assigned_employee" value="<?php echo manageLeadsEscape($employeeFilter); ?>">
-                <input type="hidden" name="assigned_filter" value="<?php echo manageLeadsEscape($assignedFilter); ?>">
-
-                <button class="btn btn-green" type="submit">
-                    Export CSV
-                </button>
+                <div>
+                    <button class="btn btn-green" type="submit">
+                        Add Lead
+                    </button>
+                </div>
 
             </form>
 
-        </div>
+        </section>
 
-        <div class="table-wrap">
+        <?php endif; ?>
 
-            <table>
+        <!-- SALES EMPLOYEE WORKLOAD -->
 
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Customer</th>
-                        <th>Phone / Email</th>
-                        <th>Property</th>
-                        <th>Location</th>
-                        <th>Budget</th>
-                        <th>Source</th>
-                        <th>Priority</th>
-                        <th>Status</th>
+        <?php if ($canAssignLeads): ?>
 
-                        <?php if ($canAssignLeads): ?>
-                            <th>Assigned Employee</th>
-                        <?php endif; ?>
+        <section class="panel">
 
-                        <th>Created</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
+            <h2>Sales Employee Workload Summary</h2>
 
-                <tbody>
+            <div class="workload-grid">
 
-                    <?php if (!$leads): ?>
+                <?php foreach ($workload as $employee): ?>
 
-                        <tr>
-                            <td
-                                colspan="<?php echo 11 + ($canAssignLeads ? 1 : 0); ?>"
-                                class="empty"
+                    <?php
+                    $total = (int)$employee["total_leads"];
+
+                    $level = $total <= 5
+                        ? "Low"
+                        : ($total <= 10 ? "Medium" : "High");
+                    ?>
+
+                    <div class="work-card">
+
+                        <h3><?php echo manageLeadsEscape($employee["name"]); ?></h3>
+
+                        <p>
+                            <strong>Total Assigned Leads:</strong>
+                            <?php echo $total; ?>
+
+                            <span class="badge">
+                                <?php echo manageLeadsEscape($level); ?> Workload
+                            </span>
+                        </p>
+
+                        <p>
+                            New: <?php echo (int)$employee["new_count"]; ?> |
+                            Contacted: <?php echo (int)$employee["contacted_count"]; ?> |
+                            Interested: <?php echo (int)$employee["interested_count"]; ?> |
+                            Converted: <?php echo (int)$employee["converted_count"]; ?>
+                        </p>
+
+                        <a
+                            href="manage_leads.php?assigned_employee=<?php echo (int)$employee["id"]; ?>"
+                            class="btn btn-secondary"
+                        >
+                            View Leads
+                        </a>
+
+                    </div>
+
+                <?php endforeach; ?>
+
+                <div class="work-card">
+
+                    <h3>Unassigned Leads</h3>
+
+                    <p>
+                        <strong><?php echo $unassignedCount; ?></strong>
+                        leads need assignment.
+                    </p>
+
+                    <a
+                        class="btn btn-orange"
+                        href="manage_leads.php?assigned_filter=unassigned"
+                    >
+                        View Unassigned
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <?php endif; ?>
+
+        <!-- SEARCH AND FILTERS -->
+
+        <section class="panel">
+
+            <h2>Search &amp; Filter Leads</h2>
+
+            <form method="get" class="filters">
+
+                <label>
+                    Search
+
+                    <input
+                        type="text"
+                        name="search"
+                        value="<?php echo manageLeadsEscape($search); ?>"
+                        placeholder="Name, phone, email, location"
+                    >
+                </label>
+
+                <label>
+                    Lead Status
+
+                    <select name="status">
+                        <option value="">All Statuses</option>
+
+                        <?php foreach ($statuses as $key => $label): ?>
+                            <option
+                                value="<?php echo manageLeadsEscape($key); ?>"
+                                <?php echo $statusFilter === $key ? "selected" : ""; ?>
                             >
-                                No leads found for these filters.
-                            </td>
+                                <?php echo manageLeadsEscape($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <label>
+                    Property Type
+
+                    <select name="property_type">
+                        <option value="">All Property Types</option>
+
+                        <?php foreach ($propertyTypes as $type): ?>
+                            <option
+                                value="<?php echo manageLeadsEscape($type); ?>"
+                                <?php echo $propertyFilter === $type ? "selected" : ""; ?>
+                            >
+                                <?php echo manageLeadsEscape($type); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <label>
+                    Lead Source
+
+                    <select name="lead_source">
+                        <option value="">All Sources</option>
+
+                        <?php foreach ($leadSources as $source): ?>
+                            <option
+                                value="<?php echo manageLeadsEscape($source); ?>"
+                                <?php echo $sourceFilter === $source ? "selected" : ""; ?>
+                            >
+                                <?php echo manageLeadsEscape($source); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <label>
+                    Interested Location
+
+                    <input
+                        name="location"
+                        value="<?php echo manageLeadsEscape($locationFilter); ?>"
+                        placeholder="Filter location"
+                    >
+                </label>
+
+                <label>
+                    Priority
+
+                    <select name="priority">
+                        <option value="">All Priorities</option>
+
+                        <?php foreach ($priorities as $key => $label): ?>
+                            <option
+                                value="<?php echo manageLeadsEscape($key); ?>"
+                                <?php echo $priorityFilter === $key ? "selected" : ""; ?>
+                            >
+                                <?php echo manageLeadsEscape($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <?php if ($canAssignLeads): ?>
+
+                    <label>
+                        Sales Employee
+
+                        <select name="assigned_employee">
+                            <option value="">All Employees</option>
+
+                            <?php foreach ($salesEmployees as $employee): ?>
+                                <option
+                                    value="<?php echo (int)$employee["id"]; ?>"
+                                    <?php echo $employeeFilter === (string)$employee["id"] ? "selected" : ""; ?>
+                                >
+                                    <?php echo manageLeadsEscape($employee["name"]); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label>
+                        Assignment
+
+                        <select name="assigned_filter">
+                            <option value="">All Leads</option>
+
+                            <option
+                                value="assigned"
+                                <?php echo $assignedFilter === "assigned" ? "selected" : ""; ?>
+                            >
+                                Assigned
+                            </option>
+
+                            <option
+                                value="unassigned"
+                                <?php echo $assignedFilter === "unassigned" ? "selected" : ""; ?>
+                            >
+                                Unassigned
+                            </option>
+                        </select>
+                    </label>
+
+                <?php endif; ?>
+
+                <div class="actions">
+                    <button class="btn" type="submit">
+                        Apply Filters
+                    </button>
+
+                    <a class="btn btn-secondary" href="manage_leads.php">
+                        Reset
+                    </a>
+                </div>
+
+            </form>
+
+        </section>
+
+        <!-- LEAD LIST -->
+
+        <section class="panel">
+
+            <div class="panel-heading">
+
+                <h2>
+                    Lead List
+                    <span class="table-count"><?php echo count($leads); ?></span>
+                </h2>
+
+                <form method="get" action="export_leads.php" class="export-form">
+
+                    <input type="hidden" name="search" value="<?php echo manageLeadsEscape($search); ?>">
+                    <input type="hidden" name="status" value="<?php echo manageLeadsEscape($statusFilter); ?>">
+                    <input type="hidden" name="property_type" value="<?php echo manageLeadsEscape($propertyFilter); ?>">
+                    <input type="hidden" name="lead_source" value="<?php echo manageLeadsEscape($sourceFilter); ?>">
+                    <input type="hidden" name="location" value="<?php echo manageLeadsEscape($locationFilter); ?>">
+                    <input type="hidden" name="priority" value="<?php echo manageLeadsEscape($priorityFilter); ?>">
+                    <input type="hidden" name="assigned_employee" value="<?php echo manageLeadsEscape($employeeFilter); ?>">
+                    <input type="hidden" name="assigned_filter" value="<?php echo manageLeadsEscape($assignedFilter); ?>">
+
+                    <button class="btn btn-green" type="submit">
+                        Export CSV
+                    </button>
+
+                </form>
+
+            </div>
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Customer</th>
+                            <th>Phone / Email</th>
+                            <th>Property</th>
+                            <th>Location</th>
+                            <th>Budget</th>
+                            <th>Source</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+
+                            <?php if ($canAssignLeads): ?>
+                                <th>Assigned Employee</th>
+                            <?php endif; ?>
+
+                            <th>Created</th>
+                            <th>Actions</th>
                         </tr>
+                    </thead>
 
-                    <?php else: ?>
+                    <tbody>
 
-                        <?php foreach ($leads as $lead): ?>
+                        <?php if (!$leads): ?>
 
                             <tr>
-
-                                <td><?php echo (int)$lead["id"]; ?></td>
-
-                                <td>
-                                    <strong>
-                                        <?php echo manageLeadsEscape($lead["customer_name"]); ?>
-                                    </strong>
+                                <td
+                                    colspan="<?php echo 11 + ($canAssignLeads ? 1 : 0); ?>"
+                                    class="empty"
+                                >
+                                    No leads found for these filters.
                                 </td>
+                            </tr>
 
-                                <td>
-                                    <?php echo manageLeadsEscape($lead["phone"]); ?>
-                                    <br>
-                                    <?php echo manageLeadsEscape($lead["email"]); ?>
-                                </td>
+                        <?php else: ?>
 
-                                <td>
-                                    <?php echo manageLeadsEscape($lead["property_type"]); ?>
-                                </td>
+                            <?php foreach ($leads as $lead): ?>
 
-                                <td>
-                                    <?php echo manageLeadsEscape($lead["interested_location"]); ?>
-                                </td>
+                                <tr>
 
-                                <td>
-                                    <?php if ($lead["budget_min"] !== null || $lead["budget_max"] !== null): ?>
-                                        ₹<?php echo number_format((float)$lead["budget_min"]); ?>
-                                        –
-                                        ₹<?php echo number_format((float)$lead["budget_max"]); ?>
-                                    <?php else: ?>
-                                        -
-                                    <?php endif; ?>
-                                </td>
+                                    <td><?php echo (int)$lead["id"]; ?></td>
 
-                                <td>
-                                    <?php echo manageLeadsEscape($lead["lead_source"]); ?>
-                                </td>
+                                    <td>
+                                        <strong>
+                                            <?php echo manageLeadsEscape($lead["customer_name"]); ?>
+                                        </strong>
+                                    </td>
 
-                                <!-- PRIORITY -->
+                                    <td>
+                                        <?php echo manageLeadsEscape($lead["phone"]); ?>
+                                        <br>
+                                        <?php echo manageLeadsEscape($lead["email"]); ?>
+                                    </td>
 
-                                <td>
+                                    <td>
+                                        <?php echo manageLeadsEscape($lead["property_type"]); ?>
+                                    </td>
 
-                                    <?php if ($canManageLeads): ?>
+                                    <td>
+                                        <?php echo manageLeadsEscape($lead["interested_location"]); ?>
+                                    </td>
 
-                                        <form method="post" class="inline-form priority-form">
+                                    <td>
+                                        <?php if ($lead["budget_min"] !== null || $lead["budget_max"] !== null): ?>
+                                            ₹<?php echo number_format((float)$lead["budget_min"]); ?>
+                                            –
+                                            ₹<?php echo number_format((float)$lead["budget_max"]); ?>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
 
-                                            <input
-                                                type="hidden"
-                                                name="csrf_token"
-                                                value="<?php echo manageLeadsEscape($csrfToken); ?>"
-                                            >
+                                    <td>
+                                        <?php echo manageLeadsEscape($lead["lead_source"]); ?>
+                                    </td>
 
-                                            <input type="hidden" name="action" value="update_priority">
+                                    <!-- PRIORITY -->
 
-                                            <input
-                                                type="hidden"
-                                                name="lead_id"
-                                                value="<?php echo (int)$lead["id"]; ?>"
-                                            >
+                                    <td>
 
-                                            <select
-                                                name="priority"
-                                                class="<?php echo manageLeadsPriorityClass($lead["priority"] ?? "medium"); ?>"
-                                                onchange="this.form.submit()"
-                                            >
+                                        <?php if ($canManageLeads): ?>
 
-                                                <?php foreach ($priorities as $key => $label): ?>
-                                                    <option
-                                                        value="<?php echo manageLeadsEscape($key); ?>"
-                                                        <?php echo ($lead["priority"] ?? "medium") === $key ? "selected" : ""; ?>
-                                                    >
-                                                        <?php echo manageLeadsEscape($label); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
+                                            <form method="post" class="inline-form priority-form">
 
-                                            </select>
-
-                                        </form>
-
-                                    <?php else: ?>
-
-                                        <span class="badge <?php echo manageLeadsPriorityClass($lead["priority"] ?? "medium"); ?>">
-                                            <?php echo manageLeadsEscape(ucfirst($lead["priority"] ?? "medium")); ?>
-                                        </span>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                                <!-- STATUS -->
-
-                                <td>
-
-                                    <form method="post" class="inline-form">
-
-                                        <input
-                                            type="hidden"
-                                            name="csrf_token"
-                                            value="<?php echo manageLeadsEscape($csrfToken); ?>"
-                                        >
-
-                                        <input type="hidden" name="action" value="update_status">
-
-                                        <input
-                                            type="hidden"
-                                            name="lead_id"
-                                            value="<?php echo (int)$lead["id"]; ?>"
-                                        >
-
-                                        <select
-                                            name="lead_status"
-                                            onchange="this.form.submit()"
-                                            class="<?php echo manageLeadsStatusClass($lead["lead_status"]); ?>"
-                                        >
-
-                                            <?php foreach ($statuses as $key => $label): ?>
-                                                <option
-                                                    value="<?php echo manageLeadsEscape($key); ?>"
-                                                    <?php echo $lead["lead_status"] === $key ? "selected" : ""; ?>
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="<?php echo manageLeadsEscape($csrfToken); ?>"
                                                 >
-                                                    <?php echo manageLeadsEscape($label); ?>
-                                                </option>
-                                            <?php endforeach; ?>
 
-                                        </select>
+                                                <input type="hidden" name="action" value="update_priority">
 
-                                    </form>
+                                                <input
+                                                    type="hidden"
+                                                    name="lead_id"
+                                                    value="<?php echo (int)$lead["id"]; ?>"
+                                                >
 
-                                </td>
+                                                <select
+                                                    name="priority"
+                                                    class="<?php echo manageLeadsPriorityClass($lead["priority"] ?? "medium"); ?>"
+                                                    onchange="this.form.submit()"
+                                                >
 
-                                <!-- ASSIGNMENT -->
+                                                    <?php foreach ($priorities as $key => $label): ?>
+                                                        <option
+                                                            value="<?php echo manageLeadsEscape($key); ?>"
+                                                            <?php echo ($lead["priority"] ?? "medium") === $key ? "selected" : ""; ?>
+                                                        >
+                                                            <?php echo manageLeadsEscape($label); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
 
-                                <?php if ($canAssignLeads): ?>
+                                                </select>
+
+                                            </form>
+
+                                        <?php else: ?>
+
+                                            <span class="badge <?php echo manageLeadsPriorityClass($lead["priority"] ?? "medium"); ?>">
+                                                <?php echo manageLeadsEscape(ucfirst($lead["priority"] ?? "medium")); ?>
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+                                    <!-- STATUS -->
 
                                     <td>
 
@@ -2060,7 +1822,7 @@ td select {
                                                 value="<?php echo manageLeadsEscape($csrfToken); ?>"
                                             >
 
-                                            <input type="hidden" name="action" value="assign_lead">
+                                            <input type="hidden" name="action" value="update_status">
 
                                             <input
                                                 type="hidden"
@@ -2069,18 +1831,17 @@ td select {
                                             >
 
                                             <select
-                                                name="assigned_to"
+                                                name="lead_status"
                                                 onchange="this.form.submit()"
+                                                class="<?php echo manageLeadsStatusClass($lead["lead_status"]); ?>"
                                             >
 
-                                                <option value="">Unassigned</option>
-
-                                                <?php foreach ($salesEmployees as $employee): ?>
+                                                <?php foreach ($statuses as $key => $label): ?>
                                                     <option
-                                                        value="<?php echo (int)$employee["id"]; ?>"
-                                                        <?php echo (string)$lead["assigned_to"] === (string)$employee["id"] ? "selected" : ""; ?>
+                                                        value="<?php echo manageLeadsEscape($key); ?>"
+                                                        <?php echo $lead["lead_status"] === $key ? "selected" : ""; ?>
                                                     >
-                                                        <?php echo manageLeadsEscape($employee["name"]); ?>
+                                                        <?php echo manageLeadsEscape($label); ?>
                                                     </option>
                                                 <?php endforeach; ?>
 
@@ -2090,41 +1851,13 @@ td select {
 
                                     </td>
 
-                                <?php endif; ?>
+                                    <!-- ASSIGNMENT -->
 
-                                <td>
-                                    <?php
-                                    echo !empty($lead["created_at"])
-                                        ? manageLeadsEscape(date("d-m-Y", strtotime($lead["created_at"])))
-                                        : "-";
-                                    ?>
-                                </td>
+                                    <?php if ($canAssignLeads): ?>
 
-                                <!-- ACTIONS -->
+                                        <td>
 
-                                <td>
-
-                                    <div class="lead-actions">
-
-                                        <a href="view_lead.php?id=<?php echo (int)$lead["id"]; ?>">
-                                            View
-                                        </a>
-
-                                        <?php if ($canManageLeads): ?>
-
-                                            <a
-                                                class="edit"
-                                                href="edit_lead.php?id=<?php echo (int)$lead["id"]; ?>"
-                                            >
-                                                Edit
-                                            </a>
-
-                                            <form
-                                                method="POST"
-                                                action="delete_lead.php"
-                                                class="inline-form"
-                                                onsubmit="return confirm('Are you sure you want to permanently delete this lead?');"
-                                            >
+                                            <form method="post" class="inline-form">
 
                                                 <input
                                                     type="hidden"
@@ -2132,53 +1865,113 @@ td select {
                                                     value="<?php echo manageLeadsEscape($csrfToken); ?>"
                                                 >
 
+                                                <input type="hidden" name="action" value="assign_lead">
+
                                                 <input
                                                     type="hidden"
                                                     name="lead_id"
                                                     value="<?php echo (int)$lead["id"]; ?>"
                                                 >
 
-                                                <button type="submit" class="delete-button">
-                                                    Delete
-                                                </button>
+                                                <select
+                                                    name="assigned_to"
+                                                    onchange="this.form.submit()"
+                                                >
+
+                                                    <option value="">Unassigned</option>
+
+                                                    <?php foreach ($salesEmployees as $employee): ?>
+                                                        <option
+                                                            value="<?php echo (int)$employee["id"]; ?>"
+                                                            <?php echo (string)$lead["assigned_to"] === (string)$employee["id"] ? "selected" : ""; ?>
+                                                        >
+                                                            <?php echo manageLeadsEscape($employee["name"]); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+
+                                                </select>
 
                                             </form>
 
-                                        <?php endif; ?>
+                                        </td>
 
-                                    </div>
+                                    <?php endif; ?>
 
-                                </td>
+                                    <td>
+                                        <?php
+                                        echo !empty($lead["created_at"])
+                                            ? manageLeadsEscape(date("d-m-Y", strtotime($lead["created_at"])))
+                                            : "-";
+                                        ?>
+                                    </td>
 
-                            </tr>
+                                    <!-- ACTIONS -->
 
-                        <?php endforeach; ?>
+                                    <td>
 
-                    <?php endif; ?>
+                                        <div class="lead-actions">
 
-                </tbody>
+                                            <a href="view_lead.php?id=<?php echo (int)$lead["id"]; ?>">
+                                                View
+                                            </a>
 
-            </table>
+                                            <?php if ($canManageLeads): ?>
 
-        </div>
+                                                <a
+                                                    class="edit"
+                                                    href="edit_lead.php?id=<?php echo (int)$lead["id"]; ?>"
+                                                >
+                                                    Edit
+                                                </a>
 
-    </section>
+                                                <form
+                                                    method="POST"
+                                                    action="delete_lead.php"
+                                                    class="inline-form"
+                                                    onsubmit="return confirm('Are you sure you want to permanently delete this lead?');"
+                                                >
 
-</main>
+                                                    <input
+                                                        type="hidden"
+                                                        name="csrf_token"
+                                                        value="<?php echo manageLeadsEscape($csrfToken); ?>"
+                                                    >
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="lead_id"
+                                                        value="<?php echo (int)$lead["id"]; ?>"
+                                                    >
+
+                                                    <button type="submit" class="delete-button">
+                                                        Delete
+                                                    </button>
+
+                                                </form>
+
+                                            <?php endif; ?>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        <?php endif; ?>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
 
 </div>
-
-<script>
-function toggleSidebar() {
-    document.getElementById("adminSidebar").classList.toggle("open");
-    document.getElementById("sidebarOverlay").classList.toggle("show");
-}
-
-function closeSidebar() {
-    document.getElementById("adminSidebar").classList.remove("open");
-    document.getElementById("sidebarOverlay").classList.remove("show");
-}
-</script>
 
 </body>
 </html>

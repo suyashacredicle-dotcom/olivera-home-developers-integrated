@@ -1,46 +1,96 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+// --------------------------------------------------
+// SECURITY HEADERS
+// --------------------------------------------------
 
-// Only Sales Employees can access their notification inbox.
-if ($_SESSION["admin_role"] !== "sales_employee") {
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("Referrer-Policy: no-referrer");
+
+// --------------------------------------------------
+// REQUIRED FILES
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
+
+// --------------------------------------------------
+// ACCESS CONTROL
+// --------------------------------------------------
+
+if (($_SESSION["admin_role"] ?? "") !== "sales_employee") {
     http_response_code(403);
     exit("Access Denied! This page is for Sales Employees only.");
 }
 
-$adminId = (int)$_SESSION["admin_id"];
+$adminId = (int)($_SESSION["admin_id"] ?? 0);
+
+if ($adminId <= 0) {
+    header("Location: login.php");
+    exit;
+}
+
+// --------------------------------------------------
+// INITIALIZE
+// --------------------------------------------------
 
 $message = "";
+$messageType = "";
 
-// CSRF protection
-if (empty($_SESSION["csrf_token"])) {
+// --------------------------------------------------
+// CSRF PROTECTION
+// --------------------------------------------------
+
+if (
+    empty($_SESSION["csrf_token"]) ||
+    !is_string($_SESSION["csrf_token"])
+) {
     $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
 }
 
 $csrfToken = $_SESSION["csrf_token"];
 
-// Mark notification as read
+// --------------------------------------------------
+// MARK NOTIFICATION AS READ
+// --------------------------------------------------
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $postedToken = $_POST["csrf_token"] ?? "";
 
-    if (!hash_equals($csrfToken, $postedToken)) {
+    if (
+        !is_string($postedToken) ||
+        !hash_equals($csrfToken, $postedToken)
+    ) {
+        http_response_code(403);
+        exit("Invalid security token. Please reload the page.");
+    }
 
-        $message = "Invalid security token. Please try again.";
+    $notificationId = filter_var(
+        $_POST["notification_id"] ?? null,
+        FILTER_VALIDATE_INT
+    );
+
+    if (!$notificationId || $notificationId <= 0) {
+
+        $message = "Invalid notification.";
+        $messageType = "error";
 
     } else {
 
-        $notificationId = (int)($_POST["notification_id"] ?? 0);
-
-        if ($notificationId > 0) {
+        try {
 
             $stmt = $pdo->prepare("
                 UPDATE notifications
                 SET is_read = 1
                 WHERE id = ?
                 AND admin_id = ?
+                AND is_read = 0
             ");
 
             $stmt->execute([
@@ -48,38 +98,80 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $adminId
             ]);
 
-            $message = "Notification marked as read.";
+            if ($stmt->rowCount() > 0) {
+                $message = "Notification marked as read.";
+                $messageType = "success";
+            } else {
+                $message = "Notification was already read or could not be found.";
+                $messageType = "error";
+            }
+
+        } catch (PDOException $e) {
+
+            error_log($e->getMessage());
+
+            $message = "Unable to update the notification. Please try again.";
+            $messageType = "error";
         }
     }
+
+    // Rotate CSRF token after processing the request.
+    $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
+    $csrfToken = $_SESSION["csrf_token"];
 }
 
-// Fetch this employee's notifications only.
-$stmt = $pdo->prepare("
-    SELECT
-        n.*,
-        l.customer_name
-    FROM notifications n
-    LEFT JOIN leads l
-        ON n.lead_id = l.id
-    WHERE n.admin_id = ?
-    ORDER BY n.created_at DESC, n.id DESC
-");
+// --------------------------------------------------
+// FETCH EMPLOYEE NOTIFICATIONS
+// --------------------------------------------------
 
-$stmt->execute([$adminId]);
-$notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
 
-// Count unread notifications.
-$stmt = $pdo->prepare("
-    SELECT COUNT(*)
-    FROM notifications
-    WHERE admin_id = ?
-    AND is_read = 0
-");
+    $stmt = $pdo->prepare("
+        SELECT
+            n.*,
+            l.customer_name
+        FROM notifications n
+        LEFT JOIN leads l
+            ON n.lead_id = l.id
+        WHERE n.admin_id = ?
+        ORDER BY n.created_at DESC, n.id DESC
+    ");
 
-$stmt->execute([$adminId]);
-$unreadCount = (int)$stmt->fetchColumn();
+    $stmt->execute([$adminId]);
 
-function h($value) {
+    $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // --------------------------------------------------
+    // COUNT UNREAD NOTIFICATIONS
+    // --------------------------------------------------
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM notifications
+        WHERE admin_id = ?
+        AND is_read = 0
+    ");
+
+    $stmt->execute([$adminId]);
+
+    $unreadCount = (int)$stmt->fetchColumn();
+
+} catch (PDOException $e) {
+
+    error_log($e->getMessage());
+
+    $notifications = [];
+    $unreadCount = 0;
+
+    $message = "Unable to load notifications. Please try again.";
+    $messageType = "error";
+}
+
+// --------------------------------------------------
+// OUTPUT ESCAPING
+// --------------------------------------------------
+
+function notificationEscape($value) {
     return htmlspecialchars(
         (string)$value,
         ENT_QUOTES,
@@ -94,243 +186,422 @@ function h($value) {
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>My Notifications</title>
+    <meta name="robots" content="noindex, nofollow">
 
-<style>
+    <title>My Notifications | Admin Panel</title>
 
-* {
-    box-sizing: border-box;
-}
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
-body {
-    font-family: Arial, sans-serif;
-    background: #f4f6f9;
-    margin: 0;
-    padding: 20px;
-    color: #222;
-}
+    <style>
 
-.container {
-    max-width: 950px;
-    margin: auto;
-}
+        :root {
+            --navy: #071b38;
+            --navy-light: #102b50;
+            --gold: #d6a63b;
+            --gold-light: #edca76;
+            --ivory: #f7f5ef;
+            --text: #172b46;
+            --muted: #68768a;
+            --border: #e9e2d4;
+            --surface: #ffffff;
+        }
 
-.navigation {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 20px;
-}
+        * {
+            box-sizing: border-box;
+        }
 
-.navigation a {
-    display: inline-block;
-    background: #1f5e9c;
-    color: white;
-    text-decoration: none;
-    padding: 9px 14px;
-    border-radius: 5px;
-}
+        body {
+            margin: 0;
+            background: var(--ivory);
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--text);
+        }
 
-.panel {
-    background: white;
-    padding: 22px;
-    border-radius: 9px;
-    box-shadow: 0 2px 8px #0000000c;
-}
+        .main-content {
+            margin-left: 255px;
+            padding: 35px;
+            min-height: 100vh;
+        }
 
-.notification {
-    background: #f8f9fa;
-    border: 1px solid #e1e5eb;
-    border-left: 5px solid #218653;
-    padding: 16px;
-    border-radius: 6px;
-    margin-bottom: 14px;
-}
+        .page-header {
+            margin-bottom: 27px;
+        }
 
-.notification.unread {
-    background: #eef6ff;
-    border-left-color: #1f5e9c;
-}
+        .page-header h1 {
+            margin: 0 0 8px;
+            font-size: 27px;
+            color: var(--navy);
+        }
 
-.notification h3 {
-    margin: 0 0 10px;
-    font-size: 17px;
-}
+        .page-header p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
 
-.notification p {
-    line-height: 1.6;
-}
+        .notification-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 22px;
+        }
 
-.meta {
-    color: #667085;
-    font-size: 12px;
-}
+        .summary-label {
+            color: var(--muted);
+            font-size: 14px;
+        }
 
-.badge {
-    display: inline-block;
-    padding: 4px 9px;
-    border-radius: 12px;
-    font-size: 11px;
-    background: #dbeafe;
-    color: #1e40af;
-}
+        .summary-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border-radius: 20px;
+            background: #f3e8ca;
+            color: var(--navy);
+            font-size: 15px;
+            font-weight: bold;
+        }
 
-.read-badge {
-    background: #e5e7eb;
-    color: #475467;
-}
+        .notification-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
 
-.btn {
-    display: inline-block;
-    padding: 8px 12px;
-    border: 0;
-    border-radius: 5px;
-    background: #218653;
-    color: white;
-    text-decoration: none;
-    cursor: pointer;
-    font-size: 13px;
-}
+        .notification-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 5px solid #aab3c0;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 3px 12px rgba(20, 35, 60, 0.035);
+        }
 
-.btn-blue {
-    background: #1f5e9c;
-}
+        .notification-card.unread {
+            border-left-color: var(--gold);
+            background: #fffdf8;
+        }
 
-.notice {
-    padding: 12px;
-    background: #d1fadf;
-    color: #05603a;
-    border-radius: 5px;
-    margin-bottom: 15px;
-}
+        .notification-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
 
-.empty {
-    text-align: center;
-    padding: 35px;
-    color: #667085;
-}
+        .notification-heading h3 {
+            margin: 0;
+            color: var(--navy);
+            font-size: 16px;
+            line-height: 1.5;
+        }
 
-.summary {
-    background: #f1f4f8;
-    padding: 14px;
-    border-radius: 6px;
-    margin-bottom: 20px;
-}
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
 
-form {
-    display: inline-block;
-}
+        .status-unread {
+            background: #f3e8ca;
+            color: #77550d;
+        }
 
-</style>
+        .status-read {
+            background: #e9edf2;
+            color: #526174;
+        }
+
+        .notification-message {
+            margin: 0 0 15px;
+            color: #46566b;
+            font-size: 14px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .notification-meta {
+            margin: 0 0 16px;
+            color: #8490a1;
+            font-size: 12px;
+        }
+
+        .notification-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .notification-actions form {
+            margin: 0;
+        }
+
+        .notification-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 14px;
+            border: none;
+            border-radius: 6px;
+            background: var(--navy);
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .notification-btn:hover {
+            background: var(--navy-light);
+        }
+
+        .notification-btn.mark-read {
+            background: var(--gold);
+            color: var(--navy);
+        }
+
+        .notification-btn.mark-read:hover {
+            background: var(--gold-light);
+        }
+
+        .page-message {
+            padding: 13px 16px;
+            border-radius: 7px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .page-message.success {
+            background: #eaf7ef;
+            color: #187444;
+            border: 1px solid #c7ead5;
+        }
+
+        .page-message.error {
+            background: #fff0f0;
+            color: #b42323;
+            border: 1px solid #f3cccc;
+        }
+
+        .empty-state {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 45px 20px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .empty-state h3 {
+            margin: 0 0 8px;
+            color: var(--navy);
+            font-size: 17px;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 1000px) {
+
+            .main-content {
+                margin-left: 220px;
+                padding: 25px;
+            }
+        }
+
+        @media (max-width: 700px) {
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px 15px;
+            }
+
+            .page-header h1 {
+                font-size: 23px;
+            }
+
+            .notification-card {
+                padding: 16px;
+            }
+
+        }
+
+    </style>
 
 </head>
 
 <body>
 
-<div class="container">
+<div class="admin-layout">
 
-    <div class="navigation">
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
-        <a href="dashboard.php">Dashboard</a>
+    <main class="main-content">
 
-        <a href="manage_leads.php">Manage Leads</a>
+        <div class="page-header">
 
-    </div>
+            <h1>My Notifications</h1>
 
-    <div class="panel">
+            <p>
+                View and manage notifications assigned to your sales account.
+            </p>
 
-        <h1>My Notifications</h1>
-
-        <div class="summary">
-            Total Unread Notifications:
-            <strong><?php echo $unreadCount; ?></strong>
         </div>
 
         <?php if ($message !== ""): ?>
 
-            <div class="notice">
-                <?php echo h($message); ?>
+            <div class="page-message <?php echo notificationEscape($messageType); ?>">
+                <?php echo notificationEscape($message); ?>
             </div>
 
         <?php endif; ?>
 
-        <?php if (!$notifications): ?>
+        <div class="notification-summary">
 
-            <div class="empty">
-                You do not have any notifications yet.
+            <span class="summary-label">
+                Total Unread Notifications
+            </span>
+
+            <span class="summary-count">
+                <?php echo $unreadCount; ?>
+            </span>
+
+        </div>
+
+        <?php if (empty($notifications)): ?>
+
+            <div class="empty-state">
+
+                <h3>No Notifications Yet</h3>
+
+                <p>
+                    You do not have any notifications at the moment.
+                </p>
+
             </div>
 
         <?php else: ?>
 
-            <?php foreach ($notifications as $notification): ?>
+            <div class="notification-list">
 
-                <div class="notification <?php echo ((int)$notification["is_read"] === 0) ? "unread" : ""; ?>">
+                <?php foreach ($notifications as $notification): ?>
 
-                    <h3>
-                        <?php echo h($notification["title"]); ?>
+                    <?php
+                    $isUnread = ((int)$notification["is_read"] === 0);
+                    ?>
 
-                        <?php if ((int)$notification["is_read"] === 0): ?>
+                    <div class="notification-card <?php echo $isUnread ? "unread" : ""; ?>">
 
-                            <span class="badge">Unread</span>
+                        <div class="notification-heading">
 
-                        <?php else: ?>
+                            <h3>
+                                <?php echo notificationEscape($notification["title"] ?? "Notification"); ?>
+                            </h3>
 
-                            <span class="badge read-badge">Read</span>
+                            <?php if ($isUnread): ?>
 
-                        <?php endif; ?>
+                                <span class="status-badge status-unread">
+                                    Unread
+                                </span>
 
-                    </h3>
+                            <?php else: ?>
 
-                    <p>
-                        <?php echo nl2br(h($notification["message"])); ?>
-                    </p>
+                                <span class="status-badge status-read">
+                                    Read
+                                </span>
 
-                    <p class="meta">
-                        Received:
-                        <?php echo h($notification["created_at"]); ?>
-                    </p>
+                            <?php endif; ?>
 
-                    <?php if (!empty($notification["lead_id"])): ?>
+                        </div>
 
-                        <a class="btn btn-blue"
-                           href="view_lead.php?id=<?php echo (int)$notification["lead_id"]; ?>">
-                            Open Lead
-                        </a>
+                        <p class="notification-message">
+                            <?php echo nl2br(notificationEscape($notification["message"] ?? "")); ?>
+                        </p>
 
-                    <?php endif; ?>
+                        <p class="notification-meta">
 
-                    <?php if ((int)$notification["is_read"] === 0): ?>
+                            Received:
+                            <?php echo notificationEscape($notification["created_at"] ?? ""); ?>
 
-                        <form method="post">
+                        </p>
 
-                            <input type="hidden"
-                                   name="csrf_token"
-                                   value="<?php echo h($csrfToken); ?>">
+                        <div class="notification-actions">
 
-                            <input type="hidden"
-                                   name="notification_id"
-                                   value="<?php echo (int)$notification["id"]; ?>">
+                            <?php if (!empty($notification["lead_id"])): ?>
 
-                            <button type="submit" class="btn">
-                                Mark as Read
-                            </button>
+                                <a
+                                    class="notification-btn"
+                                    href="view_lead.php?id=<?php echo (int)$notification["lead_id"]; ?>"
+                                >
+                                    Open Lead
+                                </a>
 
-                        </form>
+                            <?php endif; ?>
 
-                    <?php endif; ?>
+                            <?php if ($isUnread): ?>
 
-                </div>
+                                <form method="POST" action="notifications.php">
 
-            <?php endforeach; ?>
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="<?php echo notificationEscape($csrfToken); ?>"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        name="notification_id"
+                                        value="<?php echo (int)$notification["id"]; ?>"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="notification-btn mark-read"
+                                    >
+                                        Mark as Read
+                                    </button>
+
+                                </form>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                    </div>
+
+                <?php endforeach; ?>
+
+            </div>
 
         <?php endif; ?>
 
-    </div>
+    </main>
 
 </div>
 

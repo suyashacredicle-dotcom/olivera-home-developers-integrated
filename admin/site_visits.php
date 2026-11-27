@@ -33,11 +33,13 @@ $canViewAll = hasPermission("view_all_leads");
 // HELPER FUNCTIONS
 // --------------------------------------------------
 
-function e($value) {
+function e($value): string
+{
     return htmlspecialchars((string)$value, ENT_QUOTES, "UTF-8");
 }
 
-function validDateValue($value) {
+function validDateValue($value): bool
+{
     if (!is_string($value) || $value === "") {
         return false;
     }
@@ -47,7 +49,8 @@ function validDateValue($value) {
     return $date !== false && $date->format("Y-m-d") === $value;
 }
 
-function validDateTimeLocal($value) {
+function validDateTimeLocal($value): bool
+{
     if (!is_string($value) || $value === "") {
         return false;
     }
@@ -58,12 +61,14 @@ function validDateTimeLocal($value) {
         $date->format("Y-m-d\TH:i") === $value;
 }
 
-function isFutureVisitDate($date) {
+function isFutureVisitDate($date): bool
+{
     return $date instanceof DateTime &&
         $date->getTimestamp() > time();
 }
 
-function formatVisitDate($value, $format = "d-m-Y h:i A") {
+function formatVisitDate($value, $format = "d-m-Y h:i A"): string
+{
     if (!is_string($value) || trim($value) === "") {
         return "Not recorded";
     }
@@ -75,7 +80,8 @@ function formatVisitDate($value, $format = "d-m-Y h:i A") {
     }
 }
 
-function redirectToSchedule($month, $day, $anchor = "") {
+function redirectToSchedule($month, $day, $anchor = ""): void
+{
     $url = "site_visits.php?" . http_build_query([
         "month" => $month,
         "day" => $day
@@ -89,7 +95,8 @@ function redirectToSchedule($month, $day, $anchor = "") {
     exit;
 }
 
-function visitStatusLabel($status) {
+function visitStatusLabel($status): string
+{
     return ucwords(str_replace("_", " ", (string)$status));
 }
 
@@ -893,6 +900,9 @@ $weekDays = [
 
 <title>Site Visit Management | Olivera Home Developers</title>
 
+<link rel="stylesheet" href="assets/css/admin.css">
+<link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
 <style>
 
 :root {
@@ -923,106 +933,6 @@ body {
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     font-size: 14px;
     line-height: 1.55;
-}
-
-/* --------------------------------------------------
-   LEFT SIDEBAR
--------------------------------------------------- */
-
-.sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 255px;
-    height: 100vh;
-    padding: 25px 15px;
-    overflow-y: auto;
-    background: var(--navy);
-    color: white;
-    z-index: 1000;
-    transition: transform .3s ease;
-}
-
-.brand {
-    padding: 5px 12px 25px;
-    margin-bottom: 22px;
-    border-bottom: 1px solid rgba(255,255,255,.15);
-}
-
-.brand h2 {
-    margin: 0;
-    color: var(--gold-light);
-    font-size: 21px;
-    letter-spacing: .5px;
-}
-
-.brand p {
-    margin: 7px 0 0;
-    color: #cbd5e1;
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-}
-
-.sidebar-label {
-    padding: 10px 12px;
-    color: #aab7c9;
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-}
-
-.sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    margin: 4px 0;
-    border-radius: 7px;
-    color: #e6edf6;
-    text-decoration: none;
-    font-size: 13px;
-    transition: .2s;
-}
-
-.sidebar a:hover {
-    background: var(--navy-light);
-    color: var(--gold-light);
-}
-
-.sidebar a.active {
-    background: var(--gold);
-    color: var(--navy);
-    font-weight: bold;
-}
-
-.menu-icon {
-    width: 21px;
-    text-align: center;
-    font-size: 16px;
-}
-
-.sidebar-divider {
-    height: 1px;
-    margin: 15px 8px;
-    background: rgba(255,255,255,.15);
-}
-
-.sidebar-overlay {
-    display: none;
-}
-
-.mobile-menu {
-    display: none;
-    margin-bottom: 15px;
-    padding: 11px 15px;
-    border: 0;
-    border-radius: 7px;
-    background: var(--navy);
-    color: var(--gold-light);
-    font-size: 16px;
-    cursor: pointer;
 }
 
 /* --------------------------------------------------
@@ -1656,31 +1566,16 @@ tbody tr:hover td {
    RESPONSIVE LAYOUT
 -------------------------------------------------- */
 
-@media (max-width: 900px) {
-
-    .sidebar {
-        transform: translateX(-100%);
+@media (max-width: 1000px) {
+    .main-content {
+        margin-left: 220px;
     }
+}
 
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .sidebar-overlay.show {
-        display: block;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,.45);
-        z-index: 999;
-    }
-
+@media (max-width: 700px) {
     .main-content {
         margin-left: 0;
         padding: 18px;
-    }
-
-    .mobile-menu {
-        display: inline-flex;
     }
 }
 
@@ -1757,135 +1652,9 @@ tbody tr:hover td {
 
 <body>
 
-<!-- --------------------------------------------------
-     LEFT SIDEBAR
--------------------------------------------------- -->
-
-<aside class="sidebar" id="sidebar">
-
-    <div class="brand">
-        <h2>OLIVERA</h2>
-        <p>Home Developers</p>
-    </div>
-
-    <div class="sidebar-label">Main Menu</div>
-
-    <a href="dashboard.php">
-        <span class="menu-icon">⌂</span>
-        Dashboard
-    </a>
-
-    <?php if (hasPermission("manage_users")): ?>
-        <a href="property_enquiries.php">
-            <span class="menu-icon">⌕</span>
-            Property Enquiries
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_admins")): ?>
-        <a href="manage_admins.php">
-            <span class="menu-icon">♙</span>
-            Manage Admin
-        </a>
-
-        <a href="activity_log.php">
-            <span class="menu-icon">◷</span>
-            Activity Log
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_leads")): ?>
-        <a href="manage_leads.php">
-            <span class="menu-icon">♧</span>
-            Manage Leads
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_partnerships")): ?>
-        <a href="manage_partnerships.php">
-            <span class="menu-icon">♢</span>
-            Manage Partnerships
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_followups")): ?>
-        <a href="lead_followups.php">
-            <span class="menu-icon">☷</span>
-            Lead Follow-ups
-        </a>
-
-        <a href="followup_reminders.php">
-            <span class="menu-icon">◷</span>
-            Follow-up Reminders
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_site_visits")): ?>
-        <a href="site_visits.php" class="active">
-            <span class="menu-icon">⌖</span>
-            Site Visits
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("view_crm_reports")): ?>
-    <a href="crm_reports.php">
-        <span class="menu-icon">▥</span>
-        CRM Reports
-    </a>
-<?php endif; ?>
-
-    <div class="sidebar-divider"></div>
-
-    <div class="sidebar-label">Site Visit Tools</div>
-
-    <a href="weekly_site_visits.php">
-        <span class="menu-icon">▦</span>
-        Weekly Schedule
-    </a>
-
-    <a href="reschedule_site_visits.php">
-        <span class="menu-icon">↻</span>
-        Reschedule Visits
-    </a>
-
-    <a href="cancel_site_visit.php">
-        <span class="menu-icon">⊗</span>
-        Cancel Visits
-    </a>
-
-    <a href="site_visit_reschedule_history.php">
-        <span class="menu-icon">◷</span>
-        Rescheduling History
-    </a>
-
-    <a href="site_visit_cancellation_history.php">
-        <span class="menu-icon">▤</span>
-        Cancellation History
-    </a>
-
-    <a href="site_visit_analytics.php">
-        <span class="menu-icon">▥</span>
-        Performance Analytics
-    </a>
-
-    <a href="employee_site_visit_reports.php">
-        <span class="menu-icon">♙</span>
-        Employee Reports
-    </a>
-
-</aside>
-
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- --------------------------------------------------
-     MAIN CONTENT
--------------------------------------------------- -->
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
 <main class="main-content">
-
-    <button class="mobile-menu" id="mobileMenu" type="button">
-        ☰ Menu
-    </button>
 
     <div class="container">
 
@@ -2766,31 +2535,6 @@ tbody tr:hover td {
     </div>
 
 </main>
-
-<script>
-
-const sidebar = document.getElementById("sidebar");
-const mobileMenu = document.getElementById("mobileMenu");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
-
-mobileMenu.addEventListener("click", function () {
-    sidebar.classList.toggle("open");
-    sidebarOverlay.classList.toggle("show");
-});
-
-sidebarOverlay.addEventListener("click", function () {
-    sidebar.classList.remove("open");
-    sidebarOverlay.classList.remove("show");
-});
-
-document.querySelectorAll(".sidebar a").forEach(function (link) {
-    link.addEventListener("click", function () {
-        sidebar.classList.remove("open");
-        sidebarOverlay.classList.remove("show");
-    });
-});
-
-</script>
 
 </body>
 </html>

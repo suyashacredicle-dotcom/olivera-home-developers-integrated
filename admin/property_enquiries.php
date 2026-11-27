@@ -1,4 +1,4 @@
-```php
+
 <?php
 
 // --------------------------------------------------
@@ -178,17 +178,6 @@ $trackingLabels = [
     "ttclid" => "TikTok Click ID"
 ];
 
-// --------------------------------------------------
-// SIDEBAR PERMISSIONS
-// --------------------------------------------------
-
-$canManageAdmins = hasPermission("manage_admins");
-$canManageLeads = hasPermission("manage_leads");
-$canManagePartnerships = hasPermission("manage_partnerships");
-$canManageFollowups = hasPermission("manage_followups");
-$canManageVisits = hasPermission("manage_site_visits");
-$canViewCRMReports = hasPermission("view_crm_reports");
-
 ?>
 
 <!DOCTYPE html>
@@ -200,6 +189,9 @@ $canViewCRMReports = hasPermission("view_crm_reports");
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Property Enquiries | Olivera Admin</title>
+
+    <!-- SHARED ADMIN SIDEBAR CSS -->
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
     <style>
 
@@ -213,7 +205,6 @@ $canViewCRMReports = hasPermission("view_crm_reports");
             --muted: #68768a;
             --border: #e9e2d4;
             --surface: #ffffff;
-            --sidebar-width: 265px;
         }
 
         * {
@@ -233,118 +224,11 @@ $canViewCRMReports = hasPermission("view_crm_reports");
             font: inherit;
         }
 
-        /* SIDEBAR */
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            z-index: 1000;
-            width: var(--sidebar-width);
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            background: var(--navy);
-            color: #fff;
-            box-shadow: 4px 0 18px rgba(7, 27, 56, .12);
-        }
-
-        .sidebar-brand {
-            padding: 25px 22px 23px;
-            border-bottom: 1px solid rgba(255,255,255,.12);
-        }
-
-        .brand-name {
-            color: #fff;
-            font-size: 19px;
-            font-weight: 800;
-            letter-spacing: .5px;
-        }
-
-        .brand-name span {
-            color: var(--gold-light);
-        }
-
-        .brand-caption {
-            margin-top: 7px;
-            color: #b9c5d5;
-            font-size: 10px;
-            letter-spacing: 1.8px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-section {
-            padding: 20px 14px 8px;
-            color: #9eacc0;
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-nav {
-            padding: 7px 12px 20px;
-        }
-
-        .sidebar-nav a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-height: 45px;
-            margin-bottom: 5px;
-            padding: 10px 13px;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            color: #dce4ef;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 600;
-            transition: .2s ease;
-        }
-
-        .sidebar-nav a:hover {
-            border-color: rgba(214,166,59,.22);
-            background: rgba(255,255,255,.07);
-            color: var(--gold-light);
-        }
-
-        .sidebar-nav a.active {
-            border-color: rgba(237,202,118,.3);
-            background: linear-gradient(
-                100deg,
-                rgba(214,166,59,.22),
-                rgba(214,166,59,.08)
-            );
-            color: var(--gold-light);
-        }
-
-        .nav-icon {
-            width: 23px;
-            flex-shrink: 0;
-            color: var(--gold-light);
-            text-align: center;
-            font-size: 17px;
-        }
-
-        .sidebar-footer {
-            margin-top: auto;
-            padding: 17px 20px;
-            border-top: 1px solid rgba(255,255,255,.12);
-            color: #aebbd0;
-            font-size: 11px;
-            line-height: 1.7;
-        }
-
-        .sidebar-footer strong {
-            color: var(--gold-light);
-        }
-
         /* MAIN AREA */
 
         .main-content {
             min-height: 100vh;
-            margin-left: var(--sidebar-width);
+            margin-left: 255px;
             padding: 28px;
         }
 
@@ -352,14 +236,6 @@ $canViewCRMReports = hasPermission("view_crm_reports");
             width: 100%;
             max-width: 1700px;
             margin: 0 auto;
-        }
-
-        .mobile-topbar {
-            display: none;
-        }
-
-        .sidebar-overlay {
-            display: none;
         }
 
         /* PAGE HEADER */
@@ -831,13 +707,10 @@ $canViewCRMReports = hasPermission("view_crm_reports");
 
         /* RESPONSIVE */
 
-        @media (max-width: 1050px) {
-
-            :root {
-                --sidebar-width: 235px;
-            }
+        @media (max-width: 1000px) {
 
             .main-content {
+                margin-left: 220px;
                 padding: 20px;
             }
 
@@ -846,64 +719,12 @@ $canViewCRMReports = hasPermission("view_crm_reports");
             }
         }
 
-        @media (max-width: 760px) {
-
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform .25s ease;
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar-overlay.show {
-                display: block;
-                position: fixed;
-                inset: 0;
-                z-index: 999;
-                background: rgba(3,13,29,.55);
-            }
+        @media (max-width: 700px) {
 
             .main-content {
                 margin-left: 0;
                 padding: 13px;
             }
-
-            .mobile-topbar {
-                display: flex;
-                align-items: center;
-                gap: 13px;
-                margin-bottom: 16px;
-                padding: 13px 15px;
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                background: #fff;
-            }
-
-            .menu-toggle {
-                width: 39px;
-                height: 39px;
-                border: 0;
-                border-radius: 7px;
-                background: var(--navy);
-                color: var(--gold-light);
-                font-size: 21px;
-                cursor: pointer;
-            }
-
-            .mobile-brand {
-                color: var(--navy);
-                font-size: 15px;
-                font-weight: 800;
-            }
-
-            .mobile-brand span {
-                color: #a77a1d;
-            }
-        }
-
-        @media (max-width: 650px) {
 
             .page-heading {
                 align-items: flex-start;
@@ -985,136 +806,17 @@ $canViewCRMReports = hasPermission("view_crm_reports");
 
 <body>
 
-<!-- MOBILE SIDEBAR OVERLAY -->
+<?php
+// --------------------------------------------------
+// SHARED ADMIN SIDEBAR
+// --------------------------------------------------
 
-<div
-    class="sidebar-overlay"
-    id="sidebarOverlay"
-    onclick="closeSidebar()"
-></div>
-
-<!-- SIDEBAR -->
-
-<aside class="sidebar" id="adminSidebar">
-
-    <div class="sidebar-brand">
-
-        <div class="brand-name">
-            OLIVERA <span>HOME</span>
-        </div>
-
-        <div class="brand-caption">
-            Developers Admin Panel
-        </div>
-
-    </div>
-
-    <div class="sidebar-section">
-        Main Navigation
-    </div>
-
-    <nav class="sidebar-nav">
-
-        <a href="property_enquiries.php" class="active">
-            <span class="nav-icon">⌂</span>
-            <span>Property Enquiries</span>
-        </a>
-
-        <?php if ($canManageAdmins): ?>
-
-            <a href="manage_admins.php">
-                <span class="nav-icon">♙</span>
-                <span>Manage Admin</span>
-            </a>
-
-            <a href="activity_logs.php">
-                <span class="nav-icon">◷</span>
-                <span>Activity Log</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageLeads): ?>
-
-            <a href="manage_leads.php">
-                <span class="nav-icon">▤</span>
-                <span>Manage Leads</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManagePartnerships): ?>
-
-            <a href="manage_partnerships.php">
-                <span class="nav-icon">♧</span>
-                <span>Manage Partnerships</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageFollowups): ?>
-
-            <a href="lead_followups.php">
-                <span class="nav-icon">☷</span>
-                <span>Lead Follow-ups</span>
-            </a>
-
-            <a href="followup_reminders.php">
-                <span class="nav-icon">♧</span>
-                <span>Follow-up Reminders</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageVisits): ?>
-
-            <a href="site_visits.php">
-                <span class="nav-icon">⌖</span>
-                <span>Site Visits</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canViewCRMReports): ?>
-
-            <a href="crm_reports.php">
-                <span class="nav-icon">▥</span>
-                <span>CRM Reports</span>
-            </a>
-
-        <?php endif; ?>
-
-    </nav>
-
-    <div class="sidebar-footer">
-        <strong>OLIVERA HOME DEVELOPERS</strong><br>
-        Property Management System
-    </div>
-
-</aside>
+require __DIR__ . "/includes/admin_sidebar.php";
+?>
 
 <!-- MAIN CONTENT -->
 
 <main class="main-content">
-
-    <!-- MOBILE TOPBAR -->
-
-    <div class="mobile-topbar">
-
-        <button
-            type="button"
-            class="menu-toggle"
-            onclick="toggleSidebar()"
-            aria-label="Open navigation"
-        >
-            ☰
-        </button>
-
-        <div class="mobile-brand">
-            OLIVERA <span>HOME</span>
-        </div>
-
-    </div>
 
     <div class="page-container">
 
@@ -1464,20 +1166,5 @@ $canViewCRMReports = hasPermission("view_crm_reports");
 
 </main>
 
-<script>
-
-function toggleSidebar() {
-    document.getElementById("adminSidebar").classList.toggle("open");
-    document.getElementById("sidebarOverlay").classList.toggle("show");
-}
-
-function closeSidebar() {
-    document.getElementById("adminSidebar").classList.remove("open");
-    document.getElementById("sidebarOverlay").classList.remove("show");
-}
-
-</script>
-
 </body>
 </html>
-```

@@ -193,6 +193,8 @@ if (strlen($search) > 100) {
 // FETCH USERS
 // --------------------------------------------------
 
+$users = [];
+
 try {
 
     if ($search !== "") {
@@ -248,7 +250,8 @@ try {
 
     <title>Manage Website Users | Olivera Admin</title>
 
-    <link rel="stylesheet" href="../assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
     <style>
 
@@ -275,93 +278,13 @@ try {
             color: var(--text);
         }
 
-        /* LAYOUT */
-
-        .admin-layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* SIDEBAR */
-
-        .sidebar {
-            width: 250px;
-            min-width: 250px;
-            min-height: 100vh;
-            padding: 25px 16px;
-            background: var(--navy);
-            color: white;
-        }
-
-        .sidebar-brand {
-            margin-bottom: 20px;
-            padding: 0 12px 22px;
-            border-bottom: 1px solid rgba(255,255,255,.13);
-            color: var(--gold-light);
-            font-size: 21px;
-            font-weight: 750;
-            letter-spacing: .2px;
-        }
-
-        .sidebar-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .sidebar-menu a {
-            display: block;
-            padding: 12px 14px;
-            border-radius: 8px;
-            color: #d5deea;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: background .2s, color .2s;
-        }
-
-        .sidebar-menu a:hover,
-        .sidebar-menu a.active {
-            background: rgba(214,166,59,.16);
-            color: var(--gold-light);
-        }
-
-        .sidebar-section {
-            padding: 19px 14px 7px;
-            color: #9baac0;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-logout {
-            margin: 20px 5px 0;
-        }
-
-        .sidebar-logout button {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid rgba(237,202,118,.5);
-            border-radius: 8px;
-            background: transparent;
-            color: var(--gold-light);
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background .2s;
-        }
-
-        .sidebar-logout button:hover {
-            background: rgba(214,166,59,.15);
-        }
-
         /* MAIN CONTENT */
 
         .main-content {
-            flex: 1;
-            min-width: 0;
+            margin-left: 255px;
+            min-height: 100vh;
             padding: 32px;
+            min-width: 0;
         }
 
         .page-header {
@@ -742,50 +665,19 @@ try {
 
         /* RESPONSIVE */
 
-        @media (max-width: 850px) {
-
-            .admin-layout {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                min-width: 0;
-                min-height: auto;
-                padding: 18px;
-            }
-
-            .sidebar-brand {
-                padding-bottom: 15px;
-                margin-bottom: 12px;
-            }
-
-            .sidebar-menu {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .sidebar-section {
-                grid-column: 1 / -1;
-            }
+        @media (max-width: 1000px) {
 
             .main-content {
-                padding: 22px;
+                margin-left: 220px;
+                padding: 25px;
             }
         }
 
-        @media (max-width: 500px) {
+        @media (max-width: 700px) {
 
             .main-content {
-                padding: 15px;
-            }
-
-            .content-card {
+                margin-left: 0;
                 padding: 18px;
-            }
-
-            .sidebar-menu {
-                grid-template-columns: 1fr;
             }
 
             .page-header {
@@ -794,6 +686,10 @@ try {
 
             .page-header h1 {
                 font-size: 23px;
+            }
+
+            .content-card {
+                padding: 18px;
             }
 
             .search-form {
@@ -813,93 +709,26 @@ try {
             }
         }
 
+        @media (max-width: 500px) {
+
+            .main-content {
+                padding: 15px;
+            }
+
+            .action-buttons {
+                align-items: flex-start;
+            }
+        }
+
     </style>
 
 </head>
 
 <body>
 
-<div class="admin-layout">
+    <!-- SHARED ADMIN SIDEBAR -->
 
-    <!-- SIDEBAR -->
-
-    <aside class="sidebar">
-
-        <div class="sidebar-brand">
-            Admin Panel
-        </div>
-
-        <nav class="sidebar-menu">
-
-            <a href="dashboard.php">
-                ◈ Dashboard
-            </a>
-
-            <a href="manage_gallery.php">
-                ◈ Manage Gallery
-            </a>
-
-            <div class="sidebar-section">
-                Administration
-            </div>
-
-            <a href="manage_admins.php">
-                ◉ Manage Admins
-            </a>
-
-            <a href="manage_users.php" class="active">
-                ◉ Manage Users
-            </a>
-
-            <a href="manage_customers.php">
-                ◉ Manage Customers
-            </a>
-
-            <a href="manage_content.php">
-                ◉ Manage Content
-            </a>
-
-            <a href="manage_settings.php">
-                ⚙ Website Settings
-            </a>
-
-            <a href="activity_logs.php">
-                ◷ Activity Logs
-            </a>
-
-            <div class="sidebar-section">
-                My Account
-            </div>
-
-            <a href="profile.php">
-                ◉ My Profile
-            </a>
-
-            <a href="change_password.php">
-                🔒 Change Password
-            </a>
-
-        </nav>
-
-        <form
-            action="logout.php"
-            method="POST"
-            class="sidebar-logout"
-        >
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo manageUsersEscape($_SESSION["csrf_token"]); ?>"
-            >
-
-            <button type="submit">
-                Logout
-            </button>
-
-        </form>
-
-    </aside>
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
     <!-- MAIN CONTENT -->
 
@@ -1280,43 +1109,41 @@ try {
 
     </main>
 
-</div>
+    <!-- SHOW / HIDE PASSWORD -->
 
-<!-- SHOW / HIDE PASSWORD -->
+    <script>
 
-<script>
+    document.querySelectorAll(".toggle-password").forEach(function(button) {
 
-document.querySelectorAll(".toggle-password").forEach(function(button) {
+        button.addEventListener("click", function() {
 
-    button.addEventListener("click", function() {
+            const passwordInput = document.getElementById("newUserPassword");
 
-        const passwordInput = document.getElementById("newUserPassword");
+            if (!passwordInput) {
+                return;
+            }
 
-        if (!passwordInput) {
-            return;
-        }
+            const isHidden = passwordInput.type === "password";
 
-        const isHidden = passwordInput.type === "password";
+            passwordInput.type = isHidden ? "text" : "password";
 
-        passwordInput.type = isHidden ? "text" : "password";
+            this.textContent = isHidden ? "Hide" : "Show";
 
-        this.textContent = isHidden ? "Hide" : "Show";
+            this.setAttribute(
+                "aria-label",
+                isHidden ? "Hide password" : "Show password"
+            );
 
-        this.setAttribute(
-            "aria-label",
-            isHidden ? "Hide password" : "Show password"
-        );
+            this.setAttribute(
+                "aria-pressed",
+                isHidden ? "true" : "false"
+            );
 
-        this.setAttribute(
-            "aria-pressed",
-            isHidden ? "true" : "false"
-        );
+        });
 
     });
 
-});
-
-</script>
+    </script>
 
 </body>
 </html>

@@ -1,8 +1,8 @@
-
+```php
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
 
 requirePermission("manage_followups");
 
@@ -101,15 +101,17 @@ foreach ($upcomingReminders as $reminder) {
 // HELPER FUNCTIONS
 // --------------------------------------------------
 
-function reminderEscape($value) {
+function reminderEscape($value): string
+{
     return htmlspecialchars(
         (string)($value ?? ""),
-        ENT_QUOTES,
+        ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8"
     );
 }
 
-function reminderPriorityClass($priority) {
+function reminderPriorityClass($priority): string
+{
     return match ($priority) {
         "high" => "priority-high",
         "low" => "priority-low",
@@ -117,7 +119,8 @@ function reminderPriorityClass($priority) {
     };
 }
 
-function reminderStatusClass($status) {
+function reminderStatusClass($status): string
+{
     return "status-" . preg_replace(
         "/[^a-z0-9_-]/",
         "",
@@ -140,10 +143,13 @@ function displayReminderSection(
 <section class="reminder-section <?= reminderEscape($sectionClass) ?>">
 
     <div class="section-heading">
+
         <h2><?= reminderEscape($title) ?></h2>
+
         <span class="section-count">
             <?= count($reminders) ?> reminders
         </span>
+
     </div>
 
     <?php if (!empty($reminders)): ?>
@@ -217,11 +223,13 @@ function displayReminderSection(
 
                             <span class="overdue-warning">
                                 ⚠ OVERDUE
+
                                 <?php if ($daysOverdue > 0): ?>
                                     <?= $daysOverdue ?> day(s) late
                                 <?php else: ?>
                                     Due earlier today
                                 <?php endif; ?>
+
                             </span>
 
                         <?php elseif ($isToday): ?>
@@ -233,27 +241,37 @@ function displayReminderSection(
                         <?php elseif ($isUpcoming): ?>
 
                             <?php if ($isWithin24Hours): ?>
+
                                 <span class="soon-warning">
                                     UPCOMING SOON
                                 </span>
+
                             <?php elseif ($isTomorrow): ?>
+
                                 <span class="tomorrow-warning">
                                     DUE TOMORROW
                                 </span>
+
                             <?php else: ?>
+
                                 <span class="upcoming-warning">
                                     DUE IN <?= $daysUntil ?> DAYS
                                 </span>
+
                             <?php endif; ?>
 
                         <?php endif; ?>
 
                         <span class="priority-badge <?= reminderEscape(reminderPriorityClass($priority)) ?>">
+
                             <?= $isHighPriority ? "🔥 " : "" ?>
+
                             <?= reminderEscape(ucfirst($priority)) ?> Priority
+
                         </span>
 
                         <span class="status-badge <?= reminderEscape(reminderStatusClass($reminder["lead_status"])) ?>">
+
                             <?= reminderEscape(
                                 ucwords(
                                     str_replace(
@@ -263,6 +281,7 @@ function displayReminderSection(
                                     )
                                 )
                             ) ?>
+
                         </span>
 
                     </div>
@@ -279,10 +298,12 @@ function displayReminderSection(
                         </p>
 
                         <?php if (!empty($reminder["email"])): ?>
+
                             <p>
                                 <strong>Email:</strong>
                                 <?= reminderEscape($reminder["email"]) ?>
                             </p>
+
                         <?php endif; ?>
 
                         <p>
@@ -322,17 +343,25 @@ function displayReminderSection(
                             </div>
 
                             <?php if ($isUpcoming): ?>
+
                                 <div class="countdown-text">
 
                                     <?php if ($isWithin24Hours): ?>
+
                                         Scheduled within the next 24 hours
+
                                     <?php elseif ($isTomorrow): ?>
+
                                         Customer follow-up is tomorrow
+
                                     <?php else: ?>
+
                                         <?= $daysUntil ?> days remaining
+
                                     <?php endif; ?>
 
                                 </div>
+
                             <?php endif; ?>
 
                         </div>
@@ -354,26 +383,39 @@ function displayReminderSection(
                     </div>
 
                     <?php if (!empty($reminder["notes"])): ?>
+
                         <div class="notes-box">
+
                             <strong>Follow-up Notes</strong>
-                            <p><?= nl2br(reminderEscape($reminder["notes"])) ?></p>
+
+                            <p>
+                                <?= nl2br(reminderEscape($reminder["notes"])) ?>
+                            </p>
+
                         </div>
+
                     <?php endif; ?>
 
                     <div class="card-actions">
 
-                        <a class="btn btn-primary"
-                           href="view_lead.php?id=<?= (int)$reminder["lead_id"] ?>">
+                        <a
+                            class="btn btn-primary"
+                            href="view_lead.php?id=<?= (int)$reminder["lead_id"] ?>"
+                        >
                             View Lead
                         </a>
 
-                        <a class="btn btn-success"
-                           href="lead_followups.php?lead_id=<?= (int)$reminder["lead_id"] ?>">
+                        <a
+                            class="btn btn-success"
+                            href="lead_followups.php?lead_id=<?= (int)$reminder["lead_id"] ?>"
+                        >
                             Add Follow-up
                         </a>
 
-                        <a class="btn btn-gold"
-                           href="site_visits.php">
+                        <a
+                            class="btn btn-gold"
+                            href="site_visits.php"
+                        >
                             Site Visits
                         </a>
 
@@ -407,7 +449,10 @@ function displayReminderSection(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Follow-up Reminders | Admin Panel</title>
+    <title>Follow-up Reminders | Olivera Admin</title>
+
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
     <style>
 
@@ -437,100 +482,10 @@ function displayReminderSection(
             color: var(--text);
         }
 
-        /* SIDEBAR */
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 255px;
-            height: 100vh;
-            background: var(--navy);
-            color: var(--white);
-            padding: 25px 15px;
-            overflow-y: auto;
-            z-index: 1000;
-            transition: transform .3s ease;
-        }
-
-        .brand {
-            padding: 5px 12px 25px;
-            border-bottom: 1px solid rgba(255,255,255,.15);
-            margin-bottom: 22px;
-        }
-
-        .brand h2 {
-            color: var(--gold-light);
-            margin: 0;
-            font-size: 21px;
-            letter-spacing: .5px;
-        }
-
-        .brand p {
-            color: #cbd5e1;
-            font-size: 11px;
-            margin: 7px 0 0;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-label {
-            color: #aab7c9;
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 1.5px;
-            padding: 10px 12px;
-            text-transform: uppercase;
-        }
-
-        .sidebar a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: #e6edf6;
-            text-decoration: none;
-            padding: 12px;
-            margin: 4px 0;
-            border-radius: 7px;
-            font-size: 13px;
-            transition: .2s;
-        }
-
-        .sidebar a:hover {
-            background: var(--navy-light);
-            color: var(--gold-light);
-        }
-
-        .sidebar a.active {
-            background: var(--gold);
-            color: var(--navy);
-            font-weight: bold;
-        }
-
-        .menu-icon {
-            width: 21px;
-            text-align: center;
-            font-size: 16px;
-        }
-
-        /* MAIN CONTENT */
-
         .main-content {
             margin-left: 255px;
             padding: 30px;
             min-height: 100vh;
-        }
-
-        .mobile-menu {
-            display: none;
-            background: var(--navy);
-            color: var(--gold-light);
-            border: 0;
-            padding: 11px 15px;
-            border-radius: 6px;
-            font-size: 18px;
-            cursor: pointer;
-            margin-bottom: 15px;
         }
 
         .page-header {
@@ -555,8 +510,6 @@ function displayReminderSection(
             line-height: 1.6;
             font-size: 14px;
         }
-
-        /* SUMMARY */
 
         .summary {
             display: grid;
@@ -602,8 +555,6 @@ function displayReminderSection(
             font-weight: bold;
             margin-top: 10px;
         }
-
-        /* REMINDER SECTIONS */
 
         .reminder-section {
             background: var(--white);
@@ -667,8 +618,6 @@ function displayReminderSection(
             border-left-color: var(--green);
         }
 
-        /* OVERDUE */
-
         .overdue-card {
             background: #fff5f5;
             border: 2px solid #dcaca8;
@@ -691,8 +640,6 @@ function displayReminderSection(
             border-radius: 5px;
         }
 
-        /* TODAY */
-
         .today-card {
             background: #fffaf0;
             border: 2px solid #e9cb8d;
@@ -714,8 +661,6 @@ function displayReminderSection(
             padding: 12px;
             border-radius: 6px;
         }
-
-        /* UPCOMING */
 
         .upcoming-date {
             background: #eaf8ef;
@@ -769,8 +714,6 @@ function displayReminderSection(
             font-size: 12px;
         }
 
-        /* PRIORITY */
-
         .high-priority-card {
             box-shadow: 0 3px 12px rgba(180,35,24,.10);
         }
@@ -786,8 +729,6 @@ function displayReminderSection(
             border-left: 9px solid var(--gold);
             background: #fff4dd;
         }
-
-        /* BADGES */
 
         .card-top {
             display: flex;
@@ -856,8 +797,6 @@ function displayReminderSection(
             color: #b42318;
         }
 
-        /* CUSTOMER INFORMATION */
-
         .reminder-card h3 {
             margin-top: 15px;
             margin-bottom: 15px;
@@ -889,8 +828,6 @@ function displayReminderSection(
             margin-top: 7px;
         }
 
-        /* NOTES */
-
         .notes-box {
             background: #f7f5ef;
             padding: 12px;
@@ -910,8 +847,6 @@ function displayReminderSection(
             line-height: 1.6;
             font-size: 13px;
         }
-
-        /* BUTTONS */
 
         .card-actions {
             display: flex;
@@ -949,8 +884,6 @@ function displayReminderSection(
             transform: translateY(-1px);
         }
 
-        /* EMPTY STATE */
-
         .empty-box {
             background: #faf9f5;
             border: 1px dashed #d0c9b8;
@@ -960,45 +893,23 @@ function displayReminderSection(
             color: var(--muted);
         }
 
-        /* RESPONSIVE */
+        @media (max-width: 1000px) {
 
-        @media (max-width: 900px) {
-
-            .sidebar {
-                transform: translateX(-100%);
+            .main-content {
+                margin-left: 220px;
+                padding: 20px;
             }
+        }
 
-            .sidebar.open {
-                transform: translateX(0);
-            }
+        @media (max-width: 700px) {
 
             .main-content {
                 margin-left: 0;
-                padding: 18px;
-            }
-
-            .mobile-menu {
-                display: inline-block;
-            }
-
-            .sidebar-overlay {
-                display: none;
-                position: fixed;
-                inset: 0;
-                background: rgba(0,0,0,.45);
-                z-index: 999;
-            }
-
-            .sidebar-overlay.show {
-                display: block;
+                padding: 13px;
             }
         }
 
         @media (max-width: 600px) {
-
-            .main-content {
-                padding: 12px;
-            }
 
             .page-header,
             .reminder-section {
@@ -1038,90 +949,9 @@ function displayReminderSection(
 
 <body>
 
-<!-- SIDEBAR -->
-
-<aside class="sidebar" id="sidebar">
-
-    <div class="brand">
-        <h2>OLIVERA</h2>
-        <p>Home Developers</p>
-    </div>
-
-    <div class="sidebar-label">Main Menu</div>
-
-    <a href="dashboard.php">
-        <span class="menu-icon">⌂</span>
-        Dashboard
-    </a>
-
-    <?php if (hasPermission("manage_users")): ?>
-        <a href="property_enquiries.php">
-            <span class="menu-icon">⌕</span>
-            Property Enquiries
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_admins")): ?>
-        <a href="manage_admins.php">
-            <span class="menu-icon">♙</span>
-            Manage Admin
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_admins")): ?>
-        <a href="activity_log.php">
-            <span class="menu-icon">◷</span>
-            Activity Log
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_leads")): ?>
-        <a href="manage_leads.php">
-            <span class="menu-icon">♧</span>
-            Manage Leads
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_partnerships")): ?>
-        <a href="manage_partnerships.php">
-            <span class="menu-icon">♢</span>
-            Manage Partnerships
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_followups")): ?>
-        <a href="lead_followups.php">
-            <span class="menu-icon">☷</span>
-            Lead Follow-ups
-        </a>
-
-        <a href="followup_reminders.php" class="active">
-            <span class="menu-icon">◷</span>
-            Follow-up Reminders
-        </a>
-    <?php endif; ?>
-
-    <a href="site_visits.php">
-        <span class="menu-icon">⌖</span>
-        Site Visits
-    </a>
-
-    <a href="crm_reports.php">
-        <span class="menu-icon">▥</span>
-        CRM Reports
-    </a>
-
-</aside>
-
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- MAIN CONTENT -->
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
 <main class="main-content">
-
-    <button class="mobile-menu" id="mobileMenu" type="button">
-        ☰ Menu
-    </button>
 
     <div class="page-header">
 
@@ -1134,41 +964,57 @@ function displayReminderSection(
 
     </div>
 
-    <!-- SUMMARY -->
-
     <div class="summary">
 
         <div class="summary-box overdue">
-            <span class="summary-label">Overdue Follow-ups</span>
+
+            <span class="summary-label">
+                Overdue Follow-ups
+            </span>
+
             <strong class="summary-number">
                 <?= count($overdueReminders) ?>
             </strong>
+
         </div>
 
         <div class="summary-box today">
-            <span class="summary-label">Today's Follow-ups</span>
+
+            <span class="summary-label">
+                Today's Follow-ups
+            </span>
+
             <strong class="summary-number">
                 <?= count($todayReminders) ?>
             </strong>
+
         </div>
 
         <div class="summary-box upcoming">
-            <span class="summary-label">Upcoming Follow-ups</span>
+
+            <span class="summary-label">
+                Upcoming Follow-ups
+            </span>
+
             <strong class="summary-number">
                 <?= count($upcomingReminders) ?>
             </strong>
+
         </div>
 
         <div class="summary-box soon">
-            <span class="summary-label">Due Within 24 Hours</span>
+
+            <span class="summary-label">
+                Due Within 24 Hours
+            </span>
+
             <strong class="summary-number">
                 <?= $upcomingSoonCount ?>
             </strong>
+
         </div>
 
     </div>
-
-    <!-- OVERDUE -->
 
     <?php
     displayReminderSection(
@@ -1179,8 +1025,6 @@ function displayReminderSection(
     );
     ?>
 
-    <!-- TODAY -->
-
     <?php
     displayReminderSection(
         "Today's Follow-ups",
@@ -1189,8 +1033,6 @@ function displayReminderSection(
         "today-section"
     );
     ?>
-
-    <!-- UPCOMING -->
 
     <?php
     displayReminderSection(
@@ -1203,23 +1045,6 @@ function displayReminderSection(
 
 </main>
 
-<script>
-
-    const sidebar = document.getElementById("sidebar");
-    const mobileMenu = document.getElementById("mobileMenu");
-    const sidebarOverlay = document.getElementById("sidebarOverlay");
-
-    mobileMenu.addEventListener("click", function () {
-        sidebar.classList.toggle("open");
-        sidebarOverlay.classList.toggle("show");
-    });
-
-    sidebarOverlay.addEventListener("click", function () {
-        sidebar.classList.remove("open");
-        sidebarOverlay.classList.remove("show");
-    });
-
-</script>
-
 </body>
 </html>
+```

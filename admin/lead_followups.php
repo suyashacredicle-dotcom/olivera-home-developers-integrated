@@ -1,4 +1,4 @@
-
+```php
 <?php
 
 require_once __DIR__ . "/../includes/permissions.php";
@@ -17,7 +17,7 @@ $canViewAllLeads = hasPermission("view_all_leads");
 // OUTPUT ESCAPING
 // --------------------------------------------------
 
-function e($value): string
+function leadFollowupEscape($value): string
 {
     return htmlspecialchars(
         (string)$value,
@@ -39,23 +39,6 @@ if (
 }
 
 $csrfToken = $_SESSION["csrf_token"];
-
-// --------------------------------------------------
-// SIDEBAR PERMISSIONS
-// --------------------------------------------------
-
-$canManageUsers = hasPermission("manage_users");
-$canManageAdmins = hasPermission("manage_admins");
-
-$canManageLeads =
-    hasPermission("manage_leads") ||
-    hasPermission("view_all_leads") ||
-    hasPermission("view_assigned_leads");
-
-$canManagePartnerships = hasPermission("manage_partnerships");
-$canManageVisits = hasPermission("manage_site_visits");
-$canViewCRMReports = hasPermission("view_crm_reports");
-$canManageFollowups = hasPermission("manage_followups");
 
 // --------------------------------------------------
 // DISPLAY SAVED MESSAGE
@@ -155,7 +138,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             try {
 
-                // Verify lead access
+                // Verify that the admin can access this lead.
 
                 if ($canViewAllLeads) {
 
@@ -253,7 +236,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             $notes;
 
                         if ($nextFollowupValue !== null) {
-
                             $followupDescription .=
                                 " Next follow-up: " . $nextFollowupValue;
                         }
@@ -298,7 +280,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 // --------------------------------------------------
-// FETCH AVAILABLE LEADS AND HISTORY
+// FETCH AVAILABLE LEADS AND FOLLOW-UP HISTORY
 // --------------------------------------------------
 
 try {
@@ -402,6 +384,9 @@ foreach ($followups as $followup) {
 
     <title>Lead Follow-ups | Olivera Admin</title>
 
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
     <style>
 
         :root {
@@ -414,7 +399,6 @@ foreach ($followups as $followup) {
             --muted: #68768a;
             --border: #e9e2d4;
             --surface: #ffffff;
-            --sidebar-width: 265px;
         }
 
         * {
@@ -436,119 +420,9 @@ foreach ($followups as $followup) {
             font: inherit;
         }
 
-        /* SIDEBAR */
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            z-index: 1000;
-            width: var(--sidebar-width);
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            background: var(--navy);
-            color: #fff;
-            box-shadow: 4px 0 18px rgba(7,27,56,.12);
-            transition: transform .25s ease;
-        }
-
-        .sidebar-brand {
-            padding: 25px 22px 23px;
-            border-bottom: 1px solid rgba(255,255,255,.12);
-        }
-
-        .brand-name {
-            color: #fff;
-            font-size: 19px;
-            font-weight: 800;
-            letter-spacing: .5px;
-        }
-
-        .brand-name span {
-            color: var(--gold-light);
-        }
-
-        .brand-caption {
-            margin-top: 7px;
-            color: #b9c5d5;
-            font-size: 10px;
-            letter-spacing: 1.8px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-section {
-            padding: 20px 14px 8px;
-            color: #9eacc0;
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-nav {
-            padding: 7px 12px 20px;
-        }
-
-        .sidebar-nav a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-height: 45px;
-            margin-bottom: 5px;
-            padding: 10px 13px;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            color: #dce4ef;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 600;
-            transition: .2s ease;
-        }
-
-        .sidebar-nav a:hover {
-            border-color: rgba(214,166,59,.22);
-            background: rgba(255,255,255,.07);
-            color: var(--gold-light);
-        }
-
-        .sidebar-nav a.active {
-            border-color: rgba(237,202,118,.3);
-            background: linear-gradient(
-                100deg,
-                rgba(214,166,59,.22),
-                rgba(214,166,59,.08)
-            );
-            color: var(--gold-light);
-        }
-
-        .nav-icon {
-            width: 23px;
-            flex-shrink: 0;
-            color: var(--gold-light);
-            text-align: center;
-            font-size: 17px;
-        }
-
-        .sidebar-footer {
-            margin-top: auto;
-            padding: 17px 20px;
-            border-top: 1px solid rgba(255,255,255,.12);
-            color: #aebbd0;
-            font-size: 11px;
-            line-height: 1.7;
-        }
-
-        .sidebar-footer strong {
-            color: var(--gold-light);
-        }
-
-        /* MAIN CONTENT */
-
         .main-content {
             min-height: 100vh;
-            margin-left: var(--sidebar-width);
+            margin-left: 255px;
             padding: 28px;
         }
 
@@ -557,13 +431,6 @@ foreach ($followups as $followup) {
             max-width: 1450px;
             margin: 0 auto;
         }
-
-        .mobile-topbar,
-        .sidebar-overlay {
-            display: none;
-        }
-
-        /* PAGE HEADER */
 
         .page-header {
             display: flex;
@@ -575,11 +442,7 @@ foreach ($followups as $followup) {
             padding: 25px 28px;
             border: 1px solid var(--navy-light);
             border-radius: 14px;
-            background: linear-gradient(
-                120deg,
-                var(--navy),
-                var(--navy-light)
-            );
+            background: linear-gradient(120deg, var(--navy), var(--navy-light));
         }
 
         .page-title h1 {
@@ -604,8 +467,6 @@ foreach ($followups as $followup) {
             font-size: 12px;
             font-weight: 700;
         }
-
-        /* SUMMARY */
 
         .summary-grid {
             display: grid;
@@ -635,8 +496,6 @@ foreach ($followups as $followup) {
             font-weight: 750;
         }
 
-        /* ALERTS */
-
         .message {
             padding: 14px 17px;
             margin-bottom: 22px;
@@ -652,8 +511,6 @@ foreach ($followups as $followup) {
             background: #fff2f2;
             color: #ae3030;
         }
-
-        /* CONTENT CARDS */
 
         .content-card {
             margin-bottom: 25px;
@@ -685,8 +542,6 @@ foreach ($followups as $followup) {
         .card-body {
             padding: 25px;
         }
-
-        /* FORM */
 
         .form-grid {
             display: grid;
@@ -776,8 +631,6 @@ foreach ($followups as $followup) {
             background: var(--navy-light);
             transform: translateY(-1px);
         }
-
-        /* HISTORY TABLE */
 
         .history-heading {
             display: flex;
@@ -887,8 +740,6 @@ foreach ($followups as $followup) {
             white-space: nowrap;
         }
 
-        /* EMPTY STATE */
-
         .empty-state {
             padding: 42px 20px;
             text-align: center;
@@ -920,8 +771,6 @@ foreach ($followups as $followup) {
             font-size: 13px;
         }
 
-        /* FOOTER */
-
         .page-footer {
             padding: 15px 5px;
             color: #96a0af;
@@ -929,76 +778,18 @@ foreach ($followups as $followup) {
             font-size: 11px;
         }
 
-        /* RESPONSIVE */
-
-        @media (max-width: 1050px) {
-
-            :root {
-                --sidebar-width: 235px;
-            }
-
+        @media (max-width: 1000px) {
             .main-content {
+                margin-left: 220px;
                 padding: 20px;
             }
         }
 
-        @media (max-width: 760px) {
-
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar-overlay.show {
-                display: block;
-                position: fixed;
-                inset: 0;
-                z-index: 999;
-                background: rgba(3,13,29,.55);
-            }
-
+        @media (max-width: 700px) {
             .main-content {
                 margin-left: 0;
                 padding: 13px;
             }
-
-            .mobile-topbar {
-                display: flex;
-                align-items: center;
-                gap: 13px;
-                margin-bottom: 16px;
-                padding: 13px 15px;
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                background: #fff;
-            }
-
-            .menu-toggle {
-                width: 39px;
-                height: 39px;
-                border: 0;
-                border-radius: 7px;
-                background: var(--navy);
-                color: var(--gold-light);
-                font-size: 21px;
-                cursor: pointer;
-            }
-
-            .mobile-brand {
-                color: var(--navy);
-                font-size: 15px;
-                font-weight: 800;
-            }
-
-            .mobile-brand span {
-                color: #a77a1d;
-            }
-        }
-
-        @media (max-width: 750px) {
 
             .page-title h1 {
                 font-size: 23px;
@@ -1032,7 +823,6 @@ foreach ($followups as $followup) {
         }
 
         @media (max-width: 480px) {
-
             .summary-grid {
                 grid-template-columns: 1fr;
             }
@@ -1061,182 +851,20 @@ foreach ($followups as $followup) {
 
 <body>
 
-<!-- MOBILE SIDEBAR OVERLAY -->
-
-<div
-    class="sidebar-overlay"
-    id="sidebarOverlay"
-    onclick="closeSidebar()"
-></div>
-
-<!-- SIDEBAR -->
-
-<aside class="sidebar" id="adminSidebar">
-
-    <div class="sidebar-brand">
-
-        <div class="brand-name">
-            OLIVERA <span>HOME</span>
-        </div>
-
-        <div class="brand-caption">
-            Developers Admin Panel
-        </div>
-
-    </div>
-
-    <div class="sidebar-section">
-        Main Navigation
-    </div>
-
-    <nav class="sidebar-nav">
-
-        <a href="dashboard.php">
-            <span class="nav-icon">⌂</span>
-            <span>Dashboard</span>
-        </a>
-
-        <?php if ($canManageUsers): ?>
-
-            <a href="property_enquiries.php">
-                <span class="nav-icon">⌂</span>
-                <span>Property Enquiries</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageAdmins): ?>
-
-            <a href="manage_admins.php">
-                <span class="nav-icon">♙</span>
-                <span>Manage Admin</span>
-            </a>
-
-            <a href="activity_logs.php">
-                <span class="nav-icon">◷</span>
-                <span>Activity Log</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageLeads): ?>
-
-            <a href="manage_leads.php">
-                <span class="nav-icon">▤</span>
-                <span>Manage Leads</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManagePartnerships): ?>
-
-            <a href="manage_partnerships.php">
-                <span class="nav-icon">♧</span>
-                <span>Manage Partnerships</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageFollowups): ?>
-
-            <a href="lead_followups.php" class="active">
-                <span class="nav-icon">☷</span>
-                <span>Lead Follow-ups</span>
-            </a>
-
-            <a href="followup_reminders.php">
-                <span class="nav-icon">♧</span>
-                <span>Follow-up Reminders</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageVisits): ?>
-
-            <a href="site_visits.php">
-                <span class="nav-icon">⌖</span>
-                <span>Site Visits</span>
-            </a>
-
-            <a href="weekly_site_visits.php">
-                <span class="nav-icon">▦</span>
-                <span>Weekly Site Visits</span>
-            </a>
-
-            <a href="reschedule_site_visits.php">
-                <span class="nav-icon">◷</span>
-                <span>Reschedule Site Visits</span>
-            </a>
-
-            <a href="cancel_site_visit.php">
-                <span class="nav-icon">⊗</span>
-                <span>Cancel Site Visits</span>
-            </a>
-
-            <a href="site_visit_reschedule_history.php">
-                <span class="nav-icon">▤</span>
-                <span>Rescheduling History</span>
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canViewCRMReports): ?>
-
-            <a href="crm_reports.php">
-                <span class="nav-icon">▥</span>
-                <span>CRM Reports</span>
-            </a>
-
-        <?php endif; ?>
-
-    </nav>
-
-    <div class="sidebar-footer">
-        <strong>OLIVERA HOME DEVELOPERS</strong><br>
-        Property Management System
-    </div>
-
-</aside>
-
-<!-- MAIN CONTENT -->
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
 <main class="main-content">
 
-    <!-- MOBILE TOPBAR -->
-
-    <div class="mobile-topbar">
-
-        <button
-            type="button"
-            class="menu-toggle"
-            onclick="toggleSidebar()"
-            aria-label="Open navigation"
-            aria-expanded="false"
-            id="sidebarToggle"
-        >
-            ☰
-        </button>
-
-        <div class="mobile-brand">
-            OLIVERA <span>HOME</span>
-        </div>
-
-    </div>
-
     <div class="followup-container">
-
-        <!-- PAGE HEADER -->
 
         <header class="page-header">
 
             <div class="page-title">
-
                 <h1>Lead Follow-ups</h1>
 
                 <p>
                     Record customer interactions and manage your follow-up history.
                 </p>
-
             </div>
 
             <div class="header-label">
@@ -1245,50 +873,36 @@ foreach ($followups as $followup) {
 
         </header>
 
-        <!-- MESSAGES -->
-
         <?php if ($message !== ""): ?>
 
             <div
                 class="message <?php echo $messageType === "error" ? "error" : ""; ?>"
                 role="alert"
             >
-                <?php echo e($message); ?>
+                <?php echo leadFollowupEscape($message); ?>
             </div>
 
         <?php endif; ?>
 
-        <!-- SUMMARY -->
-
         <section class="summary-grid">
 
             <div class="summary-card">
-
-                <div class="summary-label">
-                    Follow-up Records
-                </div>
+                <div class="summary-label">Follow-up Records</div>
 
                 <div class="summary-number">
                     <?php echo (int)$totalFollowups; ?>
                 </div>
-
             </div>
 
             <div class="summary-card">
-
-                <div class="summary-label">
-                    Scheduled Next Follow-ups
-                </div>
+                <div class="summary-label">Scheduled Next Follow-ups</div>
 
                 <div class="summary-number">
                     <?php echo (int)$scheduledFollowups; ?>
                 </div>
-
             </div>
 
         </section>
-
-        <!-- ADD FOLLOW-UP -->
 
         <section class="content-card">
 
@@ -1311,7 +925,7 @@ foreach ($followups as $followup) {
                         <input
                             type="hidden"
                             name="csrf_token"
-                            value="<?php echo e($csrfToken); ?>"
+                            value="<?php echo leadFollowupEscape($csrfToken); ?>"
                         >
 
                         <div class="form-grid">
@@ -1329,13 +943,11 @@ foreach ($followups as $followup) {
                                     <?php foreach ($leads as $lead): ?>
 
                                         <option value="<?php echo (int)$lead["id"]; ?>">
-
                                             <?php
-                                            echo e($lead["customer_name"]);
+                                            echo leadFollowupEscape($lead["customer_name"]);
                                             echo " - ";
-                                            echo e($lead["phone"]);
+                                            echo leadFollowupEscape($lead["phone"]);
                                             ?>
-
                                         </option>
 
                                     <?php endforeach; ?>
@@ -1434,8 +1046,6 @@ foreach ($followups as $followup) {
 
         </section>
 
-        <!-- FOLLOW-UP HISTORY -->
-
         <section class="content-card">
 
             <div class="card-heading history-heading">
@@ -1463,7 +1073,6 @@ foreach ($followups as $followup) {
                     <table class="history-table">
 
                         <thead>
-
                             <tr>
                                 <th>ID</th>
                                 <th>Customer</th>
@@ -1473,7 +1082,6 @@ foreach ($followups as $followup) {
                                 <th>Added By</th>
                                 <th>Created Date</th>
                             </tr>
-
                         </thead>
 
                         <tbody>
@@ -1487,15 +1095,14 @@ foreach ($followups as $followup) {
                                     </td>
 
                                     <td class="customer-name">
-                                        <?php echo e($followup["customer_name"]); ?>
+                                        <?php echo leadFollowupEscape($followup["customer_name"]); ?>
                                     </td>
 
                                     <td>
 
                                         <span class="followup-type">
-
                                             <?php
-                                            echo e(
+                                            echo leadFollowupEscape(
                                                 ucwords(
                                                     str_replace(
                                                         "_",
@@ -1505,13 +1112,12 @@ foreach ($followups as $followup) {
                                                 )
                                             );
                                             ?>
-
                                         </span>
 
                                     </td>
 
                                     <td class="followup-notes">
-                                        <?php echo nl2br(e($followup["notes"])); ?>
+                                        <?php echo nl2br(leadFollowupEscape($followup["notes"])); ?>
                                     </td>
 
                                     <td>
@@ -1519,7 +1125,7 @@ foreach ($followups as $followup) {
                                         <?php if (!empty($followup["next_followup_at"])): ?>
 
                                             <span class="scheduled-date">
-                                                <?php echo e($followup["next_followup_at"]); ?>
+                                                <?php echo leadFollowupEscape($followup["next_followup_at"]); ?>
                                             </span>
 
                                         <?php else: ?>
@@ -1533,11 +1139,15 @@ foreach ($followups as $followup) {
                                     </td>
 
                                     <td class="employee-name">
-                                        <?php echo e($followup["employee_name"] ?? "Deleted User"); ?>
+                                        <?php
+                                        echo leadFollowupEscape(
+                                            $followup["employee_name"] ?? "Deleted User"
+                                        );
+                                        ?>
                                     </td>
 
                                     <td class="created-date">
-                                        <?php echo e($followup["created_at"]); ?>
+                                        <?php echo leadFollowupEscape($followup["created_at"]); ?>
                                     </td>
 
                                 </tr>
@@ -1576,44 +1186,6 @@ foreach ($followups as $followup) {
 
 </main>
 
-<script>
-
-function toggleSidebar() {
-
-    const sidebar = document.getElementById("adminSidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    const toggle = document.getElementById("sidebarToggle");
-
-    sidebar.classList.toggle("open");
-    overlay.classList.toggle("show");
-
-    toggle.setAttribute(
-        "aria-expanded",
-        sidebar.classList.contains("open") ? "true" : "false"
-    );
-}
-
-function closeSidebar() {
-
-    document.getElementById("adminSidebar").classList.remove("open");
-    document.getElementById("sidebarOverlay").classList.remove("show");
-
-    const toggle = document.getElementById("sidebarToggle");
-
-    if (toggle) {
-        toggle.setAttribute("aria-expanded", "false");
-    }
-}
-
-document.addEventListener("keydown", function(event) {
-
-    if (event.key === "Escape") {
-        closeSidebar();
-    }
-
-});
-
-</script>
-
 </body>
 </html>
+```

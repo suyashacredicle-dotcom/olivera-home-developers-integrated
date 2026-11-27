@@ -20,13 +20,9 @@ require_once __DIR__ . "/../includes/permissions.php";
 require_once __DIR__ . "/../config/database.php";
 require_once __DIR__ . "/../includes/lead_activity_logger.php";
 
-// --------------------------------------------------
-// PERMISSIONS
-// --------------------------------------------------
-
 requirePermission("manage_site_visits");
 
-$adminId = (int) $_SESSION["admin_id"];
+$adminId = (int)($_SESSION["admin_id"] ?? 0);
 $canViewAll = hasPermission("view_all_leads");
 
 $message = "";
@@ -38,7 +34,7 @@ $messageType = "success";
 
 function e($value): string
 {
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
+    return htmlspecialchars((string)$value, ENT_QUOTES, "UTF-8");
 }
 
 function formatVisitDate($value, $format = "d-m-Y h:i A"): string
@@ -71,7 +67,10 @@ if (
 // --------------------------------------------------
 
 if (isset($_SESSION["user_message"])) {
-    $message = (string) $_SESSION["user_message"];
+    $message = is_string($_SESSION["user_message"])
+        ? $_SESSION["user_message"]
+        : "";
+
     unset($_SESSION["user_message"]);
 }
 
@@ -95,20 +94,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit("Invalid security token. Please refresh the page and try again.");
     }
 
-    // --------------------------------------------------
-    // VALIDATE VISIT ID
-    // --------------------------------------------------
-
     $visitIdInput = $_POST["visit_id"] ?? null;
 
     $visitId = (
         is_string($visitIdInput) &&
         ctype_digit($visitIdInput)
-    ) ? (int) $visitIdInput : 0;
-
-    // --------------------------------------------------
-    // VALIDATE NEW DATE AND TIME
-    // --------------------------------------------------
+    ) ? (int)$visitIdInput : 0;
 
     $newScheduledAt = $_POST["new_scheduled_at"] ?? "";
 
@@ -162,9 +153,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $pdo->beginTransaction();
 
-                // --------------------------------------------------
                 // FETCH AND LOCK VISIT
-                // --------------------------------------------------
 
                 if ($canViewAll) {
 
@@ -217,9 +206,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     throw new RuntimeException("VISIT_NOT_FOUND");
                 }
 
-                // --------------------------------------------------
                 // VALIDATE VISIT STATUS
-                // --------------------------------------------------
 
                 if (
                     !in_array(
@@ -244,9 +231,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     throw new RuntimeException("SAME_SCHEDULE");
                 }
 
-                // --------------------------------------------------
                 // UPDATE VISIT
-                // --------------------------------------------------
 
                 if ($canViewAll) {
 
@@ -290,9 +275,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     throw new RuntimeException("VISIT_UPDATE_FAILED");
                 }
 
-                // --------------------------------------------------
                 // RECORD ACTIVITY
-                // --------------------------------------------------
 
                 $oldDisplay = formatVisitDate($oldScheduledAt);
                 $newDisplay = $newDate->format("d-m-Y h:i A");
@@ -307,7 +290,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 logLeadActivity(
                     $pdo,
-                    (int) $visit["lead_id"],
+                    (int)$visit["lead_id"],
                     $adminId,
                     "site_visit_rescheduled",
                     $activityDescription,
@@ -315,9 +298,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $newScheduledAtForDatabase
                 );
 
-                // --------------------------------------------------
                 // COMMIT TRANSACTION
-                // --------------------------------------------------
 
                 $pdo->commit();
 
@@ -461,6 +442,9 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
 
     <title>Reschedule Site Visits | Olivera Home Developers</title>
 
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
     <style>
 
         :root {
@@ -473,7 +457,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             --muted: #68768a;
             --border: #e9e2d4;
             --surface: #ffffff;
-            --sidebar-width: 255px;
         }
 
         * {
@@ -487,100 +470,8 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             color: var(--text);
         }
 
-        /* --------------------------------------------------
-           SIDEBAR
-        -------------------------------------------------- */
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: var(--sidebar-width);
-            height: 100vh;
-            background: var(--navy);
-            color: #ffffff;
-            padding: 22px 14px;
-            overflow-y: auto;
-            z-index: 1000;
-            transition: transform 0.25s ease;
-        }
-
-        .brand {
-            padding: 8px 12px 23px;
-            border-bottom: 1px solid rgba(255,255,255,0.13);
-            margin-bottom: 20px;
-        }
-
-        .brand-name {
-            color: var(--gold-light);
-            font-size: 20px;
-            font-weight: 800;
-            letter-spacing: 1.2px;
-        }
-
-        .brand-subtitle {
-            color: #cbd5e1;
-            font-size: 10px;
-            letter-spacing: 2px;
-            margin-top: 6px;
-            text-transform: uppercase;
-        }
-
-        .sidebar-section {
-            color: #aab8ca;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            padding: 12px 12px 8px;
-        }
-
-        .sidebar a {
-            display: flex;
-            align-items: center;
-            gap: 11px;
-            padding: 11px 12px;
-            margin: 3px 0;
-            border-radius: 6px;
-            color: #e5eaf1;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            transition: 0.2s ease;
-        }
-
-        .sidebar a:hover {
-            background: rgba(255,255,255,0.09);
-            color: var(--gold-light);
-        }
-
-        .sidebar a.active {
-            background: var(--gold);
-            color: var(--navy);
-            font-weight: 700;
-        }
-
-        .sidebar-icon {
-            width: 19px;
-            text-align: center;
-            font-size: 15px;
-        }
-
-        .sidebar-footer {
-            margin-top: 25px;
-            padding: 15px 12px 5px;
-            border-top: 1px solid rgba(255,255,255,0.13);
-            color: #aab8ca;
-            font-size: 11px;
-            line-height: 1.6;
-        }
-
-        /* --------------------------------------------------
-           MAIN CONTENT
-        -------------------------------------------------- */
-
         .main-content {
-            margin-left: var(--sidebar-width);
+            margin-left: 255px;
             min-height: 100vh;
             padding: 30px;
         }
@@ -588,10 +479,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
         .container {
             max-width: 1500px;
             margin: 0 auto;
-        }
-
-        .mobile-header {
-            display: none;
         }
 
         .page-header {
@@ -613,10 +500,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             line-height: 1.6;
             margin: 0;
         }
-
-        /* --------------------------------------------------
-           QUICK NAVIGATION
-        -------------------------------------------------- */
 
         .nav-links {
             display: flex;
@@ -643,10 +526,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             background: #f0e7d1;
             border-color: var(--gold);
         }
-
-        /* --------------------------------------------------
-           CARDS AND MESSAGES
-        -------------------------------------------------- */
 
         .card {
             background: var(--surface);
@@ -690,10 +569,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             font-size: 13px;
             line-height: 1.7;
         }
-
-        /* --------------------------------------------------
-           TABLE
-        -------------------------------------------------- */
 
         .table-wrapper {
             width: 100%;
@@ -756,10 +631,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             color: #80540b;
         }
 
-        /* --------------------------------------------------
-           RESCHEDULE FORM
-        -------------------------------------------------- */
-
         .reschedule-form {
             min-width: 220px;
         }
@@ -814,63 +685,17 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             border-radius: 7px;
         }
 
-        /* --------------------------------------------------
-           MOBILE SIDEBAR
-        -------------------------------------------------- */
-
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 999;
-        }
-
-        .menu-toggle {
-            border: none;
-            background: var(--navy);
-            color: #ffffff;
-            padding: 10px 13px;
-            border-radius: 6px;
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        @media (max-width: 900px) {
-
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar-overlay.show {
-                display: block;
-            }
-
+        @media (max-width: 1000px) {
             .main-content {
-                margin-left: 0;
-                padding: 18px;
-            }
-
-            .mobile-header {
-                display: flex;
-                align-items: center;
-                gap: 13px;
-                margin-bottom: 24px;
-            }
-
-            .mobile-brand {
-                color: var(--navy);
-                font-size: 15px;
-                font-weight: 800;
-                letter-spacing: 0.6px;
+                margin-left: 220px;
             }
         }
 
         @media (max-width: 700px) {
+            .main-content {
+                margin-left: 0;
+                padding: 18px;
+            }
 
             .card {
                 padding: 16px;
@@ -883,7 +708,20 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             .nav-links a {
                 padding: 9px 11px;
             }
+        }
 
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 11px;
+            }
+
+            .card {
+                padding: 14px;
+            }
+
+            h1 {
+                font-size: 21px;
+            }
         }
 
     </style>
@@ -892,151 +730,11 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
 
-<!-- --------------------------------------------------
-     SIDEBAR OVERLAY
---------------------------------------------------- -->
-
-<div
-    class="sidebar-overlay"
-    id="sidebarOverlay"
-    onclick="closeSidebar()"
-></div>
-
-<!-- --------------------------------------------------
-     SIDEBAR
---------------------------------------------------- -->
-
-<aside class="sidebar" id="sidebar">
-
-    <div class="brand">
-        <div class="brand-name">OLIVERA</div>
-        <div class="brand-subtitle">Home Developers</div>
-    </div>
-
-    <div class="sidebar-section">Main Menu</div>
-
-    <a href="dashboard.php">
-        <span class="sidebar-icon">⌂</span>
-        Dashboard
-    </a>
-
-    <?php if (hasPermission("manage_users")): ?>
-        <a href="property_enquiries.php">
-            <span class="sidebar-icon">▤</span>
-            Property Enquiries
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_admins")): ?>
-        <a href="manage_admins.php">
-            <span class="sidebar-icon">♙</span>
-            Manage Admin
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("view_activity_log")): ?>
-        <a href="activity_log.php">
-            <span class="sidebar-icon">◷</span>
-            Activity Log
-        </a>
-    <?php endif; ?>
-
-    <?php if (
-        hasPermission("manage_leads") ||
-        hasPermission("view_all_leads")
-    ): ?>
-        <a href="manage_leads.php">
-            <span class="sidebar-icon">♧</span>
-            Manage Leads
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_partnerships")): ?>
-        <a href="manage_partnerships.php">
-            <span class="sidebar-icon">◇</span>
-            Manage Partnerships
-        </a>
-    <?php endif; ?>
-
-    <?php if (hasPermission("manage_followups")): ?>
-        <a href="manage_followups.php">
-            <span class="sidebar-icon">◴</span>
-            Lead Follow-ups
-        </a>
-
-        <a href="followup_reminders.php">
-            <span class="sidebar-icon">♧</span>
-            Follow-up Reminders
-        </a>
-    <?php endif; ?>
-
-    <div class="sidebar-section">Site Visits</div>
-
-    <a href="site_visits.php" class="active">
-        <span class="sidebar-icon">⌖</span>
-        Site Visits
-    </a>
-
-    <a href="weekly_site_visits.php">
-        <span class="sidebar-icon">▦</span>
-        Weekly Schedule
-    </a>
-
-    <a href="reschedule_site_visits.php">
-        <span class="sidebar-icon">↻</span>
-        Reschedule Visits
-    </a>
-
-    <a href="cancel_site_visit.php">
-        <span class="sidebar-icon">⊗</span>
-        Cancel Site Visits
-    </a>
-
-    <a href="site_visit_reschedule_history.php">
-        <span class="sidebar-icon">◷</span>
-        Rescheduling History
-    </a>
-
-    <?php if (hasPermission("view_crm_reports")): ?>
-        <div class="sidebar-section">Analytics</div>
-
-        <a href="crm_reports.php">
-            <span class="sidebar-icon">▥</span>
-            CRM Reports
-        </a>
-    <?php endif; ?>
-
-    <div class="sidebar-footer">
-        Olivera Home Developers<br>
-        Admin Management Panel
-    </div>
-
-</aside>
-
-<!-- --------------------------------------------------
-     MAIN CONTENT
---------------------------------------------------- -->
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
 <main class="main-content">
 
     <div class="container">
-
-        <div class="mobile-header">
-
-            <button
-                type="button"
-                class="menu-toggle"
-                onclick="toggleSidebar()"
-                aria-label="Open navigation menu"
-            >
-                ☰
-            </button>
-
-            <div class="mobile-brand">
-                OLIVERA HOME DEVELOPERS
-            </div>
-
-        </div>
 
         <header class="page-header">
 
@@ -1047,10 +745,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             </p>
 
         </header>
-
-        <!-- --------------------------------------------------
-             QUICK NAVIGATION
-        --------------------------------------------------- -->
 
         <nav class="nav-links">
 
@@ -1081,10 +775,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
 
         </nav>
 
-        <!-- --------------------------------------------------
-             MESSAGES
-        --------------------------------------------------- -->
-
         <?php if ($message !== ""): ?>
 
             <div
@@ -1095,10 +785,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
             </div>
 
         <?php endif; ?>
-
-        <!-- --------------------------------------------------
-             RESCHEDULING TABLE
-        --------------------------------------------------- -->
 
         <section class="card">
 
@@ -1119,7 +805,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
                     <table>
 
                         <thead>
-
                             <tr>
                                 <th>Visit ID</th>
                                 <th>Customer</th>
@@ -1130,7 +815,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
                                 <th>Status</th>
                                 <th>Reschedule Visit</th>
                             </tr>
-
                         </thead>
 
                         <tbody>
@@ -1140,7 +824,7 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
                                 <tr>
 
                                     <td>
-                                        #<?php echo (int) $visit["id"]; ?>
+                                        #<?php echo (int)$visit["id"]; ?>
                                     </td>
 
                                     <td>
@@ -1225,7 +909,7 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
                                             <input
                                                 type="hidden"
                                                 name="visit_id"
-                                                value="<?php echo (int) $visit["id"]; ?>"
+                                                value="<?php echo (int)$visit["id"]; ?>"
                                             >
 
                                             <label>
@@ -1235,7 +919,7 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
                                             <input
                                                 type="datetime-local"
                                                 name="new_scheduled_at"
-                                                min="<?php echo e(date("Y-m-d\TH:i")); ?>"
+                                                min="<?php echo e(date("Y-m-d\TH:i", time() + 60)); ?>"
                                                 required
                                             >
 
@@ -1270,34 +954,6 @@ $visits = $visitQuery->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
 </main>
-
-<!-- --------------------------------------------------
-     SIDEBAR JAVASCRIPT
---------------------------------------------------- -->
-
-<script>
-
-function toggleSidebar() {
-
-    document.getElementById("sidebar").classList.toggle("open");
-
-    document
-        .getElementById("sidebarOverlay")
-        .classList.toggle("show");
-
-}
-
-function closeSidebar() {
-
-    document.getElementById("sidebar").classList.remove("open");
-
-    document
-        .getElementById("sidebarOverlay")
-        .classList.remove("show");
-
-}
-
-</script>
 
 </body>
 </html>

@@ -1,4 +1,4 @@
-
+```php
 <?php
 
 // --------------------------------------------------
@@ -23,12 +23,12 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 // HELPER FUNCTIONS
 // --------------------------------------------------
 
-function e($value)
+function e($value): string
 {
     return htmlspecialchars((string)$value, ENT_QUOTES, "UTF-8");
 }
 
-function partnershipPageUrl($pageNumber)
+function partnershipPageUrl($pageNumber): string
 {
     $params = [];
 
@@ -72,18 +72,6 @@ if (
 }
 
 $csrfToken = $_SESSION["csrf_token"];
-
-// --------------------------------------------------
-// SIDEBAR PERMISSIONS
-// --------------------------------------------------
-
-$canViewPropertyEnquiries = hasPermission("manage_users");
-$canManageAdmins = hasPermission("manage_admins");
-$canManageLeads = hasPermission("manage_leads") || hasPermission("view_all_leads");
-$canManagePartnerships = hasPermission("manage_partnerships");
-$canManageFollowups = hasPermission("manage_followups");
-$canManageSiteVisits = hasPermission("manage_site_visits");
-$canViewReports = hasPermission("view_crm_reports");
 
 // --------------------------------------------------
 // FLASH MESSAGES
@@ -418,6 +406,9 @@ try {
 
 <title>Manage Partnerships | Olivera Admin</title>
 
+<link rel="stylesheet" href="assets/css/admin.css">
+<link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
 <style>
 
 :root {
@@ -430,9 +421,6 @@ try {
     --text: #263448;
     --muted: #718096;
     --border: #e6e3db;
-    --green: #168653;
-    --red: #c43d3d;
-    --sidebar-width: 255px;
 }
 
 * {
@@ -446,144 +434,8 @@ body {
     color: var(--text);
 }
 
-/* SIDEBAR */
-
-.sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: var(--sidebar-width);
-    height: 100vh;
-    background: var(--navy);
-    color: var(--white);
-    z-index: 1000;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.25s ease;
-}
-
-.sidebar-brand {
-    padding: 25px 20px 22px;
-    border-bottom: 1px solid rgba(255,255,255,0.12);
-    border-bottom: 3px solid var(--gold);
-}
-
-.sidebar-brand h2 {
-    color: var(--gold);
-    font-size: 19px;
-    margin: 0;
-    letter-spacing: 0.4px;
-}
-
-.sidebar-brand p {
-    margin: 7px 0 0;
-    color: #cbd5e1;
-    font-size: 11px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-.sidebar-section {
-    padding: 19px 13px 5px;
-}
-
-.sidebar-heading {
-    padding: 0 11px 9px;
-    color: #aab8ca;
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 1.3px;
-    text-transform: uppercase;
-}
-
-.sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 11px;
-    padding: 11px 12px;
-    margin-bottom: 4px;
-    color: #e2e8f0;
-    text-decoration: none;
-    font-size: 13px;
-    border-radius: 6px;
-    transition: 0.2s ease;
-}
-
-.sidebar a:hover {
-    background: rgba(255,255,255,0.09);
-    color: var(--gold-light);
-}
-
-.sidebar a.active {
-    background: var(--gold);
-    color: var(--navy);
-    font-weight: bold;
-}
-
-.sidebar-icon {
-    width: 20px;
-    text-align: center;
-    font-size: 15px;
-}
-
-.sidebar-footer {
-    margin-top: auto;
-    padding: 16px;
-    border-top: 1px solid rgba(255,255,255,0.12);
-}
-
-.sidebar-footer a {
-    margin: 0;
-    color: var(--gold-light);
-}
-
-/* MOBILE NAVIGATION */
-
-.mobile-topbar {
-    display: none;
-    position: sticky;
-    top: 0;
-    z-index: 900;
-    background: var(--navy);
-    color: white;
-    padding: 13px 16px;
-    align-items: center;
-    gap: 13px;
-    border-bottom: 3px solid var(--gold);
-}
-
-.mobile-topbar strong {
-    color: var(--gold);
-    font-size: 15px;
-}
-
-.menu-toggle {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    border-radius: 5px;
-    padding: 7px 10px;
-    font-size: 19px;
-    cursor: pointer;
-}
-
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.48);
-    z-index: 950;
-}
-
-.sidebar-overlay.show {
-    display: block;
-}
-
-/* MAIN CONTENT */
-
 .main-content {
-    margin-left: var(--sidebar-width);
+    margin-left: 255px;
     min-height: 100vh;
     transition: margin-left 0.25s ease;
 }
@@ -724,17 +576,8 @@ button,
 }
 
 .btn-gold:hover {
-    background: var(--gold-dark, #b98a25);
+    background: #b98a25;
     color: white;
-}
-
-.btn-dark {
-    background: var(--navy);
-    color: white;
-}
-
-.btn-dark:hover {
-    background: var(--navy-light);
 }
 
 .btn-light {
@@ -907,26 +750,18 @@ tbody tr:hover {
 /* RESPONSIVE */
 
 @media (max-width: 1100px) {
-
     .stats {
         grid-template-columns: repeat(3, minmax(120px, 1fr));
     }
 }
 
-@media (max-width: 850px) {
-
-    .sidebar {
-        transform: translateX(-100%);
+@media (max-width: 1000px) {
+    .main-content {
+        margin-left: 220px;
     }
+}
 
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .mobile-topbar {
-        display: flex;
-    }
-
+@media (max-width: 700px) {
     .main-content {
         margin-left: 0;
     }
@@ -941,7 +776,6 @@ tbody tr:hover {
 }
 
 @media (max-width: 550px) {
-
     .header {
         padding: 17px;
     }
@@ -998,153 +832,7 @@ tbody tr:hover {
 
 <body>
 
-<!-- MOBILE TOPBAR -->
-
-<div class="mobile-topbar">
-
-    <button
-        type="button"
-        class="menu-toggle"
-        id="menuToggle"
-        aria-label="Open navigation menu"
-        aria-expanded="false"
-    >
-        ☰
-    </button>
-
-    <strong>OLIVERA ADMIN</strong>
-
-</div>
-
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- SIDEBAR -->
-
-<aside class="sidebar" id="adminSidebar">
-
-    <div class="sidebar-brand">
-        <h2>OLIVERA</h2>
-        <p>Home Developers</p>
-    </div>
-
-    <div class="sidebar-section">
-
-        <div class="sidebar-heading">Main Menu</div>
-
-        <a href="dashboard.php">
-            <span class="sidebar-icon">⌂</span>
-            Dashboard
-        </a>
-
-        <?php if ($canViewPropertyEnquiries): ?>
-            <a href="property_enquiries.php">
-                <span class="sidebar-icon">▤</span>
-                Property Enquiries
-            </a>
-        <?php endif; ?>
-
-    </div>
-
-    <div class="sidebar-section">
-
-        <div class="sidebar-heading">Administration</div>
-
-        <?php if ($canManageAdmins): ?>
-
-            <a href="manage_admins.php">
-                <span class="sidebar-icon">♙</span>
-                Manage Admins
-            </a>
-
-            <a href="activity_logs.php">
-                <span class="sidebar-icon">◷</span>
-                Activity Log
-            </a>
-
-        <?php endif; ?>
-
-    </div>
-
-    <div class="sidebar-section">
-
-        <div class="sidebar-heading">CRM Management</div>
-
-        <?php if ($canManageLeads): ?>
-            <a href="manage_leads.php">
-                <span class="sidebar-icon">♧</span>
-                Manage Leads
-            </a>
-        <?php endif; ?>
-
-        <?php if ($canManagePartnerships): ?>
-            <a href="manage_partnerships.php" class="active">
-                <span class="sidebar-icon">◇</span>
-                Manage Partnerships
-            </a>
-        <?php endif; ?>
-
-        <?php if ($canManageFollowups): ?>
-
-            <a href="lead_followups.php">
-                <span class="sidebar-icon">◷</span>
-                Lead Follow-ups
-            </a>
-
-            <a href="followup_reminders.php">
-                <span class="sidebar-icon">♧</span>
-                Follow-up Reminders
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canManageSiteVisits): ?>
-
-            <a href="site_visits.php">
-                <span class="sidebar-icon">⌖</span>
-                Site Visits
-            </a>
-
-            <a href="weekly_site_visits.php">
-                <span class="sidebar-icon">▦</span>
-                Weekly Site Visits
-            </a>
-
-            <a href="reschedule_site_visits.php">
-                <span class="sidebar-icon">↻</span>
-                Reschedule Visits
-            </a>
-
-            <a href="cancel_site_visit.php">
-                <span class="sidebar-icon">⊗</span>
-                Cancel Site Visits
-            </a>
-
-            <a href="site_visit_reschedule_history.php">
-                <span class="sidebar-icon">▤</span>
-                Rescheduling History
-            </a>
-
-        <?php endif; ?>
-
-        <?php if ($canViewReports): ?>
-            <a href="crm_reports.php">
-                <span class="sidebar-icon">▥</span>
-                CRM Reports
-            </a>
-        <?php endif; ?>
-
-    </div>
-
-    <div class="sidebar-footer">
-        <a href="dashboard.php">
-            <span class="sidebar-icon">←</span>
-            Back to Dashboard
-        </a>
-    </div>
-
-</aside>
-
-<!-- MAIN CONTENT -->
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
 <div class="main-content">
 
@@ -1296,7 +984,6 @@ tbody tr:hover {
                         <table>
 
                             <thead>
-
                                 <tr>
                                     <th>Applicant</th>
                                     <th>Contact</th>
@@ -1308,7 +995,6 @@ tbody tr:hover {
                                     <th>Submitted</th>
                                     <th>Update Inquiry</th>
                                 </tr>
-
                             </thead>
 
                             <tbody>
@@ -1518,41 +1204,6 @@ tbody tr:hover {
 
 </div>
 
-<script>
-
-const menuToggle = document.getElementById("menuToggle");
-const sidebar = document.getElementById("adminSidebar");
-const overlay = document.getElementById("sidebarOverlay");
-
-function openSidebar() {
-    sidebar.classList.add("open");
-    overlay.classList.add("show");
-    menuToggle.setAttribute("aria-expanded", "true");
-}
-
-function closeSidebar() {
-    sidebar.classList.remove("open");
-    overlay.classList.remove("show");
-    menuToggle.setAttribute("aria-expanded", "false");
-}
-
-menuToggle.addEventListener("click", function () {
-    if (sidebar.classList.contains("open")) {
-        closeSidebar();
-    } else {
-        openSidebar();
-    }
-});
-
-overlay.addEventListener("click", closeSidebar);
-
-document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") {
-        closeSidebar();
-    }
-});
-
-</script>
-
 </body>
 </html>
+```

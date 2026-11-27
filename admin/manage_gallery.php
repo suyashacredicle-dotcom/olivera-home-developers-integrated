@@ -6,10 +6,22 @@ require_once __DIR__ . "/../config/database.php";
 
 requirePermission("manage_admins");
 
+// --------------------------------------------------
+// HELPER
+// --------------------------------------------------
+
 function galleryEscape($value): string
 {
-    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
+    return htmlspecialchars(
+        (string)$value,
+        ENT_QUOTES | ENT_SUBSTITUTE,
+        "UTF-8"
+    );
 }
+
+// --------------------------------------------------
+// LOCATIONS
+// --------------------------------------------------
 
 $locations = [
     "Delhi",
@@ -43,6 +55,7 @@ $message = "";
 $messageType = "";
 
 if (isset($_SESSION["gallery_message"])) {
+
     $message = $_SESSION["gallery_message"];
     $messageType = $_SESSION["gallery_message_type"] ?? "success";
 
@@ -101,8 +114,12 @@ try {
 
     if ($locationFilter !== "") {
 
-        $where[] = "location = ?";
-        $params[] = $locationFilter;
+        if ($locationFilter === "Unassigned") {
+            $where[] = "(location IS NULL OR location = '')";
+        } else {
+            $where[] = "location = ?";
+            $params[] = $locationFilter;
+        }
     }
 
     $sql = "
@@ -134,11 +151,11 @@ try {
 
     foreach ($photos as $photo) {
 
-        if ($photo["visibility"] === "public") {
+        if (($photo["visibility"] ?? "") === "public") {
             $publicPhotos++;
         }
 
-        if ($photo["visibility"] === "employees") {
+        if (($photo["visibility"] ?? "") === "employees") {
             $employeePhotos++;
         }
 
@@ -155,19 +172,27 @@ try {
     $locationCounts["Unassigned"] = 0;
 
     $countStmt = $pdo->query("
-        SELECT location, COUNT(*) AS total
+        SELECT
+            CASE
+                WHEN location IS NULL OR location = ''
+                THEN 'Unassigned'
+                ELSE location
+            END AS location_name,
+            COUNT(*) AS total
         FROM gallery_photos
-        GROUP BY location
+        GROUP BY location_name
     ");
 
     foreach ($countStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
 
-        $name = $row["location"];
+        $name = $row["location_name"];
 
         if (isset($locationCounts[$name])) {
             $locationCounts[$name] = (int)$row["total"];
         }
     }
+
+    $allPhotosCount = array_sum($locationCounts);
 
 } catch (PDOException $e) {
 
@@ -190,6 +215,7 @@ try {
 <title>Manage Gallery | Olivera Admin</title>
 
 <link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
 <style>
 
@@ -210,9 +236,20 @@ try {
 }
 
 body {
+    margin: 0;
     background: var(--ivory);
     color: var(--text);
     font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.dashboard-container {
+    min-height: 100vh;
+}
+
+.main-content {
+    margin-left: 255px;
+    min-height: 100vh;
+    padding: 25px;
 }
 
 .gallery-page {
@@ -221,6 +258,8 @@ body {
     margin: auto;
     padding: 15px 5px 40px;
 }
+
+/* HEADER */
 
 .gallery-header {
     display: flex;
@@ -654,12 +693,24 @@ body {
 
 @media (max-width: 1000px) {
 
+    .main-content {
+        margin-left: 220px;
+    }
+
     .gallery-location-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .gallery-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+
+    .main-content {
+        margin-left: 0;
+        padding: 14px;
     }
 }
 
@@ -717,34 +768,7 @@ body {
 
 <div class="dashboard-container">
 
-    <aside class="sidebar">
-
-        <h2>Admin Panel</h2>
-
-        <a href="dashboard.php">Dashboard</a>
-        <a href="manage_admins.php">Manage Admins</a>
-        <a href="manage_users.php">Manage Users</a>
-        <a href="manage_customers.php">Manage Customers</a>
-        <a href="manage_content.php">Manage Content</a>
-        <a href="manage_gallery.php">Manage Gallery</a>
-        <a href="manage_settings.php">Website Settings</a>
-        <a href="activity_logs.php">Activity Logs</a>
-        <a href="profile.php">My Profile</a>
-        <a href="change_password.php">Change Password</a>
-
-        <form action="logout.php" method="POST">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo galleryEscape($csrfToken); ?>"
-            >
-
-            <button type="submit">Logout</button>
-
-        </form>
-
-    </aside>
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
     <main class="main-content">
 
@@ -820,8 +844,6 @@ body {
 
                     <div class="gallery-location-grid">
 
-                        <!-- ALL LOCATIONS -->
-
                         <a
                             class="gallery-location-card <?php echo $locationFilter === "" ? "active" : ""; ?>"
                             href="manage_gallery.php"
@@ -832,13 +854,11 @@ body {
                             </div>
 
                             <div class="gallery-location-count">
-                                <strong><?php echo array_sum($locationCounts); ?></strong>
+                                <strong><?php echo $allPhotosCount; ?></strong>
                                 Photos
                             </div>
 
                         </a>
-
-                        <!-- EIGHT LOCATIONS -->
 
                         <?php foreach ($locations as $location): ?>
 
@@ -859,8 +879,6 @@ body {
                             </a>
 
                         <?php endforeach; ?>
-
-                        <!-- UNASSIGNED -->
 
                         <a
                             class="gallery-location-card <?php echo $locationFilter === "Unassigned" ? "active" : ""; ?>"
@@ -1142,6 +1160,10 @@ body {
                                 }
 
                                 $photoLocation = $photo["location"] ?? "Unassigned";
+
+                                if ($photoLocation === "") {
+                                    $photoLocation = "Unassigned";
+                                }
 
                                 $photoVisibility = $photo["visibility"] ?? "employees";
 

@@ -1,21 +1,36 @@
 
 <?php
 
-require_once "../includes/permissions.php";
-require_once "../config/database.php";
+// --------------------------------------------------
+// REQUIRED FILES
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/permissions.php";
+require_once __DIR__ . "/../config/database.php";
 
 requirePermission("view_crm_reports");
 
-function e($value) {
-    return htmlspecialchars((string)$value, ENT_QUOTES, "UTF-8");
+// --------------------------------------------------
+// HELPER FUNCTIONS
+// --------------------------------------------------
+
+function e($value): string
+{
+    return htmlspecialchars(
+        (string)$value,
+        ENT_QUOTES | ENT_SUBSTITUTE,
+        "UTF-8"
+    );
 }
 
-function reportDateValid($date) {
+function reportDateValid($date): bool
+{
     if (!is_string($date) || $date === "") {
         return false;
     }
 
     $d = DateTime::createFromFormat("!Y-m-d", $date);
+
     return $d && $d->format("Y-m-d") === $date;
 }
 
@@ -23,11 +38,14 @@ function reportDateValid($date) {
 // LEAD SUMMARY
 // --------------------------------------------------
 
-$totalLeads = (int)$pdo->query("SELECT COUNT(*) FROM leads")->fetchColumn();
+$totalLeads = (int)$pdo->query("
+    SELECT COUNT(*) FROM leads
+")->fetchColumn();
 
 $leadStatuses = $pdo->query("
     SELECT lead_status, COUNT(*) AS total
-    FROM leads GROUP BY lead_status
+    FROM leads
+    GROUP BY lead_status
 ")->fetchAll(PDO::FETCH_ASSOC);
 
 $conversionData = $pdo->query("
@@ -41,21 +59,33 @@ $conversionData = $pdo->query("
 $conversionTotal = (int)($conversionData["total_leads"] ?? 0);
 $convertedLeads = (int)($conversionData["converted_leads"] ?? 0);
 $lostLeads = (int)($conversionData["lost_leads"] ?? 0);
-$activeLeads = max(0, $conversionTotal - $convertedLeads - $lostLeads);
-$conversionRate = $conversionTotal ? ($convertedLeads / $conversionTotal) * 100 : 0;
+
+$activeLeads = max(
+    0,
+    $conversionTotal - $convertedLeads - $lostLeads
+);
+
+$conversionRate = $conversionTotal
+    ? ($convertedLeads / $conversionTotal) * 100
+    : 0;
 
 // --------------------------------------------------
 // SITE VISITS AND FOLLOW-UPS
 // --------------------------------------------------
 
-$totalVisits = (int)$pdo->query("SELECT COUNT(*) FROM site_visits")->fetchColumn();
+$totalVisits = (int)$pdo->query("
+    SELECT COUNT(*) FROM site_visits
+")->fetchColumn();
 
 $visitStatuses = $pdo->query("
     SELECT visit_status, COUNT(*) AS total
-    FROM site_visits GROUP BY visit_status
+    FROM site_visits
+    GROUP BY visit_status
 ")->fetchAll(PDO::FETCH_ASSOC);
 
-$totalFollowups = (int)$pdo->query("SELECT COUNT(*) FROM lead_followups")->fetchColumn();
+$totalFollowups = (int)$pdo->query("
+    SELECT COUNT(*) FROM lead_followups
+")->fetchColumn();
 
 // --------------------------------------------------
 // EMPLOYEE PERFORMANCE
@@ -63,16 +93,58 @@ $totalFollowups = (int)$pdo->query("SELECT COUNT(*) FROM lead_followups")->fetch
 
 $employees = $pdo->query("
     SELECT
-        a.id, a.name, a.email,
-        (SELECT COUNT(*) FROM leads l WHERE l.assigned_to=a.id) AS total_leads,
-        (SELECT COUNT(*) FROM leads l WHERE l.assigned_to=a.id AND l.lead_status='converted') AS converted_leads,
-        (SELECT COUNT(*) FROM leads l WHERE l.assigned_to=a.id AND l.lead_status='lost') AS lost_leads,
-        (SELECT COUNT(*) FROM leads l WHERE l.assigned_to=a.id AND l.lead_status NOT IN ('converted','lost')) AS active_leads,
-        (SELECT COUNT(*) FROM site_visits sv WHERE sv.assigned_to=a.id) AS total_visits,
-        (SELECT COUNT(*) FROM site_visits sv WHERE sv.assigned_to=a.id AND sv.visit_status='completed') AS completed_visits,
-        (SELECT COUNT(*) FROM lead_followups lf WHERE lf.admin_id=a.id) AS total_followups
+        a.id,
+        a.name,
+        a.email,
+
+        (
+            SELECT COUNT(*)
+            FROM leads l
+            WHERE l.assigned_to = a.id
+        ) AS total_leads,
+
+        (
+            SELECT COUNT(*)
+            FROM leads l
+            WHERE l.assigned_to = a.id
+            AND l.lead_status = 'converted'
+        ) AS converted_leads,
+
+        (
+            SELECT COUNT(*)
+            FROM leads l
+            WHERE l.assigned_to = a.id
+            AND l.lead_status = 'lost'
+        ) AS lost_leads,
+
+        (
+            SELECT COUNT(*)
+            FROM leads l
+            WHERE l.assigned_to = a.id
+            AND l.lead_status NOT IN ('converted','lost')
+        ) AS active_leads,
+
+        (
+            SELECT COUNT(*)
+            FROM site_visits sv
+            WHERE sv.assigned_to = a.id
+        ) AS total_visits,
+
+        (
+            SELECT COUNT(*)
+            FROM site_visits sv
+            WHERE sv.assigned_to = a.id
+            AND sv.visit_status = 'completed'
+        ) AS completed_visits,
+
+        (
+            SELECT COUNT(*)
+            FROM lead_followups lf
+            WHERE lf.admin_id = a.id
+        ) AS total_followups
+
     FROM admins a
-    WHERE a.role='sales_employee'
+    WHERE a.role = 'sales_employee'
     ORDER BY total_leads DESC, a.name ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -89,7 +161,9 @@ $monthlyLeadReports = $pdo->query("
         SUM(CASE WHEN lead_status='lost' THEN 1 ELSE 0 END) AS lost_leads,
         SUM(CASE WHEN lead_status NOT IN ('converted','lost') THEN 1 ELSE 0 END) AS active_leads
     FROM leads
-    GROUP BY DATE_FORMAT(created_at,'%Y-%m'), DATE_FORMAT(created_at,'%M %Y')
+    GROUP BY
+        DATE_FORMAT(created_at,'%Y-%m'),
+        DATE_FORMAT(created_at,'%M %Y')
     ORDER BY month_key DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -114,7 +188,9 @@ $leadSources = $pdo->query("
 // --------------------------------------------------
 
 $followupTypes = $pdo->query("
-    SELECT followup_type, COUNT(*) AS total_followups
+    SELECT
+        followup_type,
+        COUNT(*) AS total_followups
     FROM lead_followups
     GROUP BY followup_type
     ORDER BY total_followups DESC, followup_type ASC
@@ -122,16 +198,23 @@ $followupTypes = $pdo->query("
 
 $followupEmployeeReports = $pdo->query("
     SELECT
-        a.id, a.name, a.email,
+        a.id,
+        a.name,
+        a.email,
         COUNT(lf.id) AS total_followups,
+
         SUM(CASE WHEN lf.followup_type='call' THEN 1 ELSE 0 END) AS call_followups,
         SUM(CASE WHEN lf.followup_type='email' THEN 1 ELSE 0 END) AS email_followups,
         SUM(CASE WHEN lf.followup_type='whatsapp' THEN 1 ELSE 0 END) AS whatsapp_followups,
         SUM(CASE WHEN lf.followup_type='meeting' THEN 1 ELSE 0 END) AS meeting_followups,
         SUM(CASE WHEN lf.followup_type='note' THEN 1 ELSE 0 END) AS note_followups
+
     FROM admins a
-    LEFT JOIN lead_followups lf ON lf.admin_id=a.id
-    WHERE a.role='sales_employee'
+    LEFT JOIN lead_followups lf
+        ON lf.admin_id = a.id
+
+    WHERE a.role = 'sales_employee'
+
     GROUP BY a.id, a.name, a.email
     ORDER BY total_followups DESC, a.name ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
@@ -153,12 +236,21 @@ $endDate = isset($_GET["end_date"])
 
 $dateRangeError = "";
 
-if (!reportDateValid($startDate) || !reportDateValid($endDate)) {
+if (
+    !reportDateValid($startDate) ||
+    !reportDateValid($endDate)
+) {
     $dateRangeError = "Please select valid start and end dates.";
+
     $startDate = $defaultStartDate;
     $endDate = $today;
-} elseif ($startDate > $endDate || $endDate > $today) {
+
+} elseif (
+    $startDate > $endDate ||
+    $endDate > $today
+) {
     $dateRangeError = "Please select a valid date range.";
+
     $startDate = $defaultStartDate;
     $endDate = $today;
 }
@@ -167,6 +259,7 @@ $rangeStartDateTime = $startDate . " 00:00:00";
 
 $endDateObject = new DateTime($endDate);
 $endDateObject->modify("+1 day");
+
 $rangeEndDateTime = $endDateObject->format("Y-m-d") . " 00:00:00";
 
 // --------------------------------------------------
@@ -232,25 +325,62 @@ $campaignQuery = $pdo->prepare("
         COALESCE(NULLIF(TRIM(pe.utm_medium),''),'Not specified') AS utm_medium,
         COALESCE(NULLIF(TRIM(pe.utm_content),''),'Not specified') AS utm_content,
         COALESCE(NULLIF(TRIM(pe.utm_term),''),'Not specified') AS utm_term,
+
         COUNT(pe.id) AS total_enquiries,
+
         SUM(CASE WHEN l.lead_status='new' THEN 1 ELSE 0 END) AS new_leads,
         SUM(CASE WHEN l.lead_status='converted' THEN 1 ELSE 0 END) AS converted_leads,
         SUM(CASE WHEN l.lead_status='lost' THEN 1 ELSE 0 END) AS lost_leads,
-        SUM(CASE WHEN l.id IS NOT NULL AND l.lead_status NOT IN ('converted','lost','new') THEN 1 ELSE 0 END) AS other_active_leads,
-        SUM(CASE WHEN pe.fbclid IS NOT NULL AND pe.fbclid<>'' THEN 1 ELSE 0 END) AS facebook_clicks_tracked,
-        SUM(CASE WHEN pe.gclid IS NOT NULL AND pe.gclid<>'' THEN 1 ELSE 0 END) AS google_clicks_tracked,
-        SUM(CASE WHEN pe.ttclid IS NOT NULL AND pe.ttclid<>'' THEN 1 ELSE 0 END) AS tiktok_clicks_tracked
+
+        SUM(
+            CASE
+                WHEN l.id IS NOT NULL
+                AND l.lead_status NOT IN ('converted','lost','new')
+                THEN 1
+                ELSE 0
+            END
+        ) AS other_active_leads,
+
+        SUM(
+            CASE
+                WHEN pe.fbclid IS NOT NULL AND pe.fbclid <> ''
+                THEN 1 ELSE 0
+            END
+        ) AS facebook_clicks_tracked,
+
+        SUM(
+            CASE
+                WHEN pe.gclid IS NOT NULL AND pe.gclid <> ''
+                THEN 1 ELSE 0
+            END
+        ) AS google_clicks_tracked,
+
+        SUM(
+            CASE
+                WHEN pe.ttclid IS NOT NULL AND pe.ttclid <> ''
+                THEN 1 ELSE 0
+            END
+        ) AS tiktok_clicks_tracked
+
     FROM property_enquiries pe
-    LEFT JOIN leads l ON l.property_enquiry_id=pe.id
+
+    LEFT JOIN leads l
+        ON l.property_enquiry_id = pe.id
+
     WHERE pe.created_at >= :start_datetime
     AND pe.created_at < :end_datetime
+
     GROUP BY
         COALESCE(NULLIF(TRIM(pe.source_platform),''),'website'),
         COALESCE(NULLIF(TRIM(pe.source_campaign),''),'Unspecified Campaign'),
         COALESCE(NULLIF(TRIM(pe.utm_medium),''),'Not specified'),
         COALESCE(NULLIF(TRIM(pe.utm_content),''),'Not specified'),
         COALESCE(NULLIF(TRIM(pe.utm_term),''),'Not specified')
-    ORDER BY total_enquiries DESC, source_platform ASC, campaign_name ASC
+
+    ORDER BY
+        total_enquiries DESC,
+        source_platform ASC,
+        campaign_name ASC
 ");
 
 $campaignQuery->execute([
@@ -263,14 +393,17 @@ $campaignReports = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
 $totalCampaignEnquiries = 0;
 $totalCampaignConverted = 0;
 $totalCampaignLost = 0;
+
 $totalFacebookClicksTracked = 0;
 $totalGoogleClicksTracked = 0;
 $totalTikTokClicksTracked = 0;
 
 foreach ($campaignReports as $campaign) {
+
     $totalCampaignEnquiries += (int)$campaign["total_enquiries"];
     $totalCampaignConverted += (int)$campaign["converted_leads"];
     $totalCampaignLost += (int)$campaign["lost_leads"];
+
     $totalFacebookClicksTracked += (int)$campaign["facebook_clicks_tracked"];
     $totalGoogleClicksTracked += (int)$campaign["google_clicks_tracked"];
     $totalTikTokClicksTracked += (int)$campaign["tiktok_clicks_tracked"];
@@ -286,24 +419,39 @@ $campaignConversionRate = $totalCampaignEnquiries
 
 $recentLeads = $pdo->query("
     SELECT
-        l.id, l.customer_name, l.phone, l.lead_status,
-        l.lead_source, l.created_at,
+        l.id,
+        l.customer_name,
+        l.phone,
+        l.lead_status,
+        l.lead_source,
+        l.created_at,
         a.name AS assigned_employee
     FROM leads l
-    LEFT JOIN admins a ON l.assigned_to=a.id
+    LEFT JOIN admins a
+        ON l.assigned_to = a.id
     ORDER BY l.created_at DESC
     LIMIT 10
 ")->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="robots" content="noindex, nofollow">
+
 <title>CRM Reports | Olivera Home Developers</title>
 
+<link rel="stylesheet" href="assets/css/admin.css">
+<link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
 <style>
+
 :root {
     --navy:#071b38;
     --navy-light:#102b50;
@@ -319,7 +467,9 @@ $recentLeads = $pdo->query("
     --orange:#bd781c;
 }
 
-* { box-sizing:border-box; }
+* {
+    box-sizing:border-box;
+}
 
 body {
     margin:0;
@@ -330,77 +480,7 @@ body {
     line-height:1.6;
 }
 
-.sidebar {
-    position:fixed;
-    inset:0 auto 0 0;
-    z-index:1000;
-    width:255px;
-    padding:22px 15px;
-    overflow-y:auto;
-    background:var(--navy);
-    color:#fff;
-    transition:transform .25s ease;
-}
-
-.brand {
-    padding:8px 12px 22px;
-    border-bottom:1px solid rgba(255,255,255,.13);
-    margin-bottom:20px;
-}
-
-.brand-name {
-    color:var(--gold-light);
-    font-size:19px;
-    font-weight:800;
-    letter-spacing:.5px;
-}
-
-.brand-subtitle {
-    margin-top:3px;
-    color:#c3ccda;
-    font-size:10px;
-    letter-spacing:1.5px;
-    text-transform:uppercase;
-}
-
-.sidebar-label {
-    padding:10px 12px 7px;
-    color:#aab7ca;
-    font-size:10px;
-    font-weight:700;
-    letter-spacing:1.4px;
-    text-transform:uppercase;
-}
-
-.sidebar a {
-    display:flex;
-    align-items:center;
-    gap:11px;
-    padding:11px 13px;
-    margin:4px 0;
-    border-radius:7px;
-    color:#e6ebf2;
-    font-size:13px;
-    font-weight:600;
-    text-decoration:none;
-    transition:.2s;
-}
-
-.sidebar a:hover {
-    background:rgba(255,255,255,.09);
-    color:var(--gold-light);
-}
-
-.sidebar a.active {
-    background:var(--gold);
-    color:var(--navy);
-}
-
-.sidebar-icon {
-    width:20px;
-    text-align:center;
-    font-size:16px;
-}
+/* MAIN CONTENT */
 
 .main {
     min-height:100vh;
@@ -414,27 +494,7 @@ body {
     margin:0 auto;
 }
 
-.mobile-header {
-    display:none;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    margin-bottom:20px;
-    padding:12px 15px;
-    border-radius:9px;
-    background:var(--navy);
-    color:#fff;
-}
-
-.menu-toggle {
-    border:0;
-    background:var(--gold);
-    color:var(--navy);
-    padding:8px 12px;
-    border-radius:6px;
-    font-size:18px;
-    cursor:pointer;
-}
+/* PAGE HEADER */
 
 .page-heading {
     display:flex;
@@ -470,7 +530,10 @@ h3 {
     font-size:14px;
 }
 
-.card,.summary-card {
+/* CARDS */
+
+.card,
+.summary-card {
     padding:23px;
     margin-bottom:22px;
     border:1px solid var(--border);
@@ -479,7 +542,10 @@ h3 {
     box-shadow:0 3px 14px rgba(7,27,56,.045);
 }
 
-.summary-grid,.conversion-grid,.date-range-summary,.advertisement-summary-grid {
+.summary-grid,
+.conversion-grid,
+.date-range-summary,
+.advertisement-summary-grid {
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
     gap:15px;
@@ -519,6 +585,8 @@ h3 {
     font-size:13px;
 }
 
+/* TABLES */
+
 .table-wrapper {
     width:100%;
     overflow-x:auto;
@@ -533,7 +601,8 @@ table {
     background:#fff;
 }
 
-th,td {
+th,
+td {
     padding:12px 13px;
     border-bottom:1px solid var(--border);
     text-align:left;
@@ -548,10 +617,23 @@ th {
     white-space:nowrap;
 }
 
-td { color:#445168; }
-td strong { color:var(--navy); }
-tbody tr:last-child td { border-bottom:0; }
-tbody tr:hover { background:#fbf8ef; }
+td {
+    color:#445168;
+}
+
+td strong {
+    color:var(--navy);
+}
+
+tbody tr:last-child td {
+    border-bottom:0;
+}
+
+tbody tr:hover {
+    background:#fbf8ef;
+}
+
+/* STATUS REPORTS */
 
 .status-list {
     display:grid;
@@ -559,8 +641,11 @@ tbody tr:hover { background:#fbf8ef; }
     gap:12px;
 }
 
-.status-item,.conversion-item,.followup-type-item,
-.date-range-summary-item,.advertisement-summary-item {
+.status-item,
+.conversion-item,
+.followup-type-item,
+.date-range-summary-item,
+.advertisement-summary-item {
     padding:16px;
     border:1px solid var(--border);
     border-radius:9px;
@@ -579,16 +664,32 @@ tbody tr:hover { background:#fbf8ef; }
     font-size:24px;
 }
 
+/* CONVERSION REPORT */
+
 .conversion-item h3 {
     margin:0 0 9px;
     color:var(--muted);
 }
 
-.conversion-item .number { font-size:26px; }
-.conversion-total .number { color:var(--navy); }
-.conversion-success .number { color:var(--green); }
-.conversion-lost .number { color:var(--red); }
-.conversion-active .number { color:var(--orange); }
+.conversion-item .number {
+    font-size:26px;
+}
+
+.conversion-total .number {
+    color:var(--navy);
+}
+
+.conversion-success .number {
+    color:var(--green);
+}
+
+.conversion-lost .number {
+    color:var(--red);
+}
+
+.conversion-active .number {
+    color:var(--orange);
+}
 
 .conversion-rate-section {
     margin-top:22px;
@@ -623,19 +724,28 @@ tbody tr:hover { background:#fbf8ef; }
     background:var(--gold);
 }
 
-.conversion-note,.employee-performance-note,.monthly-report-note,
-.source-report-note,.followup-report-note,.date-range-note,
+.conversion-note,
+.employee-performance-note,
+.monthly-report-note,
+.source-report-note,
+.followup-report-note,
+.date-range-note,
 .advertisement-report-note {
     margin:12px 0 17px;
     color:var(--muted);
     font-size:12px;
 }
 
-.employee-rate,.monthly-rate,.source-rate,
-.advertisement-campaign-rate,.followup-total {
+.employee-rate,
+.monthly-rate,
+.source-rate,
+.advertisement-campaign-rate,
+.followup-total {
     color:var(--green);
     font-weight:700;
 }
+
+/* FOLLOW-UP REPORT */
 
 .followup-type-grid {
     display:grid;
@@ -644,7 +754,8 @@ tbody tr:hover { background:#fbf8ef; }
     margin:17px 0 24px;
 }
 
-.followup-type-item span,.date-range-summary-item span,
+.followup-type-item span,
+.date-range-summary-item span,
 .advertisement-summary-item span {
     display:block;
     margin-bottom:7px;
@@ -652,11 +763,14 @@ tbody tr:hover { background:#fbf8ef; }
     font-size:12px;
 }
 
-.followup-type-item strong,.date-range-summary-item strong,
+.followup-type-item strong,
+.date-range-summary-item strong,
 .advertisement-summary-item strong {
     color:var(--navy);
     font-size:23px;
 }
+
+/* DATE RANGE FILTER */
 
 .date-range-form {
     display:flex;
@@ -691,7 +805,8 @@ tbody tr:hover { background:#fbf8ef; }
     font:inherit;
 }
 
-.date-range-form button,.date-range-reset {
+.date-range-form button,
+.date-range-reset {
     display:inline-flex;
     align-items:center;
     justify-content:center;
@@ -706,7 +821,8 @@ tbody tr:hover { background:#fbf8ef; }
     cursor:pointer;
 }
 
-.date-range-form button:hover,.date-range-reset:hover {
+.date-range-form button:hover,
+.date-range-reset:hover {
     background:var(--gold-light);
 }
 
@@ -717,12 +833,18 @@ tbody tr:hover { background:#fbf8ef; }
 }
 
 .date-range-summary-item.converted strong,
-.advertisement-summary-item.converted strong { color:var(--green); }
+.advertisement-summary-item.converted strong {
+    color:var(--green);
+}
 
 .date-range-summary-item.lost strong,
-.advertisement-summary-item.lost strong { color:var(--red); }
+.advertisement-summary-item.lost strong {
+    color:var(--red);
+}
 
-.date-range-summary-item.active strong { color:var(--orange); }
+.date-range-summary-item.active strong {
+    color:var(--orange);
+}
 
 .date-range-error {
     padding:12px;
@@ -732,592 +854,1048 @@ tbody tr:hover { background:#fbf8ef; }
     color:#a52c34;
 }
 
+/* EMPTY STATES */
+
 .empty {
     padding:12px 0;
     color:var(--muted);
 }
 
-@media(max-width:1050px) {
-    .sidebar {
-        transform:translateX(-100%);
-    }
+/* RESPONSIVE */
 
-    .sidebar.open {
-        transform:translateX(0);
+@media(max-width:1000px) {
+
+    .main {
+        margin-left:220px;
+        padding:20px;
     }
+}
+
+@media(max-width:700px) {
 
     .main {
         margin-left:0;
-        padding:20px;
+        padding:13px;
     }
 
-    .mobile-header {
-        display:flex;
+    h1 {
+        font-size:24px;
     }
-}
 
-@media(max-width:600px) {
-    .main { padding:13px; }
-    h1 { font-size:24px; }
-    h2 { font-size:17px; }
-    .card,.summary-card { padding:15px; }
-    .summary-grid,.conversion-grid,.date-range-summary,
-    .advertisement-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-    .date-range-field,.date-range-field input { width:100%; }
-    .date-range-form button,.date-range-reset { width:100%; }
+    h2 {
+        font-size:17px;
+    }
+
+    .card,
+    .summary-card {
+        padding:15px;
+    }
+
+    .summary-grid,
+    .conversion-grid,
+    .date-range-summary,
+    .advertisement-summary-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:10px;
+    }
+
+    .date-range-field,
+    .date-range-field input {
+        width:100%;
+    }
+
+    .date-range-form button,
+    .date-range-reset {
+        width:100%;
+    }
 }
 
 @media(max-width:380px) {
-    .summary-grid,.conversion-grid,.date-range-summary,
-    .advertisement-summary-grid { grid-template-columns:1fr; }
+
+    .summary-grid,
+    .conversion-grid,
+    .date-range-summary,
+    .advertisement-summary-grid {
+        grid-template-columns:1fr;
+    }
 }
+
 </style>
+
 </head>
 
 <body>
 
-<aside class="sidebar" id="sidebar">
-    <div class="brand">
-        <div class="brand-name">OLIVERA</div>
-        <div class="brand-subtitle">Home Developers · Admin</div>
-    </div>
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
-    <div class="sidebar-label">Main Navigation</div>
+    <main class="main">
 
-    <a href="dashboard.php">
-        <span class="sidebar-icon">⌂</span> Dashboard
-    </a>
+        <div class="container">
 
-    <a href="property_enquiries.php">
-        <span class="sidebar-icon">▤</span> Property Enquiries
-    </a>
+            <header class="page-heading">
 
-    <a href="manage_admins.php">
-        <span class="sidebar-icon">♙</span> Manage Admin
-    </a>
+                <div>
+                    <h1>CRM Reports</h1>
 
-    <a href="activity_log.php">
-        <span class="sidebar-icon">◷</span> Activity Log
-    </a>
-
-    <a href="manage_leads.php">
-        <span class="sidebar-icon">♧</span> Manage Leads
-    </a>
-
-    <a href="manage_partnerships.php">
-        <span class="sidebar-icon">♧</span> Manage Partnerships
-    </a>
-
-    <a href="lead_followups.php">
-        <span class="sidebar-icon">◷</span> Lead Follow-ups
-    </a>
-
-    <a href="followup_reminders.php">
-        <span class="sidebar-icon">🔔</span> Follow-up Reminders
-    </a>
-
-    <a href="site_visits.php">
-        <span class="sidebar-icon">⌖</span> Site Visits
-    </a>
-
-    <a href="crm_reports.php" class="active">
-        <span class="sidebar-icon">▥</span> CRM Reports
-    </a>
-</aside>
-
-<main class="main">
-<div class="container">
-
-    <div class="mobile-header">
-        <strong>OLIVERA ADMIN</strong>
-        <button type="button" class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle navigation">☰</button>
-    </div>
-
-    <header class="page-heading">
-        <div>
-            <h1>CRM Reports</h1>
-            <p>Monitor leads, employee performance, site visits and advertisement campaigns.</p>
-        </div>
-    </header>
-
-    <!-- SUMMARY -->
-
-    <div class="summary-grid">
-        <div class="summary-card">
-            <h3>Total Leads</h3>
-            <div class="number"><?php echo $totalLeads; ?></div>
-        </div>
-        <div class="summary-card">
-            <h3>Total Site Visits</h3>
-            <div class="number"><?php echo $totalVisits; ?></div>
-        </div>
-        <div class="summary-card">
-            <h3>Total Follow-ups</h3>
-            <div class="number"><?php echo $totalFollowups; ?></div>
-        </div>
-        <div class="summary-card">
-            <h3>Sales Employees</h3>
-            <div class="number"><?php echo count($employees); ?></div>
-        </div>
-    </div>
-
-    <!-- CONVERSION REPORT -->
-
-    <section class="card">
-        <h2>Lead Conversion Rate Report</h2>
-        <p>Understand how many customer leads are successfully converted into sales.</p>
-
-        <div class="conversion-grid">
-            <div class="conversion-item conversion-total">
-                <h3>Total Leads</h3>
-                <div class="number"><?php echo $conversionTotal; ?></div>
-            </div>
-            <div class="conversion-item conversion-success">
-                <h3>Converted Leads</h3>
-                <div class="number"><?php echo $convertedLeads; ?></div>
-            </div>
-            <div class="conversion-item conversion-lost">
-                <h3>Lost Leads</h3>
-                <div class="number"><?php echo $lostLeads; ?></div>
-            </div>
-            <div class="conversion-item conversion-active">
-                <h3>Active Leads</h3>
-                <div class="number"><?php echo $activeLeads; ?></div>
-            </div>
-        </div>
-
-        <div class="conversion-rate-section">
-            <div class="conversion-rate-heading">
-                <span>Overall Lead Conversion Rate</span>
-                <strong><?php echo number_format($conversionRate,2); ?>%</strong>
-            </div>
-            <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo number_format($conversionRate,2,".",""); ?>">
-                <div class="progress-fill" style="width:<?php echo min(100,max(0,$conversionRate)); ?>%"></div>
-            </div>
-            <p class="conversion-note">
-                Conversion Rate = (Converted Leads / Total Leads) × 100.
-                <?php echo $convertedLeads; ?> out of <?php echo $conversionTotal; ?> leads have been converted.
-            </p>
-        </div>
-    </section>
-
-    <!-- LEAD STATUS -->
-
-    <section class="card">
-        <h2>Lead Status Report</h2>
-        <div class="status-list">
-            <?php if ($leadStatuses): ?>
-                <?php foreach ($leadStatuses as $status): ?>
-                    <div class="status-item">
-                        <?php echo e(ucwords(str_replace("_"," ",$status["lead_status"]))); ?>
-                        <strong><?php echo (int)$status["total"]; ?></strong>
-                    </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <p class="empty">No leads found.</p>
-            <?php endif; ?>
-        </div>
-    </section>
-
-    <!-- SITE VISITS -->
-
-    <section class="card">
-        <h2>Site Visit Status Report</h2>
-        <div class="status-list">
-            <?php if ($visitStatuses): ?>
-                <?php foreach ($visitStatuses as $status): ?>
-                    <div class="status-item">
-                        <?php echo e(ucwords(str_replace("_"," ",$status["visit_status"]))); ?>
-                        <strong><?php echo (int)$status["total"]; ?></strong>
-                    </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <p class="empty">No site visits found.</p>
-            <?php endif; ?>
-        </div>
-    </section>
-
-    <!-- EMPLOYEE PERFORMANCE -->
-
-    <section class="card">
-        <h2>Employee-wise Performance Report</h2>
-        <p class="employee-performance-note">Compare assigned leads, conversions, lost leads, active leads, site visits and follow-up activity.</p>
-
-        <?php if ($employees): ?>
-        <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>Employee Name</th><th>Email</th><th>Total Leads</th>
-                    <th>Converted</th><th>Lost</th><th>Active</th>
-                    <th>Conversion Rate</th><th>Total Visits</th>
-                    <th>Completed Visits</th><th>Follow-ups</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($employees as $employee):
-                $employeeTotalLeads = (int)$employee["total_leads"];
-                $employeeConvertedLeads = (int)$employee["converted_leads"];
-                $employeeRate = $employeeTotalLeads
-                    ? ($employeeConvertedLeads/$employeeTotalLeads)*100
-                    : 0;
-            ?>
-                <tr>
-                    <td><?php echo e($employee["name"]); ?></td>
-                    <td><?php echo e($employee["email"]); ?></td>
-                    <td><?php echo $employeeTotalLeads; ?></td>
-                    <td><?php echo $employeeConvertedLeads; ?></td>
-                    <td><?php echo (int)$employee["lost_leads"]; ?></td>
-                    <td><?php echo (int)$employee["active_leads"]; ?></td>
-                    <td class="employee-rate"><?php echo number_format($employeeRate,2); ?>%</td>
-                    <td><?php echo (int)$employee["total_visits"]; ?></td>
-                    <td><?php echo (int)$employee["completed_visits"]; ?></td>
-                    <td><?php echo (int)$employee["total_followups"]; ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <?php else: ?>
-            <p class="empty">No Sales Employees found.</p>
-        <?php endif; ?>
-    </section>
-
-    <!-- MONTHLY REPORT -->
-
-    <section class="card">
-        <h2>Monthly Lead Generation Report</h2>
-        <p class="monthly-report-note">View monthly leads, conversions, losses and active leads.</p>
-
-        <?php if ($monthlyLeadReports): ?>
-        <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr><th>Month</th><th>Total Leads</th><th>Converted</th><th>Lost</th><th>Active</th><th>Conversion Rate</th></tr>
-            </thead>
-            <tbody>
-            <?php foreach ($monthlyLeadReports as $report):
-                $monthTotal = (int)$report["total_leads"];
-                $monthConverted = (int)$report["converted_leads"];
-                $monthRate = $monthTotal ? ($monthConverted/$monthTotal)*100 : 0;
-            ?>
-                <tr>
-                    <td><strong><?php echo e($report["month_name"]); ?></strong></td>
-                    <td><?php echo $monthTotal; ?></td>
-                    <td><?php echo $monthConverted; ?></td>
-                    <td><?php echo (int)$report["lost_leads"]; ?></td>
-                    <td><?php echo (int)$report["active_leads"]; ?></td>
-                    <td class="monthly-rate"><?php echo number_format($monthRate,2); ?>%</td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <?php else: ?>
-            <p class="empty">No monthly lead generation records found.</p>
-        <?php endif; ?>
-    </section>
-
-    <!-- LEAD SOURCE REPORT -->
-
-    <section class="card">
-        <h2>Lead Source Conversion Analysis</h2>
-        <p class="source-report-note">Compare marketing sources to understand which sources generate leads and conversions.</p>
-
-        <?php if ($leadSources): ?>
-        <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr><th>Lead Source</th><th>Total Leads</th><th>Converted</th><th>Lost</th><th>Active</th><th>Conversion Rate</th></tr>
-            </thead>
-            <tbody>
-            <?php foreach ($leadSources as $source):
-                $sourceTotal = (int)$source["total_leads"];
-                $sourceConverted = (int)$source["converted_leads"];
-                $sourceRate = $sourceTotal ? ($sourceConverted/$sourceTotal)*100 : 0;
-            ?>
-                <tr>
-                    <td><strong><?php echo e($source["source_name"]); ?></strong></td>
-                    <td><?php echo $sourceTotal; ?></td>
-                    <td><?php echo $sourceConverted; ?></td>
-                    <td><?php echo (int)$source["lost_leads"]; ?></td>
-                    <td><?php echo (int)$source["active_leads"]; ?></td>
-                    <td class="source-rate"><?php echo number_format($sourceRate,2); ?>%</td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <?php else: ?>
-            <p class="empty">No lead source records found.</p>
-        <?php endif; ?>
-    </section>
-
-    <!-- ADVERTISEMENT REPORT -->
-
-    <section class="card">
-        <h2>Advertisement Campaign Performance</h2>
-        <p class="advertisement-report-note">Compare campaigns, UTM medium, advertisement content and keywords using the selected date range.</p>
-
-        <div class="advertisement-summary-grid">
-            <div class="advertisement-summary-item">
-                <span>Total Advertisement Enquiries</span>
-                <strong><?php echo $totalCampaignEnquiries; ?></strong>
-            </div>
-            <div class="advertisement-summary-item converted">
-                <span>Converted Leads</span>
-                <strong><?php echo $totalCampaignConverted; ?></strong>
-            </div>
-            <div class="advertisement-summary-item lost">
-                <span>Lost Leads</span>
-                <strong><?php echo $totalCampaignLost; ?></strong>
-            </div>
-            <div class="advertisement-summary-item">
-                <span>Advertisement Conversion Rate</span>
-                <strong><?php echo number_format($campaignConversionRate,2); ?>%</strong>
-            </div>
-        </div>
-
-        <div class="advertisement-summary-grid">
-            <div class="advertisement-summary-item">
-                <span>Facebook Click IDs</span>
-                <strong><?php echo $totalFacebookClicksTracked; ?></strong>
-            </div>
-            <div class="advertisement-summary-item">
-                <span>Google Click IDs</span>
-                <strong><?php echo $totalGoogleClicksTracked; ?></strong>
-            </div>
-            <div class="advertisement-summary-item">
-                <span>TikTok Click IDs</span>
-                <strong><?php echo $totalTikTokClicksTracked; ?></strong>
-            </div>
-        </div>
-
-        <?php if ($campaignReports): ?>
-        <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>Platform</th><th>Campaign</th><th>UTM Medium</th>
-                    <th>Advertisement Content</th><th>Keyword / UTM Term</th>
-                    <th>Enquiries</th><th>New Leads</th><th>Converted</th>
-                    <th>Lost</th><th>Other Active</th><th>Conversion Rate</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($campaignReports as $campaign):
-                $campaignTotal = (int)$campaign["total_enquiries"];
-                $campaignConverted = (int)$campaign["converted_leads"];
-                $campaignRate = $campaignTotal ? ($campaignConverted/$campaignTotal)*100 : 0;
-            ?>
-                <tr>
-                    <td><strong><?php echo e(ucwords(str_replace("_"," ",$campaign["source_platform"]))); ?></strong></td>
-                    <td><?php echo e($campaign["campaign_name"]); ?></td>
-                    <td><?php echo e($campaign["utm_medium"]); ?></td>
-                    <td><?php echo e($campaign["utm_content"]); ?></td>
-                    <td><?php echo e($campaign["utm_term"]); ?></td>
-                    <td><?php echo $campaignTotal; ?></td>
-                    <td><?php echo (int)$campaign["new_leads"]; ?></td>
-                    <td><?php echo $campaignConverted; ?></td>
-                    <td><?php echo (int)$campaign["lost_leads"]; ?></td>
-                    <td><?php echo (int)$campaign["other_active_leads"]; ?></td>
-                    <td class="advertisement-campaign-rate"><?php echo number_format($campaignRate,2); ?>%</td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <?php else: ?>
-            <p class="empty">No advertisement property enquiries were found during the selected date range.</p>
-        <?php endif; ?>
-
-        <p class="advertisement-report-note">Conversion Rate = Converted CRM Leads divided by Total Advertisement Enquiries, multiplied by 100. Lead statuses reflect their current CRM status.</p>
-    </section>
-
-    <!-- FOLLOW-UP PERFORMANCE -->
-
-    <section class="card">
-        <h2>Follow-up Performance Report</h2>
-        <p class="followup-report-note">Review follow-up activity by type and compare activity by Sales Employee.</p>
-
-        <h3>Follow-ups by Type</h3>
-
-        <?php if ($followupTypes): ?>
-        <div class="followup-type-grid">
-            <?php foreach ($followupTypes as $type): ?>
-                <div class="followup-type-item">
-                    <span><?php echo e(ucwords(str_replace("_"," ",$type["followup_type"]))); ?></span>
-                    <strong><?php echo (int)$type["total_followups"]; ?></strong>
+                    <p>
+                        Monitor leads, employee performance, site visits and advertisement campaigns.
+                    </p>
                 </div>
-            <?php endforeach; ?>
+
+            </header>
+
+            <!-- SUMMARY -->
+
+            <div class="summary-grid">
+
+                <div class="summary-card">
+                    <h3>Total Leads</h3>
+                    <div class="number"><?php echo $totalLeads; ?></div>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Total Site Visits</h3>
+                    <div class="number"><?php echo $totalVisits; ?></div>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Total Follow-ups</h3>
+                    <div class="number"><?php echo $totalFollowups; ?></div>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Sales Employees</h3>
+                    <div class="number"><?php echo count($employees); ?></div>
+                </div>
+
+            </div>
+
+            <!-- CONVERSION REPORT -->
+
+            <section class="card">
+
+                <h2>Lead Conversion Rate Report</h2>
+
+                <p>
+                    Understand how many customer leads are successfully converted into sales.
+                </p>
+
+                <div class="conversion-grid">
+
+                    <div class="conversion-item conversion-total">
+                        <h3>Total Leads</h3>
+                        <div class="number"><?php echo $conversionTotal; ?></div>
+                    </div>
+
+                    <div class="conversion-item conversion-success">
+                        <h3>Converted Leads</h3>
+                        <div class="number"><?php echo $convertedLeads; ?></div>
+                    </div>
+
+                    <div class="conversion-item conversion-lost">
+                        <h3>Lost Leads</h3>
+                        <div class="number"><?php echo $lostLeads; ?></div>
+                    </div>
+
+                    <div class="conversion-item conversion-active">
+                        <h3>Active Leads</h3>
+                        <div class="number"><?php echo $activeLeads; ?></div>
+                    </div>
+
+                </div>
+
+                <div class="conversion-rate-section">
+
+                    <div class="conversion-rate-heading">
+                        <span>Overall Lead Conversion Rate</span>
+
+                        <strong>
+                            <?php echo number_format($conversionRate, 2); ?>%
+                        </strong>
+                    </div>
+
+                    <div
+                        class="progress-track"
+                        role="progressbar"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="<?php echo number_format($conversionRate, 2, ".", ""); ?>"
+                    >
+                        <div
+                            class="progress-fill"
+                            style="width:<?php echo min(100, max(0, $conversionRate)); ?>%"
+                        ></div>
+                    </div>
+
+                    <p class="conversion-note">
+                        Conversion Rate = (Converted Leads / Total Leads) × 100.
+                        <?php echo $convertedLeads; ?>
+                        out of <?php echo $conversionTotal; ?>
+                        leads have been converted.
+                    </p>
+
+                </div>
+
+            </section>
+
+            <!-- LEAD STATUS -->
+
+            <section class="card">
+
+                <h2>Lead Status Report</h2>
+
+                <div class="status-list">
+
+                    <?php if ($leadStatuses): ?>
+
+                        <?php foreach ($leadStatuses as $status): ?>
+
+                            <div class="status-item">
+
+                                <?php
+                                echo e(
+                                    ucwords(
+                                        str_replace(
+                                            "_",
+                                            " ",
+                                            $status["lead_status"]
+                                        )
+                                    )
+                                );
+                                ?>
+
+                                <strong>
+                                    <?php echo (int)$status["total"]; ?>
+                                </strong>
+
+                            </div>
+
+                        <?php endforeach; ?>
+
+                    <?php else: ?>
+
+                        <p class="empty">No leads found.</p>
+
+                    <?php endif; ?>
+
+                </div>
+
+            </section>
+
+            <!-- SITE VISITS -->
+
+            <section class="card">
+
+                <h2>Site Visit Status Report</h2>
+
+                <div class="status-list">
+
+                    <?php if ($visitStatuses): ?>
+
+                        <?php foreach ($visitStatuses as $status): ?>
+
+                            <div class="status-item">
+
+                                <?php
+                                echo e(
+                                    ucwords(
+                                        str_replace(
+                                            "_",
+                                            " ",
+                                            $status["visit_status"]
+                                        )
+                                    )
+                                );
+                                ?>
+
+                                <strong>
+                                    <?php echo (int)$status["total"]; ?>
+                                </strong>
+
+                            </div>
+
+                        <?php endforeach; ?>
+
+                    <?php else: ?>
+
+                        <p class="empty">No site visits found.</p>
+
+                    <?php endif; ?>
+
+                </div>
+
+            </section>
+
+            <!-- EMPLOYEE PERFORMANCE -->
+
+            <section class="card">
+
+                <h2>Employee-wise Performance Report</h2>
+
+                <p class="employee-performance-note">
+                    Compare assigned leads, conversions, lost leads, active leads, site visits and follow-up activity.
+                </p>
+
+                <?php if ($employees): ?>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>Employee Name</th>
+                                    <th>Email</th>
+                                    <th>Total Leads</th>
+                                    <th>Converted</th>
+                                    <th>Lost</th>
+                                    <th>Active</th>
+                                    <th>Conversion Rate</th>
+                                    <th>Total Visits</th>
+                                    <th>Completed Visits</th>
+                                    <th>Follow-ups</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($employees as $employee):
+
+                                    $employeeTotalLeads = (int)$employee["total_leads"];
+                                    $employeeConvertedLeads = (int)$employee["converted_leads"];
+
+                                    $employeeRate = $employeeTotalLeads
+                                        ? ($employeeConvertedLeads / $employeeTotalLeads) * 100
+                                        : 0;
+
+                                ?>
+
+                                    <tr>
+
+                                        <td><?php echo e($employee["name"]); ?></td>
+
+                                        <td><?php echo e($employee["email"]); ?></td>
+
+                                        <td><?php echo $employeeTotalLeads; ?></td>
+
+                                        <td><?php echo $employeeConvertedLeads; ?></td>
+
+                                        <td><?php echo (int)$employee["lost_leads"]; ?></td>
+
+                                        <td><?php echo (int)$employee["active_leads"]; ?></td>
+
+                                        <td class="employee-rate">
+                                            <?php echo number_format($employeeRate, 2); ?>%
+                                        </td>
+
+                                        <td><?php echo (int)$employee["total_visits"]; ?></td>
+
+                                        <td><?php echo (int)$employee["completed_visits"]; ?></td>
+
+                                        <td><?php echo (int)$employee["total_followups"]; ?></td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">No Sales Employees found.</p>
+
+                <?php endif; ?>
+
+            </section>
+
+            <!-- MONTHLY REPORT -->
+
+            <section class="card">
+
+                <h2>Monthly Lead Generation Report</h2>
+
+                <p class="monthly-report-note">
+                    View monthly leads, conversions, losses and active leads.
+                </p>
+
+                <?php if ($monthlyLeadReports): ?>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Total Leads</th>
+                                    <th>Converted</th>
+                                    <th>Lost</th>
+                                    <th>Active</th>
+                                    <th>Conversion Rate</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($monthlyLeadReports as $report):
+
+                                    $monthTotal = (int)$report["total_leads"];
+                                    $monthConverted = (int)$report["converted_leads"];
+
+                                    $monthRate = $monthTotal
+                                        ? ($monthConverted / $monthTotal) * 100
+                                        : 0;
+
+                                ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <strong><?php echo e($report["month_name"]); ?></strong>
+                                        </td>
+
+                                        <td><?php echo $monthTotal; ?></td>
+
+                                        <td><?php echo $monthConverted; ?></td>
+
+                                        <td><?php echo (int)$report["lost_leads"]; ?></td>
+
+                                        <td><?php echo (int)$report["active_leads"]; ?></td>
+
+                                        <td class="monthly-rate">
+                                            <?php echo number_format($monthRate, 2); ?>%
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">
+                        No monthly lead generation records found.
+                    </p>
+
+                <?php endif; ?>
+
+            </section>
+
+            <!-- LEAD SOURCE REPORT -->
+
+            <section class="card">
+
+                <h2>Lead Source Conversion Analysis</h2>
+
+                <p class="source-report-note">
+                    Compare marketing sources to understand which sources generate leads and conversions.
+                </p>
+
+                <?php if ($leadSources): ?>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>Lead Source</th>
+                                    <th>Total Leads</th>
+                                    <th>Converted</th>
+                                    <th>Lost</th>
+                                    <th>Active</th>
+                                    <th>Conversion Rate</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($leadSources as $source):
+
+                                    $sourceTotal = (int)$source["total_leads"];
+                                    $sourceConverted = (int)$source["converted_leads"];
+
+                                    $sourceRate = $sourceTotal
+                                        ? ($sourceConverted / $sourceTotal) * 100
+                                        : 0;
+
+                                ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <strong><?php echo e($source["source_name"]); ?></strong>
+                                        </td>
+
+                                        <td><?php echo $sourceTotal; ?></td>
+
+                                        <td><?php echo $sourceConverted; ?></td>
+
+                                        <td><?php echo (int)$source["lost_leads"]; ?></td>
+
+                                        <td><?php echo (int)$source["active_leads"]; ?></td>
+
+                                        <td class="source-rate">
+                                            <?php echo number_format($sourceRate, 2); ?>%
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">No lead source records found.</p>
+
+                <?php endif; ?>
+
+            </section>
+
+            <!-- ADVERTISEMENT REPORT -->
+
+            <section class="card">
+
+                <h2>Advertisement Campaign Performance</h2>
+
+                <p class="advertisement-report-note">
+                    Compare campaigns, UTM medium, advertisement content and keywords using the selected date range.
+                </p>
+
+                <div class="advertisement-summary-grid">
+
+                    <div class="advertisement-summary-item">
+                        <span>Total Advertisement Enquiries</span>
+                        <strong><?php echo $totalCampaignEnquiries; ?></strong>
+                    </div>
+
+                    <div class="advertisement-summary-item converted">
+                        <span>Converted Leads</span>
+                        <strong><?php echo $totalCampaignConverted; ?></strong>
+                    </div>
+
+                    <div class="advertisement-summary-item lost">
+                        <span>Lost Leads</span>
+                        <strong><?php echo $totalCampaignLost; ?></strong>
+                    </div>
+
+                    <div class="advertisement-summary-item">
+                        <span>Advertisement Conversion Rate</span>
+                        <strong>
+                            <?php echo number_format($campaignConversionRate, 2); ?>%
+                        </strong>
+                    </div>
+
+                </div>
+
+                <div class="advertisement-summary-grid">
+
+                    <div class="advertisement-summary-item">
+                        <span>Facebook Click IDs</span>
+                        <strong><?php echo $totalFacebookClicksTracked; ?></strong>
+                    </div>
+
+                    <div class="advertisement-summary-item">
+                        <span>Google Click IDs</span>
+                        <strong><?php echo $totalGoogleClicksTracked; ?></strong>
+                    </div>
+
+                    <div class="advertisement-summary-item">
+                        <span>TikTok Click IDs</span>
+                        <strong><?php echo $totalTikTokClicksTracked; ?></strong>
+                    </div>
+
+                </div>
+
+                <?php if ($campaignReports): ?>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>Platform</th>
+                                    <th>Campaign</th>
+                                    <th>UTM Medium</th>
+                                    <th>Advertisement Content</th>
+                                    <th>Keyword / UTM Term</th>
+                                    <th>Enquiries</th>
+                                    <th>New Leads</th>
+                                    <th>Converted</th>
+                                    <th>Lost</th>
+                                    <th>Other Active</th>
+                                    <th>Conversion Rate</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($campaignReports as $campaign):
+
+                                    $campaignTotal = (int)$campaign["total_enquiries"];
+                                    $campaignConverted = (int)$campaign["converted_leads"];
+
+                                    $campaignRate = $campaignTotal
+                                        ? ($campaignConverted / $campaignTotal) * 100
+                                        : 0;
+
+                                ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <strong>
+                                                <?php
+                                                echo e(
+                                                    ucwords(
+                                                        str_replace(
+                                                            "_",
+                                                            " ",
+                                                            $campaign["source_platform"]
+                                                        )
+                                                    )
+                                                );
+                                                ?>
+                                            </strong>
+                                        </td>
+
+                                        <td><?php echo e($campaign["campaign_name"]); ?></td>
+
+                                        <td><?php echo e($campaign["utm_medium"]); ?></td>
+
+                                        <td><?php echo e($campaign["utm_content"]); ?></td>
+
+                                        <td><?php echo e($campaign["utm_term"]); ?></td>
+
+                                        <td><?php echo $campaignTotal; ?></td>
+
+                                        <td><?php echo (int)$campaign["new_leads"]; ?></td>
+
+                                        <td><?php echo $campaignConverted; ?></td>
+
+                                        <td><?php echo (int)$campaign["lost_leads"]; ?></td>
+
+                                        <td><?php echo (int)$campaign["other_active_leads"]; ?></td>
+
+                                        <td class="advertisement-campaign-rate">
+                                            <?php echo number_format($campaignRate, 2); ?>%
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">
+                        No advertisement property enquiries were found during the selected date range.
+                    </p>
+
+                <?php endif; ?>
+
+                <p class="advertisement-report-note">
+                    Conversion Rate = Converted CRM Leads divided by Total Advertisement Enquiries,
+                    multiplied by 100. Lead statuses reflect their current CRM status.
+                </p>
+
+            </section>
+
+            <!-- FOLLOW-UP PERFORMANCE -->
+
+            <section class="card">
+
+                <h2>Follow-up Performance Report</h2>
+
+                <p class="followup-report-note">
+                    Review follow-up activity by type and compare activity by Sales Employee.
+                </p>
+
+                <h3>Follow-ups by Type</h3>
+
+                <?php if ($followupTypes): ?>
+
+                    <div class="followup-type-grid">
+
+                        <?php foreach ($followupTypes as $type): ?>
+
+                            <div class="followup-type-item">
+
+                                <span>
+                                    <?php
+                                    echo e(
+                                        ucwords(
+                                            str_replace(
+                                                "_",
+                                                " ",
+                                                $type["followup_type"]
+                                            )
+                                        )
+                                    );
+                                    ?>
+                                </span>
+
+                                <strong>
+                                    <?php echo (int)$type["total_followups"]; ?>
+                                </strong>
+
+                            </div>
+
+                        <?php endforeach; ?>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">No follow-up records found.</p>
+
+                <?php endif; ?>
+
+                <h3>Employee-wise Follow-up Activity</h3>
+
+                <p class="followup-report-note">
+                    Counts are based on the Sales Employee recorded as the creator of each follow-up.
+                </p>
+
+                <?php if ($followupEmployeeReports): ?>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Email</th>
+                                    <th>Total</th>
+                                    <th>Calls</th>
+                                    <th>Emails</th>
+                                    <th>WhatsApp</th>
+                                    <th>Meetings</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($followupEmployeeReports as $employee): ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <strong><?php echo e($employee["name"]); ?></strong>
+                                        </td>
+
+                                        <td><?php echo e($employee["email"]); ?></td>
+
+                                        <td class="followup-total">
+                                            <?php echo (int)$employee["total_followups"]; ?>
+                                        </td>
+
+                                        <td><?php echo (int)$employee["call_followups"]; ?></td>
+
+                                        <td><?php echo (int)$employee["email_followups"]; ?></td>
+
+                                        <td><?php echo (int)$employee["whatsapp_followups"]; ?></td>
+
+                                        <td><?php echo (int)$employee["meeting_followups"]; ?></td>
+
+                                        <td><?php echo (int)$employee["note_followups"]; ?></td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">No Sales Employees found.</p>
+
+                <?php endif; ?>
+
+                <p class="followup-report-note">
+                    The current lead_followups table does not contain a completion-status field.
+                    This report measures recorded follow-up activity.
+                </p>
+
+            </section>
+
+            <!-- DATE RANGE REPORT -->
+
+            <section class="card">
+
+                <h2>Date-wise and Custom-Range Analytics</h2>
+
+                <p class="date-range-note">
+                    Select a start date and end date to view leads created during that period,
+                    including their current status.
+                </p>
+
+                <?php if ($dateRangeError !== ""): ?>
+
+                    <div class="date-range-error">
+                        <?php echo e($dateRangeError); ?>
+                    </div>
+
+                <?php endif; ?>
+
+                <form
+                    method="GET"
+                    action="crm_reports.php"
+                    class="date-range-form"
+                >
+
+                    <div class="date-range-field">
+
+                        <label for="start_date">Start Date</label>
+
+                        <input
+                            type="date"
+                            id="start_date"
+                            name="start_date"
+                            value="<?php echo e($startDate); ?>"
+                            max="<?php echo e($today); ?>"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="date-range-field">
+
+                        <label for="end_date">End Date</label>
+
+                        <input
+                            type="date"
+                            id="end_date"
+                            name="end_date"
+                            value="<?php echo e($endDate); ?>"
+                            max="<?php echo e($today); ?>"
+                            required
+                        >
+
+                    </div>
+
+                    <button type="submit">
+                        Apply Date Filter
+                    </button>
+
+                    <a href="crm_reports.php" class="date-range-reset">
+                        Reset
+                    </a>
+
+                </form>
+
+                <p class="date-range-note">
+                    Showing leads created from
+                    <strong><?php echo e($startDate); ?></strong>
+                    to
+                    <strong><?php echo e($endDate); ?></strong>,
+                    inclusive.
+                </p>
+
+                <div class="date-range-summary">
+
+                    <div class="date-range-summary-item">
+                        <span>Total Leads</span>
+                        <strong><?php echo $dateRangeTotal; ?></strong>
+                    </div>
+
+                    <div class="date-range-summary-item converted">
+                        <span>Converted Leads</span>
+                        <strong><?php echo $dateRangeConverted; ?></strong>
+                    </div>
+
+                    <div class="date-range-summary-item lost">
+                        <span>Lost Leads</span>
+                        <strong><?php echo $dateRangeLost; ?></strong>
+                    </div>
+
+                    <div class="date-range-summary-item active">
+                        <span>Active Leads</span>
+                        <strong><?php echo $dateRangeActive; ?></strong>
+                    </div>
+
+                </div>
+
+                <h3>Daily Lead Generation</h3>
+
+                <?php if ($dateWiseLeadReports): ?>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Total Leads</th>
+                                    <th>Converted</th>
+                                    <th>Lost</th>
+                                    <th>Active</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($dateWiseLeadReports as $daily): ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <strong>
+                                                <?php
+                                                echo e(
+                                                    date(
+                                                        "d M Y",
+                                                        strtotime($daily["report_date"])
+                                                    )
+                                                );
+                                                ?>
+                                            </strong>
+                                        </td>
+
+                                        <td><?php echo (int)$daily["total_leads"]; ?></td>
+
+                                        <td><?php echo (int)$daily["converted_leads"]; ?></td>
+
+                                        <td><?php echo (int)$daily["lost_leads"]; ?></td>
+
+                                        <td><?php echo (int)$daily["active_leads"]; ?></td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">
+                        No leads were created during the selected date range.
+                    </p>
+
+                <?php endif; ?>
+
+                <p class="date-range-note">
+                    This report groups leads by their creation date.
+                    Status counts reflect each lead's current status.
+                </p>
+
+            </section>
+
+            <!-- RECENT LEADS -->
+
+            <section class="card">
+
+                <h2>Recent Customer Leads</h2>
+
+                <?php if ($recentLeads): ?>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Customer</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Source</th>
+                                    <th>Assigned Employee</th>
+                                    <th>Created Date</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($recentLeads as $lead): ?>
+
+                                    <tr>
+
+                                        <td><?php echo (int)$lead["id"]; ?></td>
+
+                                        <td><?php echo e($lead["customer_name"]); ?></td>
+
+                                        <td><?php echo e($lead["phone"]); ?></td>
+
+                                        <td>
+                                            <?php
+                                            echo e(
+                                                ucwords(
+                                                    str_replace(
+                                                        "_",
+                                                        " ",
+                                                        $lead["lead_status"]
+                                                    )
+                                                )
+                                            );
+                                            ?>
+                                        </td>
+
+                                        <td><?php echo e($lead["lead_source"]); ?></td>
+
+                                        <td>
+                                            <?php
+                                            echo e(
+                                                $lead["assigned_employee"] ??
+                                                "Not Assigned"
+                                            );
+                                            ?>
+                                        </td>
+
+                                        <td><?php echo e($lead["created_at"]); ?></td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p class="empty">No customer leads found.</p>
+
+                <?php endif; ?>
+
+            </section>
+
         </div>
-        <?php else: ?>
-            <p class="empty">No follow-up records found.</p>
-        <?php endif; ?>
 
-        <h3>Employee-wise Follow-up Activity</h3>
-        <p class="followup-report-note">Counts are based on the Sales Employee recorded as the creator of each follow-up.</p>
-
-        <?php if ($followupEmployeeReports): ?>
-        <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr><th>Employee</th><th>Email</th><th>Total</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Notes</th></tr>
-            </thead>
-            <tbody>
-            <?php foreach ($followupEmployeeReports as $employee): ?>
-                <tr>
-                    <td><strong><?php echo e($employee["name"]); ?></strong></td>
-                    <td><?php echo e($employee["email"]); ?></td>
-                    <td class="followup-total"><?php echo (int)$employee["total_followups"]; ?></td>
-                    <td><?php echo (int)$employee["call_followups"]; ?></td>
-                    <td><?php echo (int)$employee["email_followups"]; ?></td>
-                    <td><?php echo (int)$employee["whatsapp_followups"]; ?></td>
-                    <td><?php echo (int)$employee["meeting_followups"]; ?></td>
-                    <td><?php echo (int)$employee["note_followups"]; ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <?php else: ?>
-            <p class="empty">No Sales Employees found.</p>
-        <?php endif; ?>
-
-        <p class="followup-report-note">The current lead_followups table does not contain a completion-status field. This report measures recorded follow-up activity.</p>
-    </section>
-
-    <!-- DATE RANGE REPORT -->
-
-    <section class="card">
-        <h2>Date-wise and Custom-Range Analytics</h2>
-        <p class="date-range-note">Select a start date and end date to view leads created during that period, including their current status.</p>
-
-        <?php if ($dateRangeError !== ""): ?>
-            <div class="date-range-error"><?php echo e($dateRangeError); ?></div>
-        <?php endif; ?>
-
-        <form method="GET" action="crm_reports.php" class="date-range-form">
-            <div class="date-range-field">
-                <label for="start_date">Start Date</label>
-                <input type="date" id="start_date" name="start_date" value="<?php echo e($startDate); ?>" max="<?php echo e($today); ?>" required>
-            </div>
-
-            <div class="date-range-field">
-                <label for="end_date">End Date</label>
-                <input type="date" id="end_date" name="end_date" value="<?php echo e($endDate); ?>" max="<?php echo e($today); ?>" required>
-            </div>
-
-            <button type="submit">Apply Date Filter</button>
-            <a href="crm_reports.php" class="date-range-reset">Reset</a>
-        </form>
-
-        <p class="date-range-note">
-            Showing leads created from <strong><?php echo e($startDate); ?></strong>
-            to <strong><?php echo e($endDate); ?></strong>, inclusive.
-        </p>
-
-        <div class="date-range-summary">
-            <div class="date-range-summary-item">
-                <span>Total Leads</span>
-                <strong><?php echo $dateRangeTotal; ?></strong>
-            </div>
-            <div class="date-range-summary-item converted">
-                <span>Converted Leads</span>
-                <strong><?php echo $dateRangeConverted; ?></strong>
-            </div>
-            <div class="date-range-summary-item lost">
-                <span>Lost Leads</span>
-                <strong><?php echo $dateRangeLost; ?></strong>
-            </div>
-            <div class="date-range-summary-item active">
-                <span>Active Leads</span>
-                <strong><?php echo $dateRangeActive; ?></strong>
-            </div>
-        </div>
-
-        <h3>Daily Lead Generation</h3>
-
-        <?php if ($dateWiseLeadReports): ?>
-        <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr><th>Date</th><th>Total Leads</th><th>Converted</th><th>Lost</th><th>Active</th></tr>
-            </thead>
-            <tbody>
-            <?php foreach ($dateWiseLeadReports as $daily): ?>
-                <tr>
-                    <td><strong><?php echo e(date("d M Y",strtotime($daily["report_date"]))); ?></strong></td>
-                    <td><?php echo (int)$daily["total_leads"]; ?></td>
-                    <td><?php echo (int)$daily["converted_leads"]; ?></td>
-                    <td><?php echo (int)$daily["lost_leads"]; ?></td>
-                    <td><?php echo (int)$daily["active_leads"]; ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <?php else: ?>
-            <p class="empty">No leads were created during the selected date range.</p>
-        <?php endif; ?>
-
-        <p class="date-range-note">This report groups leads by their creation date. Status counts reflect each lead's current status.</p>
-    </section>
-
-    <!-- RECENT LEADS -->
-
-    <section class="card">
-        <h2>Recent Customer Leads</h2>
-
-        <?php if ($recentLeads): ?>
-        <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr><th>ID</th><th>Customer</th><th>Phone</th><th>Status</th><th>Source</th><th>Assigned Employee</th><th>Created Date</th></tr>
-            </thead>
-            <tbody>
-            <?php foreach ($recentLeads as $lead): ?>
-                <tr>
-                    <td><?php echo (int)$lead["id"]; ?></td>
-                    <td><?php echo e($lead["customer_name"]); ?></td>
-                    <td><?php echo e($lead["phone"]); ?></td>
-                    <td><?php echo e(ucwords(str_replace("_"," ",$lead["lead_status"]))); ?></td>
-                    <td><?php echo e($lead["lead_source"]); ?></td>
-                    <td><?php echo e($lead["assigned_employee"] ?? "Not Assigned"); ?></td>
-                    <td><?php echo e($lead["created_at"]); ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <?php else: ?>
-            <p class="empty">No customer leads found.</p>
-        <?php endif; ?>
-    </section>
-
-</div>
-</main>
-
-<script>
-function toggleSidebar() {
-    document.getElementById("sidebar").classList.toggle("open");
-}
-
-document.addEventListener("click", function(event) {
-    const sidebar = document.getElementById("sidebar");
-    const toggle = document.querySelector(".menu-toggle");
-
-    if (
-        window.innerWidth <= 1050 &&
-        sidebar.classList.contains("open") &&
-        !sidebar.contains(event.target) &&
-        toggle &&
-        !toggle.contains(event.target)
-    ) {
-        sidebar.classList.remove("open");
-    }
-});
-</script>
+    </main>
 
 </body>
 </html>

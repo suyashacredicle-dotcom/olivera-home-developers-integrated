@@ -260,70 +260,15 @@ $totalContents = count($contents);
         /* MAIN LAYOUT */
 
         .dashboard-container {
-            display: flex;
-            min-height: 100vh;
-            width: 100%;
-        }
-
-        .sidebar {
-            width: 245px;
-            min-width: 245px;
-            min-height: 100vh;
-            padding: 25px 16px;
-            background: var(--navy);
-            color: white;
-        }
-
-        .sidebar h2 {
-            margin: 0 0 28px;
-            padding: 0 10px 19px;
-            border-bottom: 1px solid rgba(255,255,255,.13);
-            color: var(--gold-light);
-            font-size: 20px;
-        }
-
-        .sidebar > a {
             display: block;
-            margin-bottom: 6px;
-            padding: 12px 13px;
-            border-radius: 7px;
-            color: #e2e8f0;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: background .2s, color .2s;
-        }
-
-        .sidebar > a:hover,
-        .sidebar > a.active {
-            background: rgba(214,166,59,.16);
-            color: var(--gold-light);
-        }
-
-        .sidebar form {
-            margin-top: 22px;
-            padding: 0 5px;
-        }
-
-        .sidebar form button {
+            min-height: 100vh;
             width: 100%;
-            padding: 12px;
-            border: 1px solid rgba(237,202,118,.5);
-            border-radius: 7px;
-            background: transparent;
-            color: var(--gold-light);
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .sidebar form button:hover {
-            background: rgba(214,166,59,.15);
         }
 
         .main-content {
-            flex: 1;
             min-width: 0;
+            width: calc(100% - 255px);
+            margin-left: 255px;
             padding: 28px;
         }
 
@@ -823,33 +768,11 @@ $totalContents = count($contents);
 
         /* RESPONSIVE */
 
-        @media (max-width: 900px) {
-
-            .dashboard-container {
-                display: block;
-            }
-
-            .sidebar {
-                width: 100%;
-                min-width: 0;
-                min-height: auto;
-            }
-
-            .sidebar h2 {
-                margin-bottom: 15px;
-            }
-
-            .sidebar > a {
-                display: inline-block;
-                margin: 3px;
-            }
-
-            .sidebar form {
-                max-width: 180px;
-                margin-top: 12px;
-            }
+        @media (max-width: 1000px) {
 
             .main-content {
+                width: calc(100% - 220px);
+                margin-left: 220px;
                 padding: 22px;
             }
         }
@@ -883,6 +806,19 @@ $totalContents = count($contents);
 
             .content-search-area {
                 padding: 17px;
+            }
+        }
+
+        @media (max-width: 700px) {
+
+            .dashboard-container {
+                display: block;
+            }
+
+            .main-content {
+                width: 100%;
+                margin-left: 0;
+                padding: 18px;
             }
         }
 
@@ -920,51 +856,17 @@ $totalContents = count($contents);
 
     </style>
 
+    <!-- SHARED ADMIN SIDEBAR CSS -->
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
 </head>
 
 <body>
 
 <div class="dashboard-container">
 
-    <!-- SIDEBAR -->
-
-    <aside class="sidebar">
-
-        <h2>Admin Panel</h2>
-
-        <a href="dashboard.php">Dashboard</a>
-
-        <a href="manage_gallery.php">Manage Gallery</a>
-
-        <a href="manage_admins.php">Manage Admins</a>
-
-        <a href="manage_users.php">Manage Users</a>
-
-        <a href="manage_customers.php">Manage Customers</a>
-
-        <a href="manage_content.php" class="active">Manage Content</a>
-
-        <a href="manage_settings.php">Website Settings</a>
-
-        <a href="activity_logs.php">Activity Logs</a>
-
-        <a href="profile.php">My Profile</a>
-
-        <a href="change_password.php">Change Password</a>
-
-        <form action="logout.php" method="POST">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo manageContentEscape($_SESSION["csrf_token"]); ?>"
-            >
-
-            <button type="submit">Logout</button>
-
-        </form>
-
-    </aside>
+    <!-- SHARED ADMIN SIDEBAR -->
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
     <!-- MAIN CONTENT -->
 

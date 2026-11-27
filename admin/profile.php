@@ -1,9 +1,6 @@
 
 <?php
 
-require_once __DIR__ . "/../includes/auth.php";
-require_once __DIR__ . "/../config/database.php";
-
 // --------------------------------------------------
 // SECURITY HEADERS
 // --------------------------------------------------
@@ -14,6 +11,13 @@ header("Expires: 0");
 header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: DENY");
 header("Referrer-Policy: no-referrer");
+
+// --------------------------------------------------
+// REQUIRED FILES
+// --------------------------------------------------
+
+require_once __DIR__ . "/../includes/auth.php";
+require_once __DIR__ . "/../config/database.php";
 
 // --------------------------------------------------
 // INITIALIZE
@@ -30,7 +34,7 @@ if ($adminId <= 0) {
 }
 
 // --------------------------------------------------
-// CREATE CSRF TOKEN
+// CSRF TOKEN
 // --------------------------------------------------
 
 if (
@@ -41,7 +45,7 @@ if (
 }
 
 // --------------------------------------------------
-// GET CURRENT ADMIN INFORMATION
+// FETCH CURRENT ADMIN
 // --------------------------------------------------
 
 $stmt = $pdo->prepare("
@@ -56,9 +60,11 @@ $stmt->execute([$adminId]);
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$admin) {
+
     $_SESSION = [];
 
     if (ini_get("session.use_cookies")) {
+
         $params = session_get_cookie_params();
 
         setcookie(
@@ -219,13 +225,15 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
 <head>
 
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <meta name="robots" content="noindex, nofollow">
 
     <title>My Profile | Admin Panel</title>
 
-    <link rel="stylesheet" href="../assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
     <style>
 
@@ -252,104 +260,16 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             color: var(--text);
         }
 
-        .admin-layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* SIDEBAR */
-
-        .sidebar {
-            width: 250px;
-            min-width: 250px;
-            background: var(--navy);
-            color: #ffffff;
-            padding: 25px 16px;
-        }
-
-        .sidebar-brand {
-            font-size: 19px;
-            font-weight: bold;
-            color: var(--gold-light);
-            padding: 0 12px 28px;
-            border-bottom: 1px solid rgba(255,255,255,0.12);
-            margin-bottom: 22px;
-            line-height: 1.5;
-        }
-
-        .sidebar-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 7px;
-        }
-
-        .sidebar-menu a {
-            display: block;
-            padding: 12px 14px;
-            color: #d5deea;
-            text-decoration: none;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: background 0.2s, color 0.2s;
-        }
-
-        .sidebar-menu a:hover {
-            background: var(--navy-light);
-            color: var(--gold-light);
-        }
-
-        .sidebar-menu a.active {
-            background: rgba(214,166,59,0.17);
-            color: var(--gold-light);
-            border-left: 3px solid var(--gold);
-            font-weight: bold;
-        }
-
-        .sidebar-section {
-            color: #a9b6c9;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            padding: 18px 14px 7px;
-            text-transform: uppercase;
-        }
-
-        .logout-form {
-            margin: 0;
-        }
-
-        .logout-button {
-            display: block;
-            width: 100%;
-            padding: 12px 14px;
-            border: 0;
-            border-radius: 8px;
-            background: transparent;
-            color: #d5deea;
-            text-align: left;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .logout-button:hover {
-            background: var(--navy-light);
-            color: var(--gold-light);
-        }
-
-        /* MAIN CONTENT */
-
         .main-content {
-            flex: 1;
-            min-width: 0;
+            margin-left: 255px;
+            min-height: 100vh;
             padding: 35px;
         }
 
         .page-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
             gap: 15px;
-            flex-wrap: wrap;
             margin-bottom: 27px;
         }
 
@@ -390,8 +310,6 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             margin-top: 6px;
         }
 
-        /* PROFILE CARD */
-
         .profile-card {
             background: var(--surface);
             border-radius: 13px;
@@ -419,8 +337,6 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             font-size: 13px;
             line-height: 1.6;
         }
-
-        /* PROFILE IDENTITY */
 
         .profile-identity {
             display: flex;
@@ -461,8 +377,6 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             font-size: 13px;
             word-break: break-word;
         }
-
-        /* FORM */
 
         .form-section-title {
             color: var(--navy);
@@ -528,8 +442,6 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             line-height: 1.5;
         }
 
-        /* MESSAGES */
-
         .message {
             padding: 14px 17px;
             border-radius: 8px;
@@ -549,8 +461,6 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             color: #b42323;
             border: 1px solid #f3cccc;
         }
-
-        /* BUTTONS */
 
         .form-actions {
             display: flex;
@@ -599,8 +509,6 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             background: #e8e1d2;
         }
 
-        /* ACCOUNT LINKS */
-
         .account-links {
             margin-top: 23px;
             padding-top: 20px;
@@ -618,48 +526,24 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
             text-decoration: underline;
         }
 
-        /* RESPONSIVE */
-
-        @media (max-width: 850px) {
-
-            .admin-layout {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                min-width: 0;
-                padding: 18px;
-            }
-
-            .sidebar-brand {
-                padding-bottom: 15px;
-                margin-bottom: 12px;
-            }
-
-            .sidebar-menu {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .sidebar-section {
-                grid-column: 1 / -1;
-            }
+        @media (max-width: 1000px) {
 
             .main-content {
-                padding: 22px;
+                margin-left: 220px;
+                padding: 25px;
             }
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 700px) {
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px 15px;
+            }
 
             .form-grid {
                 grid-template-columns: 1fr;
                 gap: 0;
-            }
-
-            .main-content {
-                padding: 17px;
             }
 
             .profile-card {
@@ -678,13 +562,6 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
                 width: 42px;
                 height: 42px;
                 min-width: 42px;
-            }
-        }
-
-        @media (max-width: 500px) {
-
-            .sidebar-menu {
-                grid-template-columns: 1fr;
             }
 
             .form-actions {
@@ -710,83 +587,7 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
 
 <div class="admin-layout">
 
-    <!-- SIDEBAR -->
-
-    <aside class="sidebar">
-
-        <div class="sidebar-brand">
-            Olivera Home Developers
-        </div>
-
-        <nav class="sidebar-menu">
-
-            <a href="dashboard.php">
-                ◈ Dashboard
-            </a>
-
-            <?php
-            require __DIR__ . "/includes/gallery_sidebar_link.php";
-            ?>
-
-            <div class="sidebar-section">
-                Administration
-            </div>
-
-            <a href="manage_admins.php">
-                ◉ Manage Admins
-            </a>
-
-            <a href="manage_users.php">
-                ◉ Manage Users
-            </a>
-
-            <a href="manage_customers.php">
-                ◉ Manage Customers
-            </a>
-
-            <a href="manage_content.php">
-                ◉ Manage Content
-            </a>
-
-            <a href="manage_settings.php">
-                ⚙ Website Settings
-            </a>
-
-            <a href="activity_logs.php">
-                ◷ Activity Logs
-            </a>
-
-            <div class="sidebar-section">
-                My Account
-            </div>
-
-            <a href="profile.php" class="active">
-                ◉ My Profile
-            </a>
-
-            <a href="change_password.php">
-                🔒 Change Password
-            </a>
-
-            <form method="POST" action="logout.php" class="logout-form">
-
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?php echo e($_SESSION["csrf_token"]); ?>"
-                >
-
-                <button type="submit" class="logout-button">
-                    ↪ Logout
-                </button>
-
-            </form>
-
-        </nav>
-
-    </aside>
-
-    <!-- MAIN CONTENT -->
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
     <main class="main-content">
 
@@ -797,6 +598,7 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
                 <div class="page-icon">◉</div>
 
                 <div>
+
                     <h1>My Profile</h1>
 
                     <p>
@@ -806,6 +608,7 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
                     <div class="breadcrumb">
                         Admin Panel / My Account / My Profile
                     </div>
+
                 </div>
 
             </div>
@@ -840,8 +643,11 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
                 </div>
 
                 <div>
+
                     <h3><?php echo e($formName); ?></h3>
+
                     <p><?php echo e($formEmail); ?></p>
+
                 </div>
 
             </div>
@@ -905,9 +711,11 @@ $avatarInitial = strtoupper(substr(trim($formName), 0, 1));
                     </label>
 
                     <div>
+
                         <span class="role-label">
                             <?php echo e($admin["role"]); ?>
                         </span>
+
                     </div>
 
                     <small class="form-help">

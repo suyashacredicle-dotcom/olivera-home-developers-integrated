@@ -153,7 +153,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     $message = "Invalid uploaded file.";
 
-                } elseif ($file["size"] <= 0 || $file["size"] > 2 * 1024 * 1024) {
+                } elseif (
+                    $file["size"] <= 0 ||
+                    $file["size"] > 2 * 1024 * 1024
+                ) {
 
                     $message = "Logo must not be larger than 2 MB.";
 
@@ -363,6 +366,9 @@ if (
 
     <title>Website Settings | Olivera Home Developers</title>
 
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
     <style>
 
         :root {
@@ -389,97 +395,10 @@ if (
             line-height: 1.5;
         }
 
-        /* SIDEBAR */
-
-        .sidebar {
-            width: 250px;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            background: var(--navy);
-            color: white;
-            padding: 25px 15px;
-            overflow-y: auto;
-            z-index: 100;
-        }
-
-        .sidebar-brand {
-            padding: 0 12px 24px;
-            border-bottom: 1px solid rgba(255,255,255,0.13);
-            margin-bottom: 23px;
-        }
-
-        .sidebar-brand h2 {
-            font-size: 19px;
-            margin: 0 0 6px;
-            color: white;
-        }
-
-        .sidebar-brand p {
-            margin: 0;
-            font-size: 11px;
-            color: #bdcde0;
-        }
-
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar-menu li {
-            margin-bottom: 6px;
-        }
-
-        .sidebar-menu a,
-        .sidebar-logout-button {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            border-radius: 7px;
-            color: #dbe5f0;
-            text-decoration: none;
-            font-size: 13px;
-            transition: 0.2s ease;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            text-align: left;
-            font-family: inherit;
-        }
-
-        .sidebar-menu a:hover,
-        .sidebar-logout-button:hover {
-            background: var(--navy-light);
-            color: white;
-        }
-
-        .sidebar-menu a.active {
-            background: var(--navy-light);
-            color: var(--gold-light);
-            font-weight: 600;
-            border-left: 3px solid var(--gold);
-            padding-left: 11px;
-        }
-
-        .menu-icon {
-            width: 20px;
-            text-align: center;
-            font-size: 15px;
-            flex-shrink: 0;
-        }
-
-        .sidebar-logout-form {
-            margin: 0;
-        }
-
         /* MAIN CONTENT */
 
         .main-content {
-            margin-left: 250px;
+            margin-left: 255px;
             padding: 30px;
             min-height: 100vh;
         }
@@ -818,6 +737,13 @@ if (
 
         /* RESPONSIVE */
 
+        @media (max-width: 1000px) {
+
+            .main-content {
+                margin-left: 220px;
+            }
+        }
+
         @media (max-width: 760px) {
 
             .main-content {
@@ -856,36 +782,7 @@ if (
             }
         }
 
-        @media (max-width: 650px) {
-
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                padding: 17px;
-            }
-
-            .sidebar-brand {
-                margin-bottom: 14px;
-                padding-bottom: 14px;
-            }
-
-            .sidebar-menu {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 5px;
-            }
-
-            .sidebar-menu li {
-                margin: 0;
-            }
-
-            .sidebar-menu a,
-            .sidebar-logout-button {
-                padding: 10px 8px;
-                font-size: 11px;
-                gap: 7px;
-            }
+        @media (max-width: 700px) {
 
             .main-content {
                 margin-left: 0;
@@ -934,107 +831,7 @@ if (
 
 <body>
 
-<!-- SIDEBAR -->
-
-<aside class="sidebar">
-
-    <div class="sidebar-brand">
-        <h2>Olivera Home Developers</h2>
-        <p>Admin Control Panel</p>
-    </div>
-
-    <ul class="sidebar-menu">
-
-        <li>
-            <a href="dashboard.php">
-                <span class="menu-icon">▦</span>
-                Dashboard
-            </a>
-        </li>
-
-        <li>
-            <a href="manage_gallery.php">
-                <span class="menu-icon">▧</span>
-                Manage Gallery
-            </a>
-        </li>
-
-        <li>
-            <a href="manage_admins.php">
-                <span class="menu-icon">♙</span>
-                Manage Admins
-            </a>
-        </li>
-
-        <li>
-            <a href="manage_users.php">
-                <span class="menu-icon">♧</span>
-                Manage Users
-            </a>
-        </li>
-
-        <li>
-            <a href="manage_customers.php">
-                <span class="menu-icon">♧</span>
-                Manage Customers
-            </a>
-        </li>
-
-        <li>
-            <a href="manage_content.php">
-                <span class="menu-icon">▤</span>
-                Manage Content
-            </a>
-        </li>
-
-        <li>
-            <a href="manage_settings.php" class="active">
-                <span class="menu-icon">⚙</span>
-                Website Settings
-            </a>
-        </li>
-
-        <li>
-            <a href="activity_logs.php">
-                <span class="menu-icon">◷</span>
-                Activity Logs
-            </a>
-        </li>
-
-        <li>
-            <a href="profile.php">
-                <span class="menu-icon">♙</span>
-                My Profile
-            </a>
-        </li>
-
-        <li>
-            <a href="change_password.php">
-                <span class="menu-icon">🔒</span>
-                Change Password
-            </a>
-        </li>
-
-        <li>
-            <form action="logout.php" method="POST" class="sidebar-logout-form">
-
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?php echo manageSettingsEscape($_SESSION["csrf_token"]); ?>"
-                >
-
-                <button type="submit" class="sidebar-logout-button">
-                    <span class="menu-icon">↪</span>
-                    Logout
-                </button>
-
-            </form>
-        </li>
-
-    </ul>
-
-</aside>
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
 <!-- MAIN CONTENT -->
 

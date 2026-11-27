@@ -31,7 +31,7 @@ $csrfToken = $_SESSION["csrf_token"];
 function manageCustomersEscape($value): string
 {
     return htmlspecialchars(
-        (string) $value,
+        (string)$value,
         ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8"
     );
@@ -84,12 +84,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (
             !is_string($customerId) ||
             !ctype_digit($customerId) ||
-            (int) $customerId <= 0
+            (int)$customerId <= 0
         ) {
 
-            $_SESSION["customer_admin_message"] =
-                "Invalid customer ID.";
-
+            $_SESSION["customer_admin_message"] = "Invalid customer ID.";
             $_SESSION["customer_admin_message_type"] = "error";
 
         } elseif (
@@ -97,9 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             !in_array($action, ["activate", "deactivate"], true)
         ) {
 
-            $_SESSION["customer_admin_message"] =
-                "Invalid customer action.";
-
+            $_SESSION["customer_admin_message"] = "Invalid customer action.";
             $_SESSION["customer_admin_message_type"] = "error";
 
         } else {
@@ -117,7 +113,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ");
 
                 $findCustomer->execute([
-                    ":id" => (int) $customerId
+                    ":id" => (int)$customerId
                 ]);
 
                 $customer = $findCustomer->fetch(PDO::FETCH_ASSOC);
@@ -138,7 +134,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $updateCustomer->execute([
                     ":status" => $newStatus,
-                    ":id" => (int) $customerId
+                    ":id" => (int)$customerId
                 ]);
 
                 $pdo->commit();
@@ -271,6 +267,9 @@ $totalCustomers = count($customers);
 
     <title>Manage Customers | Olivera Admin</title>
 
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin-sidebar.css">
+
     <style>
 
         :root {
@@ -296,99 +295,12 @@ $totalCustomers = count($customers);
             font-family: "Segoe UI", Arial, sans-serif;
         }
 
-        /* MAIN LAYOUT */
-
-        .dashboard-container {
-            display: flex;
-            min-height: 100vh;
-            width: 100%;
-        }
-
-        /* SIDEBAR */
-
-        .sidebar {
-            width: 245px;
-            min-width: 245px;
-            min-height: 100vh;
-            padding: 25px 16px;
-            background: var(--navy);
-            color: white;
-        }
-
-        .sidebar h2 {
-            margin: 0 0 28px;
-            padding: 0 10px 19px;
-            border-bottom: 1px solid rgba(255,255,255,.13);
-            color: var(--gold-light);
-            font-size: 20px;
-        }
-
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar-menu li {
-            margin-bottom: 6px;
-        }
-
-        .sidebar-menu a,
-        .sidebar-logout-button {
-            display: flex;
-            align-items: center;
-            gap: 11px;
-            width: 100%;
-            padding: 12px 13px;
-            border: none;
-            border-radius: 7px;
-            background: transparent;
-            color: #e2e8f0;
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 600;
-            text-align: left;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background .2s, color .2s;
-        }
-
-        .sidebar-menu a:hover,
-        .sidebar-logout-button:hover {
-            background: rgba(214,166,59,.16);
-            color: var(--gold-light);
-        }
-
-        .sidebar-menu a.active {
-            background: rgba(214,166,59,.16);
-            color: var(--gold-light);
-            border-left: 3px solid var(--gold);
-            padding-left: 10px;
-        }
-
-        .menu-icon {
-            width: 20px;
-            flex-shrink: 0;
-            text-align: center;
-            font-size: 15px;
-        }
-
-        .sidebar-logout-form {
-            margin-top: 22px;
-            padding: 0 5px;
-        }
-
-        .sidebar-logout-button {
-            justify-content: flex-start;
-            border: 1px solid rgba(237,202,118,.5);
-            color: var(--gold-light);
-        }
-
         /* MAIN CONTENT */
 
         .main-content {
-            flex: 1;
-            min-width: 0;
+            width: calc(100% - 255px);
+            min-height: 100vh;
+            margin-left: 255px;
             padding: 28px;
         }
 
@@ -814,47 +726,22 @@ $totalCustomers = count($customers);
 
         /* RESPONSIVE */
 
-        @media (max-width: 900px) {
-
-            .dashboard-container {
-                display: block;
-            }
-
-            .sidebar {
-                width: 100%;
-                min-width: 0;
-                min-height: auto;
-            }
-
-            .sidebar h2 {
-                margin-bottom: 15px;
-            }
-
-            .sidebar-menu {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 5px;
-            }
-
-            .sidebar-menu li {
-                margin: 0;
-            }
-
-            .sidebar-menu a {
-                width: auto;
-            }
-
-            .sidebar-logout-form {
-                max-width: 180px;
-                margin-top: 12px;
-            }
+        @media (max-width: 1000px) {
 
             .main-content {
-                padding: 22px;
+                width: calc(100% - 220px);
+                margin-left: 220px;
+                padding: 20px;
             }
         }
 
-        @media (max-width: 760px) {
+        @media (max-width: 700px) {
+
+            .main-content {
+                width: 100%;
+                margin-left: 0;
+                padding: 15px;
+            }
 
             .content-header {
                 padding: 20px;
@@ -874,10 +761,6 @@ $totalCustomers = count($customers);
         }
 
         @media (max-width: 480px) {
-
-            .main-content {
-                padding: 15px;
-            }
 
             .content-heading {
                 gap: 10px;
@@ -911,446 +794,343 @@ $totalCustomers = count($customers);
 
 <body>
 
-<div class="dashboard-container">
+<?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
-    <!-- SIDEBAR -->
+<!-- MAIN CONTENT -->
 
-    <aside class="sidebar">
+<main class="main-content">
 
-        <h2>Olivera Admin</h2>
+    <div class="content-page">
 
-        <ul class="sidebar-menu">
+        <!-- PAGE HEADER -->
 
-            <li>
-                <a href="dashboard.php">
-                    <span class="menu-icon">▦</span>
-                    Dashboard
-                </a>
-            </li>
+        <div class="content-header">
 
-            <li>
-                <a href="manage_gallery.php">
-                    <span class="menu-icon">▧</span>
-                    Manage Gallery
-                </a>
-            </li>
+            <div class="content-heading">
 
-            <li>
-                <a href="manage_admins.php">
-                    <span class="menu-icon">♙</span>
-                    Manage Admins
-                </a>
-            </li>
+                <div class="content-header-icon">♧</div>
 
-            <li>
-                <a href="manage_users.php">
-                    <span class="menu-icon">♧</span>
-                    Manage Users
-                </a>
-            </li>
+                <div>
 
-            <li>
-                <a href="manage_customers.php" class="active">
-                    <span class="menu-icon">♧</span>
-                    Manage Customers
-                </a>
-            </li>
+                    <h1>Manage Customers</h1>
 
-            <li>
-                <a href="manage_content.php">
-                    <span class="menu-icon">▤</span>
-                    Manage Content
-                </a>
-            </li>
-
-            <li>
-                <a href="manage_settings.php">
-                    <span class="menu-icon">⚙</span>
-                    Website Settings
-                </a>
-            </li>
-
-            <li>
-                <a href="activity_logs.php">
-                    <span class="menu-icon">◷</span>
-                    Activity Logs
-                </a>
-            </li>
-
-            <li>
-                <a href="profile.php">
-                    <span class="menu-icon">♙</span>
-                    My Profile
-                </a>
-            </li>
-
-            <li>
-                <a href="change_password.php">
-                    <span class="menu-icon">🔒</span>
-                    Change Password
-                </a>
-            </li>
-
-        </ul>
-
-        <form
-            action="logout.php"
-            method="POST"
-            class="sidebar-logout-form"
-        >
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo manageCustomersEscape($csrfToken); ?>"
-            >
-
-            <button type="submit" class="sidebar-logout-button">
-                <span class="menu-icon">↪</span>
-                Logout
-            </button>
-
-        </form>
-
-    </aside>
-
-    <!-- MAIN CONTENT -->
-
-    <main class="main-content">
-
-        <div class="content-page">
-
-            <!-- PAGE HEADER -->
-
-            <div class="content-header">
-
-                <div class="content-heading">
-
-                    <div class="content-header-icon">♧</div>
-
-                    <div>
-
-                        <h1>Manage Customers</h1>
-
-                        <p>
-                            View customer registrations and manage customer account status.
-                        </p>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- ALERT -->
-
-            <?php if ($message !== ""): ?>
-
-                <div
-                    class="customer-alert <?php
-                        echo $messageType === "success"
-                            ? "success"
-                            : "error";
-                    ?>"
-                    role="alert"
-                >
-                    <?php echo manageCustomersEscape($message); ?>
-                </div>
-
-            <?php endif; ?>
-
-            <!-- SUMMARY -->
-
-            <div class="customer-summary">
-
-                <div class="summary-card">
-
-                    <div class="summary-label">
-                        Matching Customer Records
-                    </div>
-
-                    <div class="summary-number">
-                        <?php echo (int) $totalCustomers; ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- SEARCH CUSTOMERS -->
-
-            <section class="customer-panel">
-
-                <div class="customer-panel-header">
-
-                    <div class="customer-panel-icon">⌕</div>
-
-                    <div>
-
-                        <h2>Search Customers</h2>
-
-                        <p>
-                            Search customers using their name, email address or phone number.
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <div class="customer-panel-body">
-
-                    <form
-                        method="GET"
-                        action="manage_customers.php"
-                        class="customer-search-form"
-                    >
-
-                        <input
-                            type="text"
-                            name="q"
-                            maxlength="100"
-                            placeholder="Search by name, email or phone..."
-                            value="<?php echo manageCustomersEscape($search); ?>"
-                        >
-
-                        <button
-                            type="submit"
-                            class="customer-search-button"
-                        >
-                            Search
-                        </button>
-
-                        <a
-                            href="manage_customers.php"
-                            class="customer-clear-button"
-                        >
-                            Clear Search
-                        </a>
-
-                    </form>
-
-                </div>
-
-            </section>
-
-            <!-- CUSTOMER LIST -->
-
-            <section class="customer-panel">
-
-                <div class="customer-panel-header">
-
-                    <div class="customer-panel-icon">▦</div>
-
-                    <div>
-
-                        <h2>Customer List</h2>
-
-                        <p>
-                            View registered customers and manage their account status.
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <div class="customer-panel-body">
-
-                    <p class="customer-count">
-
-                        Showing
-                        <strong><?php echo (int) $totalCustomers; ?></strong>
-                        customer record(s).
-
-                        <?php if ($totalCustomers === 200): ?>
-                            The list is limited to the latest 200 records.
-                        <?php endif; ?>
-
+                    <p>
+                        View customer registrations and manage customer account status.
                     </p>
 
-                    <div class="customer-table-wrapper">
+                </div>
 
-                        <table class="customer-table">
+            </div>
 
-                            <thead>
+        </div>
+
+        <!-- ALERT -->
+
+        <?php if ($message !== ""): ?>
+
+            <div
+                class="customer-alert <?php
+                    echo $messageType === "success"
+                        ? "success"
+                        : "error";
+                ?>"
+                role="alert"
+            >
+                <?php echo manageCustomersEscape($message); ?>
+            </div>
+
+        <?php endif; ?>
+
+        <!-- SUMMARY -->
+
+        <div class="customer-summary">
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Matching Customer Records
+                </div>
+
+                <div class="summary-number">
+                    <?php echo (int)$totalCustomers; ?>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- SEARCH CUSTOMERS -->
+
+        <section class="customer-panel">
+
+            <div class="customer-panel-header">
+
+                <div class="customer-panel-icon">⌕</div>
+
+                <div>
+
+                    <h2>Search Customers</h2>
+
+                    <p>
+                        Search customers using their name, email address or phone number.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="customer-panel-body">
+
+                <form
+                    method="GET"
+                    action="manage_customers.php"
+                    class="customer-search-form"
+                >
+
+                    <input
+                        type="text"
+                        name="q"
+                        maxlength="100"
+                        placeholder="Search by name, email or phone..."
+                        value="<?php echo manageCustomersEscape($search); ?>"
+                    >
+
+                    <button
+                        type="submit"
+                        class="customer-search-button"
+                    >
+                        Search
+                    </button>
+
+                    <a
+                        href="manage_customers.php"
+                        class="customer-clear-button"
+                    >
+                        Clear Search
+                    </a>
+
+                </form>
+
+            </div>
+
+        </section>
+
+        <!-- CUSTOMER LIST -->
+
+        <section class="customer-panel">
+
+            <div class="customer-panel-header">
+
+                <div class="customer-panel-icon">▦</div>
+
+                <div>
+
+                    <h2>Customer List</h2>
+
+                    <p>
+                        View registered customers and manage their account status.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="customer-panel-body">
+
+                <p class="customer-count">
+
+                    Showing
+                    <strong><?php echo (int)$totalCustomers; ?></strong>
+                    customer record(s).
+
+                    <?php if ($totalCustomers === 200): ?>
+                        The list is limited to the latest 200 records.
+                    <?php endif; ?>
+
+                </p>
+
+                <div class="customer-table-wrapper">
+
+                    <table class="customer-table">
+
+                        <thead>
+
+                            <tr>
+                                <th>ID</th>
+                                <th>Customer Name</th>
+                                <th>Email Address</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Registration Date</th>
+                                <th>Action</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            <?php if (empty($customers)): ?>
 
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Customer Name</th>
-                                    <th>Email Address</th>
-                                    <th>Phone</th>
-                                    <th>Status</th>
-                                    <th>Registration Date</th>
-                                    <th>Action</th>
+
+                                    <td colspan="7" class="customer-empty">
+
+                                        <strong>No Customers Found</strong>
+
+                                        <?php if ($search !== ""): ?>
+
+                                            No customers match your search.
+
+                                        <?php else: ?>
+
+                                            No customer records are available.
+
+                                        <?php endif; ?>
+
+                                    </td>
+
                                 </tr>
 
-                            </thead>
+                            <?php else: ?>
 
-                            <tbody>
-
-                                <?php if (empty($customers)): ?>
+                                <?php foreach ($customers as $customer): ?>
 
                                     <tr>
 
-                                        <td colspan="7" class="customer-empty">
+                                        <td class="customer-id">
+                                            #<?php echo (int)$customer["id"]; ?>
+                                        </td>
 
-                                            <strong>No Customers Found</strong>
+                                        <td class="customer-name">
+                                            <?php echo manageCustomersEscape($customer["name"]); ?>
+                                        </td>
 
-                                            <?php if ($search !== ""): ?>
+                                        <td class="customer-email">
+                                            <?php echo manageCustomersEscape($customer["email"]); ?>
+                                        </td>
 
-                                                No customers match your search.
+                                        <td class="customer-phone">
+                                            <?php echo manageCustomersEscape($customer["phone"]); ?>
+                                        </td>
 
-                                            <?php else: ?>
+                                        <td>
 
-                                                No customer records are available.
+                                            <span class="customer-status <?php
+                                                echo $customer["status"] === "active"
+                                                    ? "active"
+                                                    : "inactive";
+                                            ?>">
 
-                                            <?php endif; ?>
+                                                <?php
+                                                echo manageCustomersEscape(
+                                                    ucfirst((string)$customer["status"])
+                                                );
+                                                ?>
+
+                                            </span>
+
+                                        </td>
+
+                                        <td class="customer-date">
+
+                                            <?php
+
+                                            $registrationDate = strtotime(
+                                                (string)$customer["created_at"]
+                                            );
+
+                                            echo $registrationDate
+                                                ? manageCustomersEscape(
+                                                    date("d M Y", $registrationDate)
+                                                )
+                                                : "N/A";
+
+                                            ?>
+
+                                        </td>
+
+                                        <td>
+
+                                            <form
+                                                method="POST"
+                                                action="manage_customers.php"
+                                                class="customer-action-form"
+                                                onsubmit="return confirm('Are you sure you want to change this customer account status?');"
+                                            >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="<?php echo manageCustomersEscape($csrfToken); ?>"
+                                                >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="customer_id"
+                                                    value="<?php echo (int)$customer["id"]; ?>"
+                                                >
+
+                                                <?php if ($customer["status"] === "active"): ?>
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="action"
+                                                        value="deactivate"
+                                                    >
+
+                                                    <button
+                                                        type="submit"
+                                                        class="customer-action-button customer-deactivate-button"
+                                                    >
+                                                        Deactivate
+                                                    </button>
+
+                                                <?php else: ?>
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="action"
+                                                        value="activate"
+                                                    >
+
+                                                    <button
+                                                        type="submit"
+                                                        class="customer-action-button customer-activate-button"
+                                                    >
+                                                        Activate
+                                                    </button>
+
+                                                <?php endif; ?>
+
+                                            </form>
 
                                         </td>
 
                                     </tr>
 
-                                <?php else: ?>
+                                <?php endforeach; ?>
 
-                                    <?php foreach ($customers as $customer): ?>
+                            <?php endif; ?>
 
-                                        <tr>
+                        </tbody>
 
-                                            <td class="customer-id">
-                                                #<?php echo (int) $customer["id"]; ?>
-                                            </td>
-
-                                            <td class="customer-name">
-                                                <?php echo manageCustomersEscape($customer["name"]); ?>
-                                            </td>
-
-                                            <td class="customer-email">
-                                                <?php echo manageCustomersEscape($customer["email"]); ?>
-                                            </td>
-
-                                            <td class="customer-phone">
-                                                <?php echo manageCustomersEscape($customer["phone"]); ?>
-                                            </td>
-
-                                            <td>
-
-                                                <span class="customer-status <?php
-                                                    echo $customer["status"] === "active"
-                                                        ? "active"
-                                                        : "inactive";
-                                                ?>">
-
-                                                    <?php
-                                                    echo manageCustomersEscape(
-                                                        ucfirst((string) $customer["status"])
-                                                    );
-                                                    ?>
-
-                                                </span>
-
-                                            </td>
-
-                                            <td class="customer-date">
-
-                                                <?php
-
-                                                $registrationDate = strtotime(
-                                                    (string) $customer["created_at"]
-                                                );
-
-                                                echo $registrationDate
-                                                    ? manageCustomersEscape(
-                                                        date("d M Y", $registrationDate)
-                                                    )
-                                                    : "N/A";
-
-                                                ?>
-
-                                            </td>
-
-                                            <td>
-
-                                                <form
-                                                    method="POST"
-                                                    action="manage_customers.php"
-                                                    class="customer-action-form"
-                                                    onsubmit="return confirm('Are you sure you want to change this customer account status?');"
-                                                >
-
-                                                    <input
-                                                        type="hidden"
-                                                        name="csrf_token"
-                                                        value="<?php echo manageCustomersEscape($csrfToken); ?>"
-                                                    >
-
-                                                    <input
-                                                        type="hidden"
-                                                        name="customer_id"
-                                                        value="<?php echo (int) $customer["id"]; ?>"
-                                                    >
-
-                                                    <?php if ($customer["status"] === "active"): ?>
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="action"
-                                                            value="deactivate"
-                                                        >
-
-                                                        <button
-                                                            type="submit"
-                                                            class="customer-action-button customer-deactivate-button"
-                                                        >
-                                                            Deactivate
-                                                        </button>
-
-                                                    <?php else: ?>
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="action"
-                                                            value="activate"
-                                                        >
-
-                                                        <button
-                                                            type="submit"
-                                                            class="customer-action-button customer-activate-button"
-                                                        >
-                                                            Activate
-                                                        </button>
-
-                                                    <?php endif; ?>
-
-                                                </form>
-
-                                            </td>
-
-                                        </tr>
-
-                                    <?php endforeach; ?>
-
-                                <?php endif; ?>
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
+                    </table>
 
                 </div>
 
-            </section>
-
-            <!-- FOOTER -->
-
-            <div class="page-footer">
-                Olivera Home Developers | Admin Control Panel
             </div>
 
+        </section>
+
+        <!-- FOOTER -->
+
+        <div class="page-footer">
+            Olivera Home Developers | Admin Control Panel
         </div>
 
-    </main>
+    </div>
 
-</div>
+</main>
 
 </body>
 </html>

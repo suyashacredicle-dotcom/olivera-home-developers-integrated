@@ -783,6 +783,7 @@ if (!empty($form["advantages_json"])) {
 <title>Manage Projects | Olivera Admin</title>
 
 <link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="assets/css/admin-sidebar.css">
 
 <style>
 
@@ -809,53 +810,6 @@ body {
 
 .dashboard-container {
     min-height: 100vh;
-}
-
-.sidebar {
-    width: 255px;
-    min-height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
-    padding: 25px 18px;
-    background: var(--navy);
-    z-index: 10;
-}
-
-.sidebar h2 {
-    color: var(--gold-light);
-    font-size: 21px;
-    margin: 0 0 25px;
-}
-
-.sidebar a {
-    display: block;
-    padding: 12px 13px;
-    margin-bottom: 5px;
-    border-radius: 6px;
-    color: #e5eaf1;
-    text-decoration: none;
-    font-size: 13px;
-}
-
-.sidebar a:hover,
-.sidebar a.active {
-    background: var(--navy-light);
-    color: var(--gold-light);
-}
-
-.sidebar form {
-    margin-top: 25px;
-}
-
-.sidebar button {
-    width: 100%;
-    padding: 11px;
-    border: 1px solid rgba(237,202,118,.5);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--gold-light);
-    cursor: pointer;
 }
 
 .main-content {
@@ -885,6 +839,7 @@ body {
     font-size: 25px;
     color: var(--gold-light);
 }
+
 .project-header p {
     margin: 0;
     color: #d7dfeb;
@@ -1188,25 +1143,13 @@ body {
     color: var(--muted);
 }
 
-@media (max-width: 950px) {
-
-    .sidebar {
-        width: 210px;
-    }
-
+@media (max-width: 1000px) {
     .main-content {
-        margin-left: 210px;
+        margin-left: 220px;
     }
 }
 
 @media (max-width: 700px) {
-
-    .sidebar {
-        position: relative;
-        width: 100%;
-        min-height: auto;
-    }
-
     .main-content {
         margin-left: 0;
         padding: 14px;
@@ -1252,49 +1195,7 @@ body {
 
 <div class="dashboard-container">
 
-    <aside class="sidebar">
-
-        <h2>Admin Panel</h2>
-
-        <a href="dashboard.php">Dashboard</a>
-
-        <?php if (hasPermission("manage_admins")): ?>
-            <a href="manage_admins.php">Manage Admins</a>
-        <?php endif; ?>
-
-        <?php if (hasPermission("manage_users")): ?>
-            <a href="manage_users.php">Manage Users</a>
-            <a href="manage_customers.php">Manage Customers</a>
-        <?php endif; ?>
-
-        <?php if (hasPermission("manage_content")): ?>
-            <a href="manage_content.php">Manage Content</a>
-        <?php endif; ?>
-
-        <a href="manage_projects.php" class="active">Manage Projects</a>
-
-        <?php if (hasPermission("manage_admins")): ?>
-            <a href="manage_gallery.php">Manage Gallery</a>
-            <a href="activity_logs.php">Activity Logs</a>
-        <?php endif; ?>
-
-        <?php if (hasPermission("manage_settings")): ?>
-            <a href="manage_settings.php">Website Settings</a>
-        <?php endif; ?>
-
-        <a href="profile.php">My Profile</a>
-        <a href="change_password.php">Change Password</a>
-
-        <form action="logout.php" method="POST">
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="<?php echo projectEscape($csrfToken); ?>"
-            >
-            <button type="submit">Logout</button>
-        </form>
-
-    </aside>
+    <?php require __DIR__ . "/includes/admin_sidebar.php"; ?>
 
     <main class="main-content">
 
